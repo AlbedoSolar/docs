@@ -1,45 +1,28 @@
 # 3. Autenticación
 
-## Flujo de login
+## Iniciar sesión
 
-1. El usuario accede a `/login` y ve el formulario de inicio de sesión
-2. Ingresa email y contraseña
-3. La app llama a `getToken()` que autentica contra Supabase
-4. Si es exitoso, se guarda el token JWT y el objeto de usuario en el store de Redux
-5. Supabase persiste la sesión en el almacenamiento local del navegador
-6. El usuario es redirigido a la página principal
+1. Abre la aplicación — verás la pantalla de login
+2. Ingresa tu **email** y **contraseña**
+3. Haz clic en **Iniciar Sesión**
+4. Si las credenciales son correctas, serás redirigido a la página principal
 
-## Restauración de sesión
+## Sesión persistente
 
-Cuando la app se carga, el componente `AuthInitializer` ejecuta `restoreSession()`:
+Tu sesión se mantiene activa en el navegador. Si cierras la pestaña y vuelves a abrir la app, no necesitas volver a ingresar tus credenciales (a menos que la sesión haya expirado).
 
-- Intenta recuperar la sesión guardada en Supabase
-- Si existe una sesión válida, restaura el estado de autenticación sin pedir login
-- Si no hay sesión o expiró, redirige a `/login`
+## Niveles de acceso
 
-Las rutas protegidas muestran un loader mientras se completa este proceso.
+No todas las páginas están disponibles para todos los usuarios:
 
-## Niveles de protección
+| Nivel | Quién puede acceder |
+|-------|---------------------|
+| General | Cualquier usuario autenticado |
+| Por rol | Usuarios con roles específicos (ej. administradores, acceso a reportes) |
+| Por usuario | Páginas restringidas a usuarios específicos |
 
-La app usa tres tipos de guards para las rutas:
-
-| Guard | Archivo | Acceso |
-|-------|---------|--------|
-| `ProtectedRoute` | `routes/ProtectedRoute.tsx` | Cualquier usuario autenticado |
-| `RoleProtectedRoute` | `routes/RoleProtectedRoute.tsx` | Usuarios con roles específicos (ej. `admin`, `view-reports`) |
-| `UserProtectedRoute` | `routes/UserProtectedRoute.tsx` | Usuarios específicos por nombre |
-
-## Estado de autenticación
-
-El slice `auth` en Redux mantiene:
-
-- `token` — JWT de acceso
-- `user` — Objeto con email y array de roles
-- `isAuthenticated` — Bandera booleana
-- `sessionRestored` — Si ya se intentó restaurar la sesión
-- `loading` — Operación en progreso
-- `error` — Último mensaje de error
+Si intentas acceder a una página sin permiso, serás redirigido.
 
 ## Cerrar sesión
 
-El botón de logout en el sidebar llama a `signOut()`, que limpia la sesión en Supabase y resetea el estado de Redux.
+Haz clic en el botón de **Cerrar Sesión** en la parte inferior del menú lateral.

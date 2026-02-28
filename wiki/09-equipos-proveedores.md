@@ -4,7 +4,7 @@
 
 ### Vista general
 
-La página de equipos (`/equipments`) gestiona el catálogo de equipos solares y sus marcas.
+La página de **Equipos** gestiona el catálogo de equipos solares y sus marcas.
 
 ### Datos del equipo
 
@@ -12,21 +12,10 @@ La página de equipos (`/equipments`) gestiona el catálogo de equipos solares y
 - Potencia (watts)
 - Años de garantía
 - Tasa de pérdida de producción
-- Especificaciones técnicas adicionales
 
-### Marcas de equipos
+### Marcas
 
-Los equipos se organizan por marcas. La gestión de marcas se hace desde la misma página con el formulario `EquipmentBrandForm`.
-
-### Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/EquipmentsPage.tsx` |
-| Formulario equipo | `components/organisms/EquipmentForm.tsx` |
-| Formulario marca | `components/organisms/EquipmentBrandForm.tsx` |
-| Tabla | `components/organisms/EquipmentsTable.tsx` |
-| Slice Redux | `features/equipments/equipmentsSlice.ts` |
+Los equipos se organizan por marcas. Puedes crear y gestionar marcas desde la misma página de equipos.
 
 ---
 
@@ -34,7 +23,7 @@ Los equipos se organizan por marcas. La gestión de marcas se hace desde la mism
 
 ### Vista general
 
-La página de proveedores (`/providers`) gestiona las empresas que suministran equipos e instalaciones.
+La página de **Proveedores** gestiona las empresas que suministran equipos e instalaciones.
 
 ### Datos del proveedor
 
@@ -45,15 +34,7 @@ La página de proveedores (`/providers`) gestiona las empresas que suministran e
 
 ### Vista de detalle
 
-La ruta `/providers/:provider_id` muestra la información completa del proveedor, incluyendo sus equipos asociados y condiciones comerciales.
-
-### Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/ProvidersPage.tsx` |
-| Detalles | `pages/ProviderDetailsPage.tsx` |
-| Slice Redux | `features/providers/providersSlice.ts` |
+Haz clic en un proveedor para ver su información completa, incluyendo los equipos asociados y condiciones comerciales.
 
 ---
 
@@ -61,13 +42,4 @@ La ruta `/providers/:provider_id` muestra la información completa del proveedor
 
 ### Vista general
 
-La página de afiliados (`/affiliates`) gestiona los socios comerciales de Albedo.
-
-### Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/AffiliatesPage.tsx` |
-| Formulario | `components/organisms/AffiliateForm.tsx` |
-| Tabla | `components/organisms/AffiliatesTable.tsx` |
-| Slice Redux | `features/affiliates/affiliatesSlice.ts` |
+La página de **Afiliados** gestiona los socios comerciales de Albedo. Puedes crear, editar y eliminar afiliados desde esta sección.

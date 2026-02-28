@@ -2,76 +2,60 @@
 
 ## Vista general
 
-Los proyectos son la entidad central del sistema. Representan una oportunidad de financiamiento solar vinculada a un cliente, con estimaciones, cotizaciones y flujos de caja.
+Los proyectos son la entidad central del sistema. Cada proyecto representa una oportunidad de financiamiento solar vinculada a un cliente.
 
-## Vistas de proyectos
+## Vistas disponibles
 
-| Ruta | Vista | Descripción |
-|------|-------|-------------|
-| `/projects` | Todos los proyectos | Lista completa con filtros y CRUD |
-| `/projects/active` | Proyectos activos | Pipeline de ventas |
-| `/projects/signed` | Proyectos firmados | Proyectos con contrato firmado |
-| `/projects/:project_reference` | Detalle | Información completa del proyecto |
+| Vista | Descripción |
+|-------|-------------|
+| Todos los Proyectos | Lista completa con filtros y acciones CRUD |
+| Proyectos Activos | Pipeline de ventas — proyectos en progreso organizados por estado |
+| Proyectos Firmados | Proyectos con contrato firmado, con sus flujos de caja |
+| Detalle del Proyecto | Información completa de un proyecto individual |
 
-## Flujo de estados (Workflow)
+## Crear un proyecto
 
-Un proyecto pasa por los siguientes estados:
+1. Haz clic en **Crear Proyecto**
+2. Completa los datos: moneda, sector, ubicación, etc.
+3. Haz clic en **Guardar**
+
+También puedes crear proyectos directamente desde el **Paso 2** del Quote Wizard.
+
+## Flujo de estados
+
+Un proyecto pasa por los siguientes estados a lo largo de su vida:
 
 ```
-draft
-  → estimate_requested
-    → estimate_created
-      → quote_generated
-        → quote_sent
-          → due_diligence_in_process
-            → due_diligence_completed
-              → due_diligence_approved / due_diligence_rejected
-                → signed
-                  → active
+Borrador
+  → Estimación solicitada
+    → Estimación creada
+      → Cotización generada
+        → Cotización enviada
+          → Due diligence en proceso
+            → Due diligence completado
+              → Aprobado / Rechazado
+                → Firmado
+                  → Activo
 ```
 
-## Página de detalles
+## Página de detalle
 
-La página de detalles del proyecto (`ProjectDetailsPage`) muestra:
+Al hacer clic en un proyecto, puedes ver:
 
 - Información general del proyecto
-- Detalles del contrato (`ContractDetails`)
-- Flujo de caja mensual (`ActiveMonthlyCashFlow`)
+- Detalles del contrato
+- Flujo de caja mensual
 - Historial de estados
 - Acciones disponibles según el estado actual
 
-## Proyectos activos (Pipeline)
+## Búsqueda
 
-La vista de proyectos activos (`ActiveProjectsPage`) funciona como un pipeline de ventas:
-
-- Muestra proyectos en progreso organizados por estado
-- Permite ver detalles expandidos de cada proyecto (`ActiveProjectDetails`)
-- Incluye acciones rápidas según el estado
-
-## CRUD de proyectos
-
-- **Crear:** Formulario `ProjectForm` con datos del proyecto, moneda, sector, etc.
-- **Editar:** Mismo formulario precargado con datos existentes
-- **Eliminar:** Modal de confirmación (`DeleteProjectConfirmationModal`)
-- **Buscar:** Barra de búsqueda global en el header
-
-## Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Lista | `pages/ProjectsPage.tsx` |
-| Activos | `pages/ActiveProjectsPage.tsx` |
-| Firmados | `pages/SignedProjectsPage.tsx` |
-| Detalles | `pages/ProjectDetailsPage.tsx` |
-| Formulario | `components/organisms/ProjectForm.tsx` |
-| Tabla | `components/organisms/ProjectsTable.tsx` |
-| Búsqueda | `components/organisms/ProjectSearchBar.tsx` |
-| Slice Redux | `features/projects/projectsSlice.ts` |
+Usa la barra de búsqueda en la parte superior de la app para encontrar un proyecto por su referencia desde cualquier página.
 
 ## Relación con otras entidades
 
-- **Cliente** — Cada proyecto pertenece a un cliente
-- **Estimaciones** — Un proyecto tiene una o más estimaciones de costos
-- **Cotizaciones** — Cada estimación puede generar una cotización
-- **Sistemas** — Los sistemas solares se asocian a un proyecto vía un sitio
-- **Flujos de caja** — Los proyectos firmados generan cronogramas de pagos mensuales
+- Cada proyecto pertenece a un **cliente**
+- Un proyecto tiene una o más **estimaciones** de costos
+- Cada estimación puede generar una **cotización**
+- Los **sistemas solares** se asocian a un proyecto a través de un **sitio**
+- Los proyectos firmados generan cronogramas de **pagos mensuales**

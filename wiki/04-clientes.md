@@ -2,41 +2,31 @@
 
 ## Vista general
 
-La página de clientes (`/clients`) permite gestionar la base de clientes de Albedo. Cada cliente puede estar asociado a uno o más proyectos.
+La página de **Clientes** muestra una tabla con todos los clientes registrados en el sistema.
 
-## Funcionalidades
+## Crear un cliente
 
-### Lista de clientes
-- Tabla con todos los clientes registrados
-- Columnas con información básica del cliente
-- Acciones de editar y eliminar por fila
+1. Haz clic en el botón de **Crear Cliente**
+2. Completa los campos del formulario
+3. Haz clic en **Guardar**
+4. El nuevo cliente aparecerá en la tabla
 
-### Crear cliente
-- Formulario con validación via Zod
-- Campos requeridos según la interfaz del cliente
-- Al guardar, se crea el registro en Supabase y se actualiza la tabla
+## Editar un cliente
 
-### Editar cliente
-- Mismos campos que el formulario de creación
-- Se carga la información existente al abrir
+1. En la tabla de clientes, busca el cliente que deseas modificar
+2. Haz clic en la acción de **Editar**
+3. Modifica los campos necesarios
+4. Haz clic en **Guardar**
 
-### Ver detalles
-- Ruta: `/clients/:client_reference`
-- Muestra toda la información del cliente
-- Lista de proyectos asociados
+## Ver detalles de un cliente
 
-## Archivos clave
+Haz clic en la referencia del cliente para ver su información completa, incluyendo la lista de proyectos asociados.
 
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/ClientsPage.tsx` |
-| Detalles | `pages/ClientDetailsPage.tsx` |
-| Formulario | `components/organisms/ClientForm.tsx` |
-| Tabla | `components/organisms/ClientsTable.tsx` |
-| Slice Redux | `features/clients/clientsSlice.ts` |
-| Async Thunks | `features/clients/clientsAsyncThunk.ts` |
-| Interfaz | `features/clients/clients.interface.ts` |
+## Eliminar un cliente
 
-## Relación con Quote Wizard
+1. En la tabla, haz clic en la acción de **Eliminar** del cliente
+2. Confirma la eliminación en el diálogo
 
-En el Paso 1 del Quote Wizard, el usuario puede seleccionar un cliente existente o crear uno nuevo directamente desde el asistente.
+## Relación con el Quote Wizard
+
+También puedes crear un cliente nuevo directamente desde el **Paso 1** del Quote Wizard, sin necesidad de ir a la página de clientes.

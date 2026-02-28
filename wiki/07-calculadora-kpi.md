@@ -4,25 +4,23 @@
 
 La Calculadora KPI es la herramienta de modelado financiero de Albedo. Calcula indicadores clave de rendimiento para escenarios de financiamiento solar a 25 años.
 
-## Acceso
-
-La página `/loan-kpi-calculator` tiene tres tabs:
+## Tabs disponibles
 
 | Tab | Descripción | Acceso |
 |-----|-------------|--------|
 | Quote Wizard | Asistente paso a paso (ver [Cotizaciones](06-cotizaciones.md)) | Todos |
 | Calculadora | Análisis manual de escenarios | Todos |
-| Admin Calculator | Opciones avanzadas de configuración | Solo admin |
+| Admin Calculator | Opciones avanzadas de configuración | Solo administradores |
 
 ## Datos de entrada
 
-El formulario de la calculadora (`LoanKPILoanInformation`) recibe:
+El formulario de la calculadora recibe:
 
 - **Plazo del préstamo** — Duración en meses
 - **Tasa de interés** — APR anual
 - **Período de gracia** — Meses sin pago de principal
-- **Seguro** — Costo anual o cálculo automático
-- **Mantenimiento** — Costo anual o cálculo automático
+- **Seguro** — Costo anual (manual o automático)
+- **Mantenimiento** — Costo anual (manual o automático)
 - **Costos de activos** — Valor de los equipos
 - **Porcentaje de markup** — Margen sobre costo
 - **WACC** — Costo promedio ponderado de capital
@@ -38,7 +36,7 @@ La calculadora evalúa 4 escenarios simultáneamente:
 
 ## Resultados (KPIs)
 
-Para cada escenario se calculan:
+Para cada escenario se muestran:
 
 | KPI | Descripción |
 |-----|-------------|
@@ -50,36 +48,17 @@ Para cada escenario se calculan:
 
 ## Tabla de amortización
 
-El componente `AmortizationSummary` muestra el cronograma de pagos a 25 años:
+Muestra el cronograma de pagos a 25 años con:
 
 - Capital e intereses por período
-- Costos de seguro y mantenimiento con inflación
+- Costos de seguro y mantenimiento (con inflación)
 - Saldo pendiente
 - Acumulados por año
 
 ## Modos de cálculo
 
 ### Modo Referencia de Estimación
-Usa los datos de una estimación existente como base. Los valores se pre-cargan automáticamente desde el proveedor y la configuración del proyecto.
+Usa los datos de una estimación existente como base. Los valores se cargan automáticamente desde el proveedor y la configuración del proyecto.
 
 ### Modo Manual
-El usuario ingresa todos los parámetros libremente para hacer simulaciones sin necesidad de una estimación previa.
-
-## Backend de cálculo
-
-Los cálculos pesados se ejecutan en un servicio Python Lambda:
-- Endpoint: `/calculate/estimates`
-- Endpoint: `/calculate/retail-price`
-- La comunicación se hace a través de `estimate-calculations-service.ts`
-
-## Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/LoanKPICalculatorPage.tsx` |
-| Formulario | `components/molecules/LoanKPICalculatorForm.tsx` |
-| Tabla KPI | `components/organisms/KPITable.tsx` |
-| Amortización | `components/organisms/AmortizationSummary.tsx` |
-| Admin Form | `components/organisms/AdminKPICalculatorForm.tsx` |
-| Slice Redux | `features/kpi-calculator/kpiCalculatorSlice.ts` |
-| Servicio | `services/estimate-calculations-service.ts` |
+Puedes ingresar todos los parámetros libremente para hacer simulaciones sin necesidad de una estimación previa.

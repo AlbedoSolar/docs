@@ -1,55 +1,55 @@
 # 2. Navegación
 
-## Layout principal
+## Estructura de la pantalla
 
-La aplicación usa `MainLayout` como estructura base para todas las páginas protegidas. Consiste en:
+La aplicación tiene tres áreas principales:
 
-- **Sidebar izquierdo** — Menú de navegación con secciones colapsables
-- **Header superior** — Título de la página actual, barra de búsqueda de proyectos y toggle de idioma
-- **Área de contenido** — Donde se renderiza la página activa
+- **Menú lateral izquierdo** — Navegación entre secciones
+- **Barra superior** — Título de la página actual, barra de búsqueda de proyectos y toggle de idioma
+- **Área central** — Contenido de la página activa
 
 ## Secciones del menú
 
 ### Ventas
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/loan-kpi-calculator` | Quote Wizard / Calculadora | Crear cotizaciones y calcular KPIs |
-| `/projects/active` o `/sales` | Proyectos Activos | Pipeline de ventas |
-| `/clients` | Clientes | Lista y gestión de clientes |
+| Opción | Descripción |
+|--------|-------------|
+| Quote Wizard / Calculadora | Crear cotizaciones y calcular KPIs |
+| Proyectos Activos | Pipeline de ventas con proyectos en progreso |
+| Clientes | Lista y gestión de clientes |
 
 ### Finanzas
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/projects/signed` o `/finances` | Proyectos Firmados | Proyectos completados y sus flujos de caja |
+| Opción | Descripción |
+|--------|-------------|
+| Proyectos Firmados | Proyectos con contrato firmado y sus flujos de caja |
 
 ### Operaciones
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/projects` | Todos los Proyectos | Lista completa con filtros |
-| `/sistemas` | Sistemas | Gestión de sistemas solares |
-| `/sites` | Sitios | Sitios de instalación |
-| `/equipments` | Equipos | Catálogo de equipos y marcas |
-| `/providers` | Proveedores | Gestión de proveedores |
-| `/affiliates` | Afiliados | Gestión de afiliados |
-| `/commission-types` | Tipos de Comisión | Configuración de comisiones |
-| `/user-codes` | Códigos de Usuario | Códigos promocionales |
+| Opción | Descripción |
+|--------|-------------|
+| Todos los Proyectos | Lista completa con filtros |
+| Sistemas | Gestión de sistemas solares |
+| Sitios | Sitios de instalación |
+| Equipos | Catálogo de equipos y marcas |
+| Proveedores | Gestión de proveedores |
+| Afiliados | Gestión de afiliados |
+| Tipos de Comisión | Configuración de comisiones |
+| Códigos de Usuario | Códigos promocionales |
 
 ### Reportes
-| Ruta | Página | Acceso |
-|------|--------|--------|
-| `/reports` | Reportes | Solo usuarios con rol `view-reports` o `admin` |
+| Opción | Acceso |
+|--------|--------|
+| Reportes | Solo usuarios con permiso de reportes o administradores |
 
 ### Administración
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/quote-config-admin` | Config de Cotizaciones | Parámetros globales de cálculo |
-| `/user-activity` | Actividad de Usuarios | Log de acciones (acceso restringido) |
-| `/database-change-log` | Log de Cambios en BD | Auditoría de cambios (acceso restringido) |
+| Opción | Descripción |
+|--------|-------------|
+| Config de Cotizaciones | Parámetros globales de cálculo |
+| Actividad de Usuarios | Log de acciones (acceso restringido) |
+| Log de Cambios en BD | Auditoría de cambios (acceso restringido) |
 
 ## Búsqueda de proyectos
 
-El header incluye una barra de búsqueda (`ProjectSearchBar`) que permite buscar proyectos por referencia desde cualquier página de la app.
+La barra superior incluye un buscador que permite encontrar proyectos por referencia desde cualquier página.
 
-## Toggle de idioma
+## Cambio de idioma
 
-El componente `LanguageToggle` en el header permite cambiar entre español e inglés. El idioma seleccionado se guarda en el store de Redux y afecta todas las etiquetas de la interfaz.
+El botón de idioma en la barra superior permite alternar entre español e inglés. Todas las etiquetas de la interfaz se actualizan inmediatamente.

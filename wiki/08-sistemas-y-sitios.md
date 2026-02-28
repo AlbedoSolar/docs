@@ -4,33 +4,27 @@
 
 Los sitios representan las ubicaciones físicas donde se instalan los sistemas solares.
 
-### Funcionalidades
+### Qué puedes hacer
 
-- **Lista:** `/sites` — Tabla con todos los sitios
-- **Detalle:** `/sites/:site_id` — Información completa del sitio
-- **CRUD:** Crear, editar y eliminar sitios
+- Ver la lista de todos los sitios
+- Crear, editar y eliminar sitios
+- Ver el detalle de un sitio con sus sistemas asociados
 
 ### Relación con otras entidades
 
 Un sitio se asocia a un proyecto y puede contener uno o más sistemas solares.
 
-### Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/SitesPage.tsx` |
-| Detalles | `pages/SiteDetailsPage.tsx` |
-| Slice Redux | `features/sites/sitesSlice.ts` |
+---
 
 ## Sistemas
 
 Los sistemas representan las instalaciones solares concretas con sus especificaciones técnicas.
 
-### Funcionalidades
+### Qué puedes hacer
 
-- **Lista:** `/sistemas` — Tabla con todos los sistemas
-- **Detalle:** `/sistemas/:system_id` — Especificaciones completas
-- **CRUD:** Crear, editar y eliminar sistemas con formulario completo
+- Ver la lista de todos los sistemas
+- Crear, editar y eliminar sistemas
+- Ver el detalle completo de un sistema
 
 ### Datos del sistema
 
@@ -40,15 +34,3 @@ Los sistemas representan las instalaciones solares concretas con sus especificac
 - Cantidad y tipo de paneles
 - Credenciales de monitoreo
 - Proyecto y sitio asociados
-
-### Archivos clave
-
-| Archivo | Ubicación |
-|---------|-----------|
-| Página | `pages/SistemasPage.tsx` |
-| Detalles | `pages/SistemaDetailsPage.tsx` |
-| Formulario | `components/organisms/SystemForm.tsx` |
-| Tabla | `components/organisms/SystemsTable.tsx` |
-| Slice Redux | `features/systems/systemsSlice.ts` |
-
-> **Nota:** Esta funcionalidad fue agregada recientemente (febrero 2026) y está en desarrollo activo.
