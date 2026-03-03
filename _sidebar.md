@@ -21,3 +21,6 @@
 
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
+
+- **Impact Report**
+  - [Technical Reference](impact-report/README.md)
