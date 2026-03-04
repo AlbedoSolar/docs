@@ -17,3 +17,4 @@ Guía de uso de la aplicación de cotizaciones de Albedo.
 | 9 | [Equipos y Proveedores](09-equipos-proveedores.md) | Catálogo de equipos, proveedores y afiliados |
 | 10 | [Administración](10-administracion.md) | Configuración, comisiones y auditoría |
 | 11 | [Integraciones](11-integraciones.md) | Zoho Books y servicios externos |
+| 12 | [Roles y Permisos](12-roles-y-permisos.md) | Roles de usuario, permisos y visibilidad por sección |

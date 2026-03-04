@@ -12,6 +12,7 @@
   - [Equipos y Proveedores](wiki/09-equipos-proveedores.md)
   - [Administración](wiki/10-administracion.md)
   - [Integraciones](wiki/11-integraciones.md)
+  - [Roles y Permisos](wiki/12-roles-y-permisos.md)
 
 - **Generación de Cotizaciones**
   - [Narrative Walkthrough](quote-generation/1-narrative-walkthrough.md)
@@ -21,6 +22,9 @@
 
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
+
+- **Architecture**
+  - [Platform Separation of Concerns](architecture/platform-separation-of-concerns.md)
 
 - **Impact Report**
   - [Technical Reference](impact-report/README.md)
