@@ -28,3 +28,7 @@
 
 - **Impact Report**
   - [Technical Reference](impact-report/README.md)
+  - [Total Solar Savings Calculations](impact-report/total-solar-savings-calculations.md)
+
+- **Finance**
+  - [Technical Reference](finance/README.md)
