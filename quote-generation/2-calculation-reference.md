@@ -1181,7 +1181,7 @@ Applied to the final month only.
 **Source:** Frontend QuoteWizardStep4Quote.tsx
 
 ```
-quoteNumber = (number of existing quotes for this project) + 1
+quoteNumber = (highest existing quote number for this estimate) + 1
 quoteReference = "{estimateReference}-{quoteNumber.padStart(2, '0')}"
 ```
 

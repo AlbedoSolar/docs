@@ -61,7 +61,7 @@ Steps 1-3 collect data. Step 4 runs the calculations.
 - Site location: Country, then Department (state/province), then Municipality (city)
 - Optional: link to an existing site record
 - Project sector classification
-- Impact flags: women-led, non-profit, rural area, youth-led, educational institution, impoverished area
+- Impact flags: women-led, non-profit, rural area, youth-led, educational institution (note: impoverished_area exists in the schema but is not rendered as a checkbox in the wizard UI)
 
 **Where it's stored:** `projects` table, with location data from `countries`, `departments`, and `municipalities` tables.
 
@@ -85,7 +85,7 @@ So the project location is not just metadata — it's a financial input.
 The most important input is the **project cost in partner contract currency** — this is what the provider charges to install the solar system. It comes from the sum of all **project phases**.
 
 **Project phases** replaced what used to be a single provider/cost field. Now each phase has:
-- A **phase type** (All, Structure, Installation, Maintenance, Expansion)
+- A **phase type** (Instalacion, Estructura, Solo Mantenimiento)
 - A **provider** (the company doing the work)
 - A **phase cost** (in the partner's contract currency)
 - A **partner contract currency** (can differ per phase)
@@ -122,8 +122,13 @@ This is informational — equipment details don't feed into the financial calcul
 - **Monthly solar production** (kWh, partner estimate)
 - **Price of electricity per kWh**
 - **Project currency** (what the client pays in)
-- **Power bill currency** (what the client's utility charges in)
+- **Electricity price currency** (what the client's utility charges in)
 - **Project start date**
+- **Monthly solar savings** (partner estimate, in project currency)
+- **Year 1 solar savings**
+- **Energy consumption baseline** (monthly kWh)
+- **Current power bill amount** (in project currency)
+- **Number of meters to install**
 
 **Reference format:** `{projectReference}-{estimateNumber}`, e.g., "CLI-01-01-01".
 
@@ -160,14 +165,15 @@ The user sees a form with these parameters (many pre-filled from the rates fetch
 - Loan term in months (default: 63)
 - Grace period in months (default: 3)
 - Purchase option percentage (default: 1% — this is the lease-to-own buyout at the end)
+- Goal-seek mode toggle: Manual (set APR directly), IRR (solve for target IRR), or Monthly Payment (solve for target monthly payment)
 
 **Operating costs:**
 - Insurance percentage (fetched from location, default fallback: 1.7%)
 - Insurance deflation rate (default: 0.96, meaning 4% annual decrease)
-- Maintenance rate (fetched from location+provider, default fallback: 2.8%)
+- Manual override toggle for insurance
+- Maintenance rate per visit (fetched from location+provider, default fallback: 2.8% — editable directly)
 - Maintenance premium (default: 10% markup on calculated maintenance costs)
 - Maintenance inflation rate (default: 5% annual increase)
-- Manual override toggles for both insurance and maintenance
 
 **Financial metrics:**
 - WACC (weighted average cost of capital, default: 10%)
