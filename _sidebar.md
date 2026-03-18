@@ -23,6 +23,9 @@
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
 
+- **Strategy**
+  - [Technology & AI Roadmap 2026](strategy/technology-roadmap-2026.md)
+
 - **Architecture**
   - [Platform Separation of Concerns](architecture/platform-separation-of-concerns.md)
 
