@@ -58,8 +58,7 @@ When a sales rep clicks "Crear Oferta" on a tier, the system:
    - 3 terms: base term, base - 12 months, base + 12 months
    - 2 down payments: 0% and 10%
 
-3. **Each variant uses the tier's solved APR as a fixed rate** — no goal-seeking on the client offer page. This is critical because:
-   - IRR goal-seek fails with down payments > 0% (the down payment inflates month 0 income, breaking the sign-change requirement of the IRR bisection algorithm)
+3. **Each variant uses the tier's solved APR as a fixed rate** — no goal-seeking on the client offer page.
    - With a fixed APR, monthly payments vary naturally by term and down payment
    - The achieved IRR is at or above the tier's target for all variants
 
@@ -82,10 +81,6 @@ When a sales rep clicks "Crear Oferta" on a tier, the system:
 2. Rep starts with Gold offer (highest return for Albedo) — clicks "Crear Oferta", copies link, sends via WhatsApp
 3. If client doesn't bite, rep falls back to Silver, then Bronze
 4. Each tier is a separate URL — client only sees one tier at a time
-
-### Known Limitation: Down Payment and IRR
-
-The IRR calculation in `getAmortizationTable` includes the down payment as income in month 0. With a large down payment (e.g., 10%), this can make the entire `nii_total` cashflow positive, preventing the `irrBisection` algorithm from finding a root. This is why the client offer page uses a fixed APR rather than IRR goal-seeking.
 
 ## Architecture
 
