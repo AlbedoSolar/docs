@@ -142,12 +142,11 @@ Payment data covers January 2025 onward (from Zoho Books exports). Payments befo
 
 ### Columns
 
-Same as the Loan Tape with two additions:
+Same as the Loan Tape with one addition:
 
 | Column | Description |
 |---|---|
 | `fecha_snapshot` | The month-end date this row represents (e.g., "2025-06-30") |
-| `es_reestructurado` | Whether the lease has an addendum (true/false) |
 
 All date-relative fields (seasoning, remaining term, DPD, mora, estado) are computed as of the snapshot date, not today.
 
