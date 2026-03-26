@@ -35,4 +35,5 @@
   - [Total Solar Savings Calculations](impact-report/total-solar-savings-calculations.md)
 
 - **Finance**
+  - [Debita Portfolio Reports](finance/debita-portfolio-reports.md)
   - [Technical Reference](finance/README.md)
