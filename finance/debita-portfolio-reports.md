@@ -1,0 +1,183 @@
+# Reportes de Cartera — Debita SPV
+
+Documentation for the three portfolio reports used for Debita SPV due diligence. These reports combine contract data from Solarbase with billing data from Zoho Books.
+
+---
+
+## Data Sources
+
+| Source | What it provides | Table |
+|---|---|---|
+| **Solarbase** | Contract terms, amortization schedules, project/client details | `projects`, `estimates`, `quotes`, `monthly_cash_flows` |
+| **Zoho Books** | Invoice status, payment dates, outstanding balances | `zoho_invoices` |
+| **Zoho Books** | Individual payment records | `lease_payments` |
+| **Exchange rates** | Daily GTQ/USD and HNL/USD rates | `exchange_rates` |
+
+### Important: Zoho is the source of truth for delinquency
+
+All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora) are driven by Zoho invoice status, not by comparing Solarbase cash flows to payment records. If Zoho says an invoice is "Overdue", we report it as unpaid. If Zoho says "Closed", we consider it paid.
+
+---
+
+## Report 1: Loan Tape (`mart_financial_loan_tape`)
+
+**Purpose:** Current state of every signed lease. One row per project.
+
+**Scope:** All projects with a signed quote (both Financiado and Contado). Financial fields (term, DPD, mora, etc.) only apply to Financiado leases.
+
+### Columns
+
+| Column | Description | Source |
+|---|---|---|
+| `id_arrendamiento` | Project reference (e.g., "402-01") | Solarbase |
+| `id_cliente` | Numeric client ID | Solarbase |
+| `nombre_cliente` | Legal name of the client | Solarbase |
+| `pais` | Country (Guatemala, Honduras, El Salvador) | Solarbase |
+| `fecha_de_proyecto` | Contract signing date | Solarbase |
+| `fecha_vencimiento` | Last scheduled payment date | Solarbase cash flows |
+| `moneda_arrendamiento` | Original currency (GTQ, USD, HNL) | Solarbase |
+| `monto_prestado_con_iva_usd` | Retail price including IVA, converted to USD | Solarbase |
+| `total_pagado_con_iva_usd` | Total amount paid to date (sum of invoice amounts minus remaining balances) | Zoho invoices |
+| `monto_principal_vigente_con_iva_usd` | Outstanding principal from the amortization schedule, adjusted for actual payments made (see below) | Solarbase + Zoho |
+| `saldo_total_vigente_con_iva_usd` | Total remaining obligation = total contract value con IVA minus total paid | Solarbase + Zoho |
+| `tasa_interes_anual_pct` | Annual interest rate (%) | Solarbase |
+| `plazo_original_meses` | Total number of payment months in the contract (excludes month 0) | Solarbase cash flows |
+| `seasoning_meses` | Number of payment periods that have come due as of today | Solarbase cash flows |
+| `plazo_remanente_meses` | Number of payment periods with future dates | Solarbase cash flows |
+| `cuota_mensual_con_iva_usd` | Median monthly payment including IVA | Solarbase cash flows |
+| `dpd` | Days Past Due — days since the oldest overdue invoice's due date. NULL if no invoice data exists. | Zoho invoices |
+| `cuotas_en_mora` | Count of overdue invoices with outstanding balance > 0 | Zoho invoices |
+| `estado_credito` | Credit status (see definitions below) | Derived |
+| `suspension_por_incidencia_operativa` | Manual flag for operational suspensions — not yet populated | Manual |
+| `bucket_mora` | Delinquency bucket (see definitions below) | Derived |
+| `kw_instalados` | Installed solar capacity in kilowatts | Solarbase |
+
+### How Monto Principal Vigente works
+
+The amortization schedule in Solarbase defines the remaining principal after each payment. Instead of looking up the principal at today's date (which assumes the client is current), we look it up at the number of payments actually made.
+
+Example: A project with 8 years of payments (96 months). If the client has paid 60 invoices, we use the remaining principal after payment #60, even if 65 payments should have been made by now. This gives a more accurate balance for delinquent clients.
+
+If a project has no invoice data, we fall back to the first payment row as a conservative estimate.
+
+### How Saldo Total Vigente works
+
+Total remaining obligation from the client's perspective:
+
+    Saldo = (Total contract value × (1 + IVA rate)) − Total paid to date
+
+- **Total contract value** is the sum of all scheduled cash flows (monthly payments + down payment + insurance + maintenance + asset transfer + legal costs), before IVA.
+- **IVA rate** comes from the country (Guatemala 12%, El Salvador 13%, Honduras 15%).
+- **Total paid** is the sum of `(invoice total − invoice balance)` across all Zoho invoices for the project. This is already con IVA since Zoho invoices include tax.
+
+### Estado del Credito definitions
+
+| Status | Condition |
+|---|---|
+| **Contado** | Sale type is "Contado" (paid upfront, not a lease) |
+| **Sin datos de facturación** | No Zoho invoices exist for this project |
+| **Finalizado** | Past the last scheduled payment date and all invoices are paid |
+| **Vencido** | Past the last scheduled payment date but has overdue invoices |
+| **Vigente** | Active lease with zero overdue invoices |
+| **Activo** | Active lease with one or more overdue invoices |
+
+### Bucket de Mora definitions
+
+| Bucket | Days Past Due |
+|---|---|
+| **Current** | 0–10 days |
+| **11-29** | 11–29 days |
+| **30-59** | 30–59 days |
+| **60-89** | 60–89 days |
+| **90+** | 90 or more days |
+
+### Currency conversion
+
+All USD amounts are converted using the exchange rate from the **last day of the previous month**. For example, a report generated any day in March uses the February 28 (or closest prior business day) rate. This ensures the report produces stable, reproducible numbers regardless of when it's run within the month.
+
+IVA is applied to Solarbase-sourced amounts using the country's tax rate before currency conversion. Zoho-sourced amounts (total paid, overdue balances) already include IVA.
+
+---
+
+## Report 2: Payment Tape (`mart_financial_payment_tape`)
+
+**Purpose:** Transaction-level record of every payment received. One row per payment.
+
+**Scope:** All payments with amount > 0 from Zoho Books (excludes tax-only entries).
+
+### Columns
+
+| Column | Description | Source |
+|---|---|---|
+| `id_prestamo` | Project reference | Solarbase |
+| `id_deudor` | Client reference | Solarbase |
+| `nombre_deudor` | Customer name as recorded in Zoho | Zoho payments |
+| `fecha_esperada` | Scheduled due date from the amortization schedule (NULL if payment isn't linked to a specific cash flow) | Solarbase cash flows |
+| `fecha_real_pago` | Actual date the payment was received | Zoho payments |
+| `monto_pagado_usd` | Payment amount in USD | Zoho payments |
+| `monto_aplicado` | Amount applied to the invoice | Zoho payments |
+| `monto_moneda_original` | Payment amount in original currency | Zoho payments |
+| `moneda` | Currency code of the payment | Zoho payments |
+| `tipo_cambio` | Exchange rate used at time of payment | Zoho payments |
+| `dpd_al_momento` | Days between the scheduled due date and the actual payment date. Positive = late, negative = early. | Derived |
+| `modo_pago` | Payment method (bank transfer, check, etc.) | Zoho payments |
+| `retencion_iva` | Withholding tax amount | Zoho payments |
+| `numero_factura` | Zoho invoice number the payment applies to | Zoho payments |
+| `fuente_datos` | Which Zoho export the payment came from | Zoho payments |
+| `pais` | Country | Solarbase |
+| `numero_cuota` | Payment number from the amortization schedule | Solarbase cash flows |
+| `cuota_programada` | Scheduled payment amount in project currency | Solarbase cash flows |
+
+### Data coverage
+
+Payment data covers January 2025 onward (from Zoho Books exports). Payments before 2025 are not in the system. Not all payments are linked to a specific cash flow row (`fecha_esperada` and `numero_cuota` may be NULL for older payments imported before the linking logic was in place).
+
+---
+
+## Report 3: Monthly Snapshots (`mart_financial_monthly_snapshot`)
+
+**Purpose:** Point-in-time view of every lease at each month-end over the last 24 months. Enables vintage analysis, cohort tracking, and delinquency evolution.
+
+**Scope:** Financed leases only (sale_type = 'Financiado'). One row per lease per month-end. A lease only appears in months after its contract signing date.
+
+### Columns
+
+Same as the Loan Tape with two additions:
+
+| Column | Description |
+|---|---|
+| `fecha_snapshot` | The month-end date this row represents (e.g., "2025-06-30") |
+| `es_reestructurado` | Whether the lease has an addendum (true/false) |
+
+All date-relative fields (seasoning, remaining term, DPD, mora, estado) are computed as of the snapshot date, not today.
+
+### How historical delinquency is reconstructed
+
+Since Zoho invoice status reflects the current state (not historical), we reconstruct what the status was at each snapshot date using two fields:
+
+- **due_date**: When the invoice was due
+- **last_payment_date**: When it was actually paid (NULL if still unpaid)
+
+An invoice counts as **overdue at a given snapshot date** if:
+1. Its due date is on or before the snapshot date (it was already due), AND
+2. It either has no payment date, or its payment date is after the snapshot date (it hadn't been paid yet at that point)
+
+Example: An invoice due February 13 that was paid on June 15 will show as overdue in the February, March, April, and May snapshots, and as current from June onward.
+
+### Currency conversion
+
+Each snapshot row is converted to USD using the exchange rate from that snapshot's month-end date (or the closest prior business day if the month-end falls on a weekend/holiday). This means earlier snapshots use the FX rate that was current at that time, giving a historically accurate USD value.
+
+---
+
+## Known Limitations
+
+1. **Invoice data is static.** The `zoho_invoices` table is populated from CSV exports, not a live API sync. Data reflects the state at the time of the last export. Payments received after the export won't be reflected until the next import.
+
+2. **Pre-2025 payment gap.** Payment records only cover January 2025 onward. All payments before that are assumed to have been made. This affects the Payment Tape (no pre-2025 rows) but does not affect the Loan Tape or Snapshots (which use invoice status).
+
+3. **Snapshot delinquency is an approximation.** The historical reconstruction works well for invoices that go from overdue to paid. However, if an invoice was created after a snapshot date, it won't appear in earlier snapshots even if the underlying payment was theoretically due. This is a minor edge case since invoices are typically created near their due date.
+
+4. **Suspensión por incidencia operativa** is not yet populated. This column exists as a placeholder for manual flags indicating operational issues (e.g., meter not installed, grid connection delayed) that explain delinquency without it being a credit risk.
+
+5. **Projects without Zoho invoices** show as "Sin datos de facturación" with NULL delinquency metrics. These are projects that either haven't been invoiced yet in Zoho or whose invoices couldn't be matched to a Solarbase project.

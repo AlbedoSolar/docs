@@ -1,5 +1,7 @@
 # Finance Models — Technical Reference
 
+> **Looking for the Debita portfolio reports (loan tape, payment tape, snapshots)?** See [debita-portfolio-reports.md](debita-portfolio-reports.md).
+
 This document describes the dbt models that power Albedo's financial reporting: monthly cash flows, interest amortization, accounts receivable, financial projections, accounting reports, and reconciliation. It covers the data flow, calculation formulas, key assumptions, and how the two sale types (financed vs. paid upfront) are handled.
 
 **Locations**:
