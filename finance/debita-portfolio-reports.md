@@ -19,7 +19,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 
 ---
 
-## Report 1: Loan Tape (`mart_financial_loan_tape`)
+## Report 1: Loan Tape (`mart_debita_loan_tape`)
 
 **Purpose:** Current state of every signed lease. One row per project.
 
@@ -99,7 +99,7 @@ IVA is applied to Solarbase-sourced amounts using the country's tax rate before 
 
 ---
 
-## Report 2: Payment Tape (`mart_financial_payment_tape`)
+## Report 2: Payment Tape (`mart_debita_historical_payment_tape`)
 
 **Purpose:** Transaction-level record of every payment received. One row per payment.
 
@@ -122,7 +122,7 @@ Payment data covers January 2025 onward (from Zoho Books exports). Payments befo
 
 ---
 
-## Report 3: Monthly Snapshots (`mart_financial_monthly_snapshot`)
+## Report 3: Monthly Snapshots (`mart_debita_snapshots`)
 
 **Purpose:** Point-in-time view of every lease at each month-end over the last 24 months. Enables vintage analysis, cohort tracking, and delinquency evolution.
 
