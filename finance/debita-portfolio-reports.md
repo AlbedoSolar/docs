@@ -159,7 +159,7 @@ Each snapshot row is converted to USD using the exchange rate from that snapshot
 
 ## Known Limitations
 
-1. **Invoice data is static.** The `zoho_invoices` table is populated from CSV exports, not a live API sync. Data reflects the state at the time of the last export. Payments received after the export won't be reflected until the next import.
+1. **Invoice data is static.** The `zoho_invoices` table is populated from CSV exports, not a live API sync. The last export was on **March 24, 2026**. Data reflects the state at that date. Payments received after the export won't be reflected until the next import.
 
 2. **Pre-2025 payment gap.** Payment records only cover January 2025 onward. All payments before that are assumed to have been made. This affects the Payment Tape (no pre-2025 rows) but does not affect the Loan Tape or Snapshots (which use invoice status).
 
