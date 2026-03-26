@@ -33,7 +33,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 | `id_cliente` | Numeric client ID | Solarbase |
 | `nombre_cliente` | Legal name of the client | Solarbase |
 | `pais` | Country (Guatemala, Honduras, El Salvador) | Solarbase |
-| `fecha_de_proyecto` | Contract signing date | Solarbase |
+| `fecha_de_proyecto` | Project date — adjusted per internal logic (post-Nov 2025: signing date; pre-Nov 2025: first payment date; with manual overrides) | Solarbase |
 | `fecha_vencimiento` | Last scheduled payment date | Solarbase cash flows |
 | `moneda_arrendamiento` | Original currency (GTQ, USD, HNL) | Solarbase |
 | `monto_prestado_con_iva_usd` | Retail price including IVA, converted to USD | Solarbase |
@@ -42,7 +42,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 | `saldo_total_vigente_con_iva_usd` | Total remaining obligation = total contract value con IVA minus total paid | Solarbase + Zoho |
 | `tasa_interes_anual_pct` | Annual interest rate (%) | Solarbase |
 | `plazo_original_meses` | Total number of payment months in the contract (excludes month 0) | Solarbase cash flows |
-| `seasoning_meses` | Number of payment periods that have come due as of today | Solarbase cash flows |
+| `seasoning_meses` | Number of payment periods that have come due as of today (excludes month 0) | Solarbase cash flows |
 | `plazo_remanente_meses` | Number of payment periods with future dates | Solarbase cash flows |
 | `cuota_mensual_con_iva_usd` | Median monthly payment including IVA | Solarbase cash flows |
 | `dpd` | Days Past Due — days since the oldest overdue invoice's due date. NULL if no invoice data exists. | Zoho invoices |
