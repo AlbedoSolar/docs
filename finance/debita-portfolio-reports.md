@@ -109,28 +109,16 @@ IVA is applied to Solarbase-sourced amounts using the country's tax rate before 
 
 | Column | Description | Source |
 |---|---|---|
-| `id_prestamo` | Project reference | Solarbase |
-| `id_deudor` | Client reference | Solarbase |
-| `nombre_deudor` | Customer name as recorded in Zoho | Zoho payments |
+| `id_prestamo` | Project reference (mapped from invoice → project via `invoice_project_map`) | Zoho → Solarbase |
+| `numero_factura` | Zoho invoice number | Zoho payments |
 | `fecha_esperada` | Scheduled due date from the amortization schedule (NULL if payment isn't linked to a specific cash flow) | Solarbase cash flows |
 | `fecha_real_pago` | Actual date the payment was received | Zoho payments |
 | `monto_pagado_usd` | Payment amount in USD | Zoho payments |
-| `monto_aplicado` | Amount applied to the invoice | Zoho payments |
-| `monto_moneda_original` | Payment amount in original currency | Zoho payments |
-| `moneda` | Currency code of the payment | Zoho payments |
-| `tipo_cambio` | Exchange rate used at time of payment | Zoho payments |
-| `dpd_al_momento` | Days between the scheduled due date and the actual payment date. Positive = late, negative = early. | Derived |
-| `modo_pago` | Payment method (bank transfer, check, etc.) | Zoho payments |
-| `retencion_iva` | Withholding tax amount | Zoho payments |
-| `numero_factura` | Zoho invoice number the payment applies to | Zoho payments |
-| `fuente_datos` | Which Zoho export the payment came from | Zoho payments |
-| `pais` | Country | Solarbase |
-| `numero_cuota` | Payment number from the amortization schedule | Solarbase cash flows |
-| `cuota_programada` | Scheduled payment amount in project currency | Solarbase cash flows |
+| `dpd_al_momento` | Days between the scheduled due date and the actual payment date. Positive = late, negative = early. NULL if no linked cash flow. | Derived |
 
 ### Data coverage
 
-Payment data covers January 2025 onward (from Zoho Books exports). Payments before 2025 are not in the system. Not all payments are linked to a specific cash flow row (`fecha_esperada` and `numero_cuota` may be NULL for older payments imported before the linking logic was in place).
+Payment data covers January 2025 onward (from Zoho Books exports). Payments before 2025 are not in the system. Not all payments are linked to a specific cash flow row — `fecha_esperada` may be NULL for older payments imported before the linking logic was in place.
 
 ---
 
