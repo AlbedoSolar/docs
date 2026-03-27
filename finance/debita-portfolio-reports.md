@@ -36,6 +36,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 | `fecha_de_proyecto` | Project date — adjusted per internal logic (post-Nov 2025: signing date; pre-Nov 2025: first payment date; with manual overrides) | Solarbase |
 | `fecha_vencimiento` | Last scheduled payment date | Solarbase cash flows |
 | `moneda_arrendamiento` | Original currency (GTQ, USD, HNL) | Solarbase |
+| `monto_prestado_sin_iva_usd` | Retail price excluding IVA, converted to USD | Solarbase |
 | `monto_prestado_con_iva_usd` | Retail price including IVA, converted to USD | Solarbase |
 | `total_pagado_con_iva_usd` | Total amount paid to date (sum of invoice amounts minus remaining balances) | Zoho invoices |
 | `monto_principal_vigente_con_iva_usd` | Outstanding principal from the amortization schedule, adjusted for actual payments made (see below) | Solarbase + Zoho |
