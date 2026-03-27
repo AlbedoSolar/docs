@@ -23,7 +23,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 
 **Purpose:** Current state of every signed lease. One row per project.
 
-**Scope:** All projects with a signed quote (both Financiado and Contado). Financial fields (term, DPD, mora, etc.) only apply to Financiado leases.
+**Scope:** Financed leases in Guatemala only (`sale_type = 'Financiado'`, `country_id = 1`). Contado and non-Guatemala projects are excluded.
 
 ### Columns
 
@@ -41,7 +41,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 | `total_pagado_con_iva_usd` | Total amount paid to date (sum of invoice amounts minus remaining balances) | Zoho invoices |
 | `monto_principal_vigente_con_iva_usd` | Outstanding principal from the amortization schedule, adjusted for actual payments made (see below) | Solarbase + Zoho |
 | `saldo_total_vigente_con_iva_usd` | Total remaining obligation = total contract value con IVA minus total paid | Solarbase + Zoho |
-| `tasa_interes_anual_pct` | Annual interest rate (%) | Solarbase |
+| `tasa_interes_anual_pct` | Annual interest rate (%). Uses `annual_interest_rate` if available, otherwise `monthly_interest_rate × 12`. | Solarbase |
 | `plazo_original_meses` | Total number of payment months in the contract (excludes month 0) | Solarbase cash flows |
 | `seasoning_meses` | Number of payment periods that have come due as of today (excludes month 0) | Solarbase cash flows |
 | `plazo_remanente_meses` | Number of payment periods with future dates | Solarbase cash flows |
@@ -104,7 +104,7 @@ IVA is applied to Solarbase-sourced amounts using the country's tax rate before 
 
 **Purpose:** Transaction-level record of every payment received. One row per payment.
 
-**Scope:** All payments with amount > 0 from Zoho Books (excludes tax-only entries).
+**Scope:** Payments with amount > 0 for Guatemala projects only (excludes tax-only entries and non-Guatemala projects).
 
 ### Columns
 
@@ -127,7 +127,7 @@ Payment data covers January 2025 onward (from Zoho Books exports). Payments befo
 
 **Purpose:** Point-in-time view of every lease at each month-end over the last 24 months. Enables vintage analysis, cohort tracking, and delinquency evolution.
 
-**Scope:** Financed leases only (sale_type = 'Financiado'). One row per lease per month-end. A lease only appears in months after its contract signing date.
+**Scope:** Financed leases in Guatemala only. One row per lease per month-end. A lease only appears in months after its contract signing date.
 
 ### Columns
 
