@@ -86,7 +86,7 @@ Per the *Definiciones Operativas de Cartera* document:
 
 ### DPD calculation
 
-DPD starts the **day after** the invoice due date (not the due date itself). Per contract, invoices are due on the 10th of each month. DPD is calculated at the contract level as the maximum DPD across all unpaid invoices (i.e., based on the oldest unpaid invoice).
+DPD = days since the invoice due date. DPD 0 on the due date, DPD 1 the next day. Per contract, invoices are due on the 10th of each month, so DPD 1 falls on the 11th. DPD is calculated at the contract level as the maximum DPD across all unpaid invoices (i.e., based on the oldest unpaid invoice).
 
 ### Bucket de Mora definitions
 
