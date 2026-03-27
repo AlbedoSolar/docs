@@ -131,11 +131,30 @@ Payment data covers January 2025 onward (from Zoho Books exports). Payments befo
 
 ### Columns
 
-Same as the Loan Tape with one addition:
+Similar to the Loan Tape but with some differences. The snapshot adds `fecha_snapshot` and omits some fields that are only meaningful as a current-state view (total paid, saldo vigente, kW installed).
 
-| Column | Description |
-|---|---|
-| `fecha_snapshot` | The month-end date this row represents (e.g., "2025-06-30") |
+| Column | Description | Source |
+|---|---|---|
+| `fecha_snapshot` | The month-end date this row represents (e.g., "2025-06-30") | Generated |
+| `id_arrendamiento` | Project reference | Solarbase |
+| `id_cliente` | Numeric client ID | Solarbase |
+| `nombre_cliente` | Legal name of the client | Solarbase |
+| `pais` | Country | Solarbase |
+| `fecha_de_proyecto` | Project date (adjusted per internal logic) | Solarbase |
+| `fecha_vencimiento` | Last scheduled payment date | Solarbase cash flows |
+| `moneda_arrendamiento` | Original currency (GTQ, USD, HNL) | Solarbase |
+| `monto_prestado_con_iva_usd` | Retail price including IVA, converted to USD | Solarbase |
+| `monto_principal_vigente_con_iva_usd` | Outstanding principal at snapshot date, including IVA | Solarbase |
+| `tasa_interes_anual_pct` | Annual interest rate (%) | Solarbase |
+| `plazo_original_meses` | Total payment months in the contract (excludes month 0) | Solarbase cash flows |
+| `seasoning_meses` | Payment periods due as of the snapshot date (excludes month 0) | Solarbase cash flows |
+| `plazo_remanente_meses` | Payment periods after the snapshot date | Solarbase cash flows |
+| `cuota_mensual_con_iva_usd` | Median monthly payment including IVA | Solarbase cash flows |
+| `dpd` | Days Past Due at the snapshot date | Zoho invoices |
+| `cuotas_en_mora` | Overdue invoice count at the snapshot date | Zoho invoices |
+| `estado_credito` | Credit status at the snapshot date | Derived |
+| `suspension_por_incidencia_operativa` | Manual flag — not yet populated | Manual |
+| `bucket_mora` | Delinquency bucket at the snapshot date | Derived |
 
 All date-relative fields (seasoning, remaining term, DPD, mora, estado) are computed as of the snapshot date, not today.
 
