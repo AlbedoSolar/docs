@@ -71,26 +71,40 @@ Total remaining obligation from the client's perspective:
 - **IVA rate** comes from the country (Guatemala 12%, El Salvador 13%, Honduras 15%).
 - **Total paid** is the sum of `(invoice total − invoice balance)` across all Zoho invoices for the project. This is already con IVA since Zoho invoices include tax.
 
-### Estado del Credito definitions
+### Estado del Crédito definitions
+
+Per the *Definiciones Operativas de Cartera* document:
 
 | Status | Condition |
 |---|---|
-| **Contado** | Sale type is "Contado" (paid upfront, not a lease) |
 | **Sin datos de facturación** | No Zoho invoices exist for this project |
 | **Finalizado** | Past the last scheduled payment date and all invoices are paid |
-| **Vencido** | Past the last scheduled payment date but has overdue invoices |
-| **Vigente** | Active lease with zero overdue invoices |
-| **Activo** | Active lease with one or more overdue invoices |
+| **Vigente** | Active lease with zero overdue invoices (DPD = 0) |
+| **Mora Temprana** | DPD 1–29 |
+| **En Mora** | DPD 30–89 |
+| **Default** | DPD 90+ (classification only — does not imply automatic execution) |
+
+### DPD calculation
+
+DPD starts the **day after** the invoice due date (not the due date itself). Per contract, invoices are due on the 10th of each month. DPD is calculated at the contract level as the maximum DPD across all unpaid invoices (i.e., based on the oldest unpaid invoice).
 
 ### Bucket de Mora definitions
 
 | Bucket | Days Past Due |
 |---|---|
-| **Current** | 0–10 days |
-| **11-29** | 11–29 days |
+| **Al día** | DPD = 0 |
+| **1-29** | 1–29 days |
 | **30-59** | 30–59 days |
 | **60-89** | 60–89 days |
-| **90+** | 90 or more days |
+| **90+** | 90 or more days (Default) |
+
+### PAR (Portfolio at Risk)
+
+PAR is a portfolio-level metric, not included in the loan tape directly. It can be derived:
+
+    PAR30 = Sum of saldo_total_vigente where DPD >= 30 / Sum of saldo_total_vigente for all active contracts
+
+The numerator uses the **full contract balance**, not just overdue installments.
 
 ### Currency conversion
 
