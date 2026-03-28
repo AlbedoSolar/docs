@@ -159,7 +159,7 @@ Similar to the Loan Tape but with some differences. The snapshot adds `fecha_sna
 | `moneda_arrendamiento` | Original currency (GTQ, USD, HNL) | Solarbase |
 | `monto_prestado_con_iva_usd` | Retail price including IVA, converted to USD | Solarbase |
 | `monto_principal_vigente_con_iva_usd` | Outstanding principal at snapshot date, including IVA | Solarbase |
-| `tasa_interes_anual_pct` | Annual interest rate (%) | Solarbase |
+| `tasa_interes_anual_pct` | Annual interest rate (%). Uses `annual_interest_rate` if available, otherwise `monthly_interest_rate × 12`. | Solarbase |
 | `plazo_original_meses` | Total payment months in the contract (excludes month 0) | Solarbase cash flows |
 | `seasoning_meses` | Payment periods due as of the snapshot date (excludes month 0) | Solarbase cash flows |
 | `plazo_remanente_meses` | Payment periods after the snapshot date | Solarbase cash flows |
