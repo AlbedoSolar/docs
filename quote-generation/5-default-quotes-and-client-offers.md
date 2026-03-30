@@ -82,14 +82,113 @@ When a sales rep clicks "Crear Oferta" on a tier, the system:
 3. If client doesn't bite, rep falls back to Silver, then Bronze
 4. Each tier is a separate URL — client only sees one tier at a time
 
+## Quote Explorer (V2)
+
+### Goal
+
+Replace the fixed Gold/Silver/Bronze tiers with an interactive calculator where the sales rep directly controls monthly payment, term, and down payment, sees the resulting IRR in real-time, and generates offer sheets from the explored values.
+
+### How It Works
+
+The Quote Explorer page (`DefaultQuotesPageV2`) presents three input dials and a live IRR display:
+
+1. **Inputs**: Monthly payment, term (months), and down payment (%)
+2. **Output**: IRR updates reactively as the user adjusts any input (400ms debounce)
+3. **IRR Lock**: User can fix the IRR at a desired value. When locked:
+   - Changing the term solves for the monthly payment that maintains the locked IRR
+   - Changing the monthly payment scans for the term that maintains the locked IRR
+   - Changing the down payment solves for the monthly payment that maintains the locked IRR
+
+### Initial Values
+
+On page load, the system calls `irr-calculator` in `solve_for_payment` mode with `target_irr: 16` and `term_months: 60` to find a starting monthly payment that produces a Gold-tier IRR. This gives the user a meaningful starting point rather than zeros.
+
+### IRR Tiers (Color Coding)
+
+- **Gold** (>= 16%): amber — best return for Albedo
+- **Silver** (>= 14%): slate
+- **Bronze** (>= 12%): orange
+- **Red** (< 12%): red — below minimum threshold
+
+### Savings Comparison
+
+The page displays the estimate's monthly solar savings and compares it to the current monthly payment. The payment card and a comparison bar turn green when payment <= savings (client saves money from day one) or red when payment exceeds savings.
+
+### Offer Sheet Generation
+
+1. User clicks "Generar Oferta" to configure the offer
+2. A config panel shows the current down payment (forced as one option) and a second editable down payment value
+3. The system calls `quote-solver` in `generate_offer` mode: holds IRR constant, varies term (base +/- 12 months) and down payment options
+4. An inline preview matrix shows monthly payments for each term x down payment combination
+5. "Crear Enlace Compartible" inserts into `quote_offers` and generates a public URL
+6. The public offer page (`/offer/:token`) is the same `ClientOfferPage` used by the V1 flow
+
+### Backend: `irr-calculator` Edge Function
+
+**Location**: `supabase/functions/irr-calculator/`
+
+A lightweight endpoint designed for responsive UI interactions. Three modes:
+
+#### Mode: `forward` (default)
+
+Given monthly payment + term, returns the resulting IRR.
+
+- **Input**: `{ estimate_reference, monthly_payment, term_months, down_payment_percentage, grace_period, ... }`
+- **Process**: Goal-seeks APR such that the calculated payment matches the input, then runs the full NII forward calc to extract IRR
+- **Output**: `{ irr, solved_annual_rate, monthly_payment, term_months, retail_price }`
+
+#### Mode: `solve_for_payment`
+
+Given a target IRR + term, returns the monthly payment that achieves it.
+
+- **Input**: `{ mode: "solve_for_payment", estimate_reference, target_irr, term_months, ... }`
+- **Process**: Goal-seeks APR such that IRR matches the target, then extracts the resulting monthly payment from KPIs
+- **Output**: `{ irr, monthly_payment, term_months, solved_annual_rate }`
+
+#### Mode: `solve_for_term`
+
+Given a target IRR + monthly payment, scans terms to find the closest match.
+
+- **Input**: `{ mode: "solve_for_term", estimate_reference, target_irr, monthly_payment, min_term, max_term, ... }`
+- **Process**: Two-pass brute force (same strategy as `quote-solver` solve_tiers):
+  - Pass 1: Coarse scan every 6 months
+  - Pass 2: Fine scan every month within +/- 6 of the best coarse match
+- **Output**: `{ irr, monthly_payment, term_months, solved_annual_rate }`
+
+#### Internal Architecture
+
+The function is structured in three layers to separate DB queries from computation:
+
+1. **`loadSharedData`** — Runs all DB queries once per request: estimate context, config, tax/insurance/maintenance rates, installation schedule
+2. **`buildTermContext`** — Computes term-dependent values (retail price, legal fee, commission schedule, goal-seek args) without any DB calls. Called once per term in forward/solve_for_payment modes, or per-term in the solve_for_term scan
+3. **`runForwardCalc`** — Runs the full NII pipeline (lease table, services table, amortization, KPI extraction) for a given APR and term. Pure computation
+
+All service parameters (grace period, WACC, insurance/maintenance rates, etc.) are resolved once into a `ServiceParams` struct at the top of the handler and passed through all layers. This eliminates duplication and ensures consistency.
+
+#### Error Handling
+
+- 422 errors include a Spanish-language `hint` field with actionable guidance (e.g., minimum viable payment at the given term)
+- IRR values above 100% are returned as `null` with an explanatory error
+- The `solve_for_term` scan logs failed term evaluations with `console.warn` but continues scanning
+
+### V1 vs V2 Coexistence
+
+Both pages exist in the codebase simultaneously:
+- **V2** (active): `/projects/:ref/default-quotes/:id` renders `DefaultQuotesPageV2`
+- **V1** (preserved): `/projects/:ref/default-quotes-v1/:id` renders `DefaultQuotesPage`
+
+To switch back, swap the components in the route definitions in `AppRouter.tsx`.
+
 ## Architecture
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `quote-solver` | `supabase/functions/quote-solver/` | Server-side tier solving (solve_tiers mode) |
-| `quote-generator` | `supabase/functions/quote-generator/` | Individual quote generation (used by client offer) |
-| `DefaultQuotesPage` | `frontend/quotes-app/src/pages/` | Internal tier generation UI |
-| `DefaultQuoteCards` | `frontend/quotes-app/src/components/organisms/` | Gold/Silver/Bronze card display with offer creation |
-| `ClientOfferPage` | `frontend/quotes-app/src/pages/` | Public client-facing offer page |
+| `quote-solver` | `supabase/functions/quote-solver/` | Server-side tier solving (solve_tiers) and offer generation (generate_offer) |
+| `irr-calculator` | `supabase/functions/irr-calculator/` | Lightweight interactive IRR calculation (forward, solve_for_payment, solve_for_term) |
+| `quote-generator` | `supabase/functions/quote-generator/` | Individual quote generation (used by client offer page) |
+| `DefaultQuotesPage` | `frontend/quotes-app/src/pages/` | V1: Gold/Silver/Bronze tier generation UI |
+| `DefaultQuotesPageV2` | `frontend/quotes-app/src/pages/` | V2: Interactive quote explorer with dials and IRR lock |
+| `DefaultQuoteCards` | `frontend/quotes-app/src/components/organisms/` | V1: Gold/Silver/Bronze card display with offer creation |
+| `ClientOfferPage` | `frontend/quotes-app/src/pages/` | Public client-facing offer page (shared by V1 and V2) |
 | `quote_offers` table | Supabase | Stores offer tokens, parameters, tracks views |
-| `DefaultQuoteRegenerateForm` | `frontend/quotes-app/src/components/molecules/` | Parameter form (admin: advanced options) |
+| `DefaultQuoteRegenerateForm` | `frontend/quotes-app/src/components/molecules/` | V1: Parameter form (admin: advanced options) |
