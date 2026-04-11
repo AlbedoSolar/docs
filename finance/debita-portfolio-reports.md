@@ -1,21 +1,30 @@
 # Reportes de Cartera — Debita SPV
 
-Documentation for the three portfolio reports used for Debita SPV due diligence. These reports combine contract data from Solarbase with billing data from Zoho Books.
+Documentation for the three portfolio reports used for Debita SPV due diligence. These reports combine contract data from Solarbase with billing data from Zoho Books (Guatemala) and manual accounting exports (Honduras).
 
 ---
 
 ## Data Sources
 
-| Source | What it provides | Table |
-|---|---|---|
-| **Solarbase** | Contract terms, amortization schedules, project/client details | `projects`, `estimates`, `quotes`, `monthly_cash_flows` |
-| **Zoho Books** | Invoice status, payment dates, outstanding balances | `zoho_invoices` |
-| **Zoho Books** | Individual payment records | `lease_payments` |
-| **Exchange rates** | Daily GTQ/USD and HNL/USD rates | `exchange_rates` |
+| Source | Country | What it provides | Table |
+|---|---|---|---|
+| **Solarbase** | All | Contract terms, amortization schedules, project/client details | `projects`, `estimates`, `quotes`, `monthly_cash_flows` |
+| **Zoho Books** | Guatemala | Invoice status, payment dates, outstanding balances | `zoho_invoices` |
+| **Zoho Books** | Guatemala | Individual payment records | `lease_payments` |
+| **HN accounting CSV** | Honduras | Invoices and payments (pre-converted to USD at 26.55 HNL/USD) | `zoho_invoices`, `lease_payments` |
+| **Exchange rates** | All | Daily GTQ/USD and HNL/USD rates | `exchange_rates` |
 
-### Important: Zoho is the source of truth for delinquency
+### Important: Invoice data is the source of truth for delinquency
 
-All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora) are driven by Zoho invoice status, not by comparing Solarbase cash flows to payment records. If Zoho says an invoice is "Overdue", we report it as unpaid. If Zoho says "Closed", we consider it paid.
+All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora) are driven by invoice status in the `zoho_invoices` table, not by comparing Solarbase cash flows to payment records. Both Zoho-sourced (GT) and HN accounting-sourced invoices use the same table and status conventions: "Overdue" = unpaid, "Closed" = paid.
+
+### Honduras-specific notes
+
+- Honduras does not use Zoho Books. Invoice and payment data comes from a manual accounting export (`ALBEDO SOLAR S.A. DE C.V._Facturas y pagos recibidos.csv`), processed by `external-resources/honduras_fifo_loader.py`.
+- HN amounts are converted to USD using a flat rate of 26.55 HNL/USD (the Lempira is a managed peg with minimal fluctuation). All HN rows in `zoho_invoices` and `lease_payments` have `currency_code = 'USD'`.
+- HN invoice due date = **10th of the month** in which the payment is registered in the cash flow schedule.
+- Some HN clients have **combined billing** (one invoice covers multiple projects). These are split proportionally in `zoho_invoices` using median monthly payment weights from `monthly_cash_flows`. Split invoices have suffixed numbers (e.g., `000-001-01-00000038-01`, `-02`, `-03`). Affected clients: Hospital Clínicas San Jorge (3 projects), Productos Lácteos Nelly (2 projects), Hilda Cabrera (2 projects).
+- HN accounting customer names are often **DBA / commercial names** (e.g., "Plaza Nexus") while Supabase has the legal entity (e.g., "EMPRESA COMERCIAL E INVERSIONES SOCIEDAD DE RESPONSABILIDAD LIMITADA DE CAPITAL VARIABLE"). The mapping is maintained in `external-resources/honduras_facturas_filled.csv`.
 
 ---
 
@@ -23,7 +32,7 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 
 **Purpose:** Current state of every signed lease. One row per project.
 
-**Scope:** Financed leases in Guatemala only (`sale_type = 'Financiado'`, `country_id = 1`). Contado and non-Guatemala projects are excluded.
+**Scope:** Financed leases in Guatemala and Honduras (`sale_type = 'Financiado'`, `country_id IN (1, 3)`). Contado projects and El Salvador are excluded.
 
 ### Columns
 
@@ -46,8 +55,8 @@ All delinquency metrics (DPD, cuotas en mora, estado del credito, bucket de mora
 | `seasoning_meses` | Number of payment periods that have come due as of today (excludes month 0) | Solarbase cash flows |
 | `plazo_remanente_meses` | Number of payment periods with future dates | Solarbase cash flows |
 | `cuota_mensual_con_iva_usd` | Median monthly payment including IVA | Solarbase cash flows |
-| `dpd` | Days Past Due — days since the oldest overdue invoice's due date. NULL if no invoice data exists. | Zoho invoices |
-| `cuotas_en_mora` | Count of overdue invoices with outstanding balance > 0 | Zoho invoices |
+| `dpd` | Days Past Due — days since the oldest overdue invoice's due date, after a 10-day grace period. NULL if no invoice data exists. | Zoho invoices |
+| `cuotas_en_mora` | Count of overdue invoices with outstanding balance > $5 (sub-$5 residuals from rounding are excluded) | Zoho invoices |
 | `estado_credito` | Credit status (see definitions below) | Derived |
 | `suspension_por_incidencia_operativa` | Manual flag for operational suspensions — not yet populated | Manual |
 | `bucket_mora` | Delinquency bucket (see definitions below) | Derived |
@@ -86,7 +95,11 @@ Per the *Definiciones Operativas de Cartera* document:
 
 ### DPD calculation
 
-DPD = days since the invoice due date. DPD 0 on the due date, DPD 1 the next day. Per contract, invoices are due on the 10th of each month, so DPD 1 falls on the 11th. DPD is calculated at the contract level as the maximum DPD across all unpaid invoices (i.e., based on the oldest unpaid invoice).
+DPD counts days since the invoice due date, but only after a **10-day grace period** per the *Definiciones Operativas*. An invoice is not considered overdue until `current_date > due_date + 10 days`. This means a payment made within 10 days of the due date does not trigger any delinquency.
+
+DPD is calculated at the contract level based on the **oldest** unpaid invoice (i.e., worst-case across all overdue invoices for the project).
+
+Invoices with a remaining balance of **$5 or less** are excluded from the overdue calculation, as these represent rounding residuals rather than real delinquency.
 
 ### Bucket de Mora definitions
 
@@ -118,7 +131,7 @@ IVA is applied to Solarbase-sourced amounts using the country's tax rate before 
 
 **Purpose:** Transaction-level record of every payment received. One row per payment.
 
-**Scope:** Payments with amount > 0 for Guatemala projects only (excludes tax-only entries and non-Guatemala projects).
+**Scope:** Payments with amount > 0 for Guatemala and Honduras projects (excludes tax-only entries and El Salvador).
 
 ### Columns
 
@@ -126,14 +139,16 @@ IVA is applied to Solarbase-sourced amounts using the country's tax rate before 
 |---|---|---|
 | `id_prestamo` | Project reference (mapped from invoice → project via `invoice_project_map`) | Zoho → Solarbase |
 | `numero_factura` | Zoho invoice number | Zoho payments |
-| `fecha_esperada` | Scheduled due date from the amortization schedule (NULL if payment isn't linked to a specific cash flow) | Solarbase cash flows |
+| `fecha_esperada` | Invoice due date from `zoho_invoices.due_date`, falling back to cash flow `payment_date` if no matching invoice exists. For GT this is the Zoho-defined due date; for HN it's the 10th of the month. | Zoho invoices / Solarbase cash flows |
 | `fecha_real_pago` | Actual date the payment was received | Zoho payments |
 | `monto_pagado_usd` | Payment amount in USD | Zoho payments |
 | `dpd_al_momento` | Days between the scheduled due date and the actual payment date. Positive = late, negative = early. NULL if no linked cash flow. | Derived |
 
 ### Data coverage
 
-Payment data covers January 2025 onward (from Zoho Books exports). Payments before 2025 are not in the system. Not all payments are linked to a specific cash flow row — `fecha_esperada` may be NULL for older payments imported before the linking logic was in place.
+**Guatemala:** Payment data covers January 2025 onward (from Zoho Books exports). Payments before 2025 are not in the system. Not all payments are linked to a specific cash flow row — `fecha_esperada` may be NULL for older payments imported before the linking logic was in place.
+
+**Honduras:** Payment data covers July 2025 onward (from the HN accounting CSV export). Payments are FIFO-matched to invoices by the `honduras_fifo_loader.py` script and linked to cash flow rows where possible. HN payments are stored in USD (converted from Lempiras at 26.55). The `source` column distinguishes HN records (`hn_accounting_csv`) from GT records.
 
 ---
 
@@ -141,7 +156,7 @@ Payment data covers January 2025 onward (from Zoho Books exports). Payments befo
 
 **Purpose:** Point-in-time view of every lease at each month-end over the last 24 months. Enables vintage analysis, cohort tracking, and delinquency evolution.
 
-**Scope:** Financed leases in Guatemala only. One row per lease per month-end. A lease only appears in months after its contract signing date.
+**Scope:** Financed leases in Guatemala and Honduras. One row per lease per month-end. A lease only appears in months after its contract signing date.
 
 ### Columns
 
@@ -193,12 +208,16 @@ Each snapshot row is converted to USD using the exchange rate from that snapshot
 
 ## Known Limitations
 
-1. **Invoice data is static.** The `zoho_invoices` table is populated from CSV exports, not a live API sync. The last export was on **March 24, 2026**. Data reflects the state at that date. Payments received after the export won't be reflected until the next import.
+1. **Invoice data is static.** The `zoho_invoices` table is populated from CSV exports, not a live API sync. The last GT export was on **April 9, 2026**; the last HN export was on **April 8, 2026**. Payments received after these exports won't be reflected until the next import. The upsert script is at `external-resources/zoho_invoice_upsert.py` (GT) and `external-resources/honduras_fifo_loader.py` (HN).
 
-2. **Pre-2025 payment gap.** Payment records only cover January 2025 onward. All payments before that are assumed to have been made. This affects the Payment Tape (no pre-2025 rows) but does not affect the Loan Tape or Snapshots (which use invoice status).
+2. **Pre-2025 payment gap (GT).** Guatemala payment records cover January 2025 onward. All payments before that are assumed to have been made. Honduras payment records cover July 2025 onward (the start of the HN entity's invoicing).
 
-3. **Snapshot delinquency is an approximation.** The historical reconstruction works well for invoices that go from overdue to paid. However, if an invoice was created after a snapshot date, it won't appear in earlier snapshots even if the underlying payment was theoretically due. This is a minor edge case since invoices are typically created near their due date.
+3. **Snapshot delinquency is an approximation.** The historical reconstruction works well for invoices that go from overdue to paid. However, if an invoice was created after a snapshot date, it won't appear in earlier snapshots even if the underlying payment was theoretically due. This is a minor edge case since invoices are typically created near their due date. The snapshot model also applies the $5 balance threshold to avoid rounding residuals affecting historical mora status.
 
 4. **Suspensión por incidencia operativa** is not yet populated. This column exists as a placeholder for manual flags indicating operational issues (e.g., meter not installed, grid connection delayed) that explain delinquency without it being a credit risk.
 
-5. **Projects without Zoho invoices** show as "Sin datos de facturación" with NULL delinquency metrics. These are projects that either haven't been invoiced yet in Zoho or whose invoices couldn't be matched to a Solarbase project.
+5. **Projects without invoices** show as "Sin datos de facturación" with NULL delinquency metrics. As of April 2026, there are ~17 such projects — mostly recently signed leases in grace periods or old GT projects that completed before Zoho tracking began.
+
+6. **~120 GT invoices remain unmapped** to a Supabase project (no Zoho Project ID available). These are tracked in `invoice_project_map` with `match_method = 'pending'` and need manual resolution.
+
+7. **HN multi-project combined billing** relies on proportional allocation weights from the `monthly_cash_flows` median. If a client's projects have materially different payment schedules (e.g., one project in grace, another active), the allocation may need manual adjustment.
