@@ -26,6 +26,8 @@
 
 - **Strategy**
   - [Technology & AI Roadmap 2026](strategy/technology-roadmap-2026.md)
+  - [Plan Solarbase — SwissContact](strategy/plan-solarbase-swisscontact.md)
+  - [Work Plan Q2-Q3 2026](strategy/solarbase-workplan-2026-q2q3.md)
 
 - **Architecture**
   - [Platform Separation of Concerns](architecture/platform-separation-of-concerns.md)
