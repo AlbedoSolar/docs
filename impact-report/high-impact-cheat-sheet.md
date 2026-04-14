@@ -37,8 +37,12 @@ The `municipalities` table also stores `in_poorest_25_percent`, `in_poorest_33_p
 ## Poverty Data Sources by Country
 
 ### Guatemala
-- **Source**: Unknown (pre-dates current documentation). Already populated when system was built.
-- **Coverage**: 340 municipalities, all have `in_poorest_20_percent` set.
+- **Source**: INE Guatemala — "Mapa de Pobreza 2023", using Foster-Greer-Thorbecke (FGT) indices
+- **Original spreadsheet**: [Google Sheets — Índices de pobreza por municipio 2023](https://docs.google.com/spreadsheets/d/141di7U2fUGtGsDBGbEGatE7rpLbd-zrz0nvWKvxH_KQ/edit?usp=sharing)
+- **Year of data**: 2023
+- **Methodology**: A composite index was built from three FGT poverty measures for each of Guatemala's 341 municipalities: % de pobreza (FGT0, prevalence), índice de brecha (FGT1, depth), and índice de severidad (FGT2, severity). Each was normalized to 0–1, then averaged into a single composite score. Municipalities were sorted by composite score and assigned percentile ranks. The bottom 20/25/33/50% thresholds were applied to set the boolean flags.
+- **Coverage**: 341 municipalities, all have `in_poorest_20_percent` set.
+- **Poorest departments**: Alta Verapaz, Huehuetenango, Quiché, Jalapa, Chiquimula
 
 ### Honduras
 - **Source**: UNDP Human Development Index (IDH), 2009 data
