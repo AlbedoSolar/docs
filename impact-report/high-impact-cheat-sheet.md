@@ -62,6 +62,29 @@ The `municipalities` table also stores `in_poorest_25_percent`, `in_poorest_33_p
 
 ---
 
+## Why Different Methodologies?
+
+Each country uses a different poverty measure because each country publishes different data:
+
+| Country | Measure | Year |
+|---|---|---|
+| Guatemala | FGT composite (poverty rate + depth + severity) | 2023 |
+| Honduras | HDI (health + education + income) | 2009 |
+| El Salvador | Income poverty rate (FGT0 only) | ~2004 |
+
+**This is defensible because we rank within each country, not across countries.** The question for each project is: "is this municipality in the poorest 20% *of its own country*?" Since the 20% cutoff is applied independently per country, it doesn't matter that Guatemala uses a composite index while Honduras uses HDI. What matters is that the ranking within each country is internally consistent — and each dataset covers all (or nearly all) municipalities in that country using a single methodology.
+
+### Why is the data so old for Honduras and El Salvador?
+
+Municipality-level poverty data is expensive to produce — it requires either a full census or small-area estimation techniques that combine census and survey data. Most countries only do this every 10–15 years. For Honduras and El Salvador, the datasets we used are the most recent *publicly available, structured, municipal-level* poverty datasets that cover all municipalities:
+
+- **Honduras**: The UNDP published an updated 2022 Atlas de Desarrollo Humano with municipal HDI for all 298 municipalities, but it is only available as an interactive web publication (ReadyMag) with no downloadable data file. If structured data becomes available in the future, we should update.
+- **El Salvador**: The World Bank published a 2022 poverty mapping study with municipal-level estimates, but the underlying data table is not publicly downloadable (only the methodology paper). The FISDL classification, despite being from 2004, is still the dataset the Salvadoran government itself used for social program targeting (Comunidades Solidarias Rurales).
+
+In practice, municipality-level poverty rankings in Central America are structurally persistent — the poorest municipalities (Alta Verapaz in Guatemala, Lempira/Intibucá in Honduras, Chalatenango/Morazán in El Salvador) have been the poorest for decades. While absolute poverty levels change, the *relative ranking* tends to be stable.
+
+---
+
 ## Possible Values
 
 All six impact fields use the same value set:
@@ -102,54 +125,6 @@ denominator = depends on approach (see below)
 | Inclusive (incl. Not Sure) | All projects | You want the conservative floor — treats unknowns as "not high impact" |
 
 For years 2021–2024, both approaches give the same result (no "Not Sure" values). For 2025+, they diverge because newer projects often have unresolved `women_led`, `youth_led`, and `rural_area` fields.
-
----
-
-## SQL — High Impact % by Year
-
-```sql
-select
-    extract(year from project_date)::int as year,
-    count(*) as total_projects,
-    count(*) filter (
-        where women_led = 'Yes'
-           or youth_led = 'Yes'
-           or rural_area = 'Yes'
-           or educational_institution = 'Yes'
-           or non_profit = 'Yes'
-           or impoverished_area_calculated = 'Yes'
-    ) as high_impact,
-    round(
-        100.0 * count(*) filter (
-            where women_led = 'Yes'
-               or youth_led = 'Yes'
-               or rural_area = 'Yes'
-               or educational_institution = 'Yes'
-               or non_profit = 'Yes'
-               or impoverished_area_calculated = 'Yes'
-        ) / nullif(count(*) filter (
-            where women_led in ('Yes', 'No')
-              and youth_led in ('Yes', 'No')
-              and rural_area in ('Yes', 'No')
-              and educational_institution in ('Yes', 'No')
-              and non_profit in ('Yes', 'No')
-              and impoverished_area_calculated in ('Yes', 'No')
-        ), 0), 1
-    ) as pct_excl_not_sure,
-    round(
-        100.0 * count(*) filter (
-            where women_led = 'Yes'
-               or youth_led = 'Yes'
-               or rural_area = 'Yes'
-               or educational_institution = 'Yes'
-               or non_profit = 'Yes'
-               or impoverished_area_calculated = 'Yes'
-        ) / count(*), 1
-    ) as pct_incl_not_sure
-from analytics.int_projects_mega_view
-group by 1
-order by 1;
-```
 
 ---
 
