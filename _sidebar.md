@@ -34,6 +34,7 @@
 
 - **Impact Report**
   - [Technical Reference](impact-report/README.md)
+  - [High Impact Cheat Sheet](impact-report/high-impact-cheat-sheet.md)
   - [Total Solar Savings Calculations](impact-report/total-solar-savings-calculations.md)
 
 - **Finance**

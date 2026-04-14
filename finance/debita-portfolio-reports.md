@@ -221,3 +221,9 @@ Each snapshot row is converted to USD using the exchange rate from that snapshot
 6. **~120 GT invoices remain unmapped** to a Supabase project (no Zoho Project ID available). These are tracked in `invoice_project_map` with `match_method = 'pending'` and need manual resolution.
 
 7. **HN multi-project combined billing** relies on proportional allocation weights from the `monthly_cash_flows` median. If a client's projects have materially different payment schedules (e.g., one project in grace, another active), the allocation may need manual adjustment.
+
+---
+
+## Monthly Refresh Process
+
+At the end of each month, we refresh the invoice and payment data by pulling CSV exports from the accounting systems: **Zoho Books** for Guatemala and **QuickBooks** for Honduras. Three exports are needed from each system: invoices (facturas), payments received, and a projects/customers list. The projects export contains the project IDs used by the accounting system, which map to project references (e.g., "402-01") that link back to Solarbase. Using these references, we match the incoming accounting data to the correct projects in the database, load new invoices and payments into `zoho_invoices` and `lease_payments`, and re-run the Debita reports with the updated data. As part of this process, we also use Claude to compare existing invoices against the new exports to detect status mismatches — for example, an invoice that was "Overdue" in the database but now shows as "Closed" (paid) in the accounting system — and update those statuses accordingly.
