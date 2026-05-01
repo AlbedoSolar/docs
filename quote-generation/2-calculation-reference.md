@@ -756,12 +756,27 @@ totalInsuranceCost = SUM(all insuranceCost values) * (1 + insurancePremium)
 
 denominator = MAX(term - gracePeriod + 1, 1)
 
-maintPayment = totalMainCost / denominator
-insurancePayment = totalInsuranceCost / denominator
+computedMaintPayment = totalMainCost / denominator
+computedInsurancePayment = totalInsuranceCost / denominator
+
+# Manual overrides (event data: manual_maintenance_payment, manual_insurance_payment).
+# When provided (non-null), substitute the computed per-month payment with the
+# override value. Cost columns (insurance_cost, maint_cost) stay calculated —
+# Albedo still books the real underlying expense; only the customer-facing
+# payment changes. Mirrors the R reference: manual_insurance_payment_zz /
+# manual_maint_payment_zz in servicios_table_fun.
+maintPayment = manualMaintenancePayment ?? computedMaintPayment
+insurancePayment = manualInsurancePayment ?? computedInsurancePayment
 
 Applied to months: serviciosStartMonth through term (inclusive)
     (serviciosStartMonth defaults to gracePeriod + 1)
 ```
+
+**Manual override semantics:**
+- Unit: fixed monthly amount in `project_currency`.
+- Blank / undefined / null = no override (use computed value as today).
+- `0` = explicit zero (client pays nothing for that line item).
+- The two fields are independent: overriding one leaves the other auto-calculated.
 
 **Important note:** The denominator uses `term - gracePeriod + 1`, NOT `term - serviciosStartMonth + 1`. The code comment says this is to "allow for discounts" and matches the original R implementation. This means the payment divisor may include months where payments aren't actually applied, resulting in slightly lower monthly payments.
 
