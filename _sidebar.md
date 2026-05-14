@@ -21,6 +21,7 @@
   - [Known Inconsistencies](quote-generation/4-known-inconsistencies.md)
   - [Default Quotes & Client Offers](quote-generation/5-default-quotes-and-client-offers.md)
   - [Business Decisions Log](quote-generation/6-business-decisions-log.md)
+  - [Golden Copy Status](quote-generation/golden-copy-status.md)
 
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
