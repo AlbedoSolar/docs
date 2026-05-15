@@ -154,6 +154,20 @@ Currency conversion uses a single FX snapshot at quote time. Provider payouts sp
 
 The NII table (manual mode) and the integration flow count maintenance inflation years from different baselines. Same parameters, different results. Per `4-known-inconsistencies.md` § 2.3. Either pick one or document why they differ.
 
+## Open · Impact-indicator canonical home (clients vs projects vs sites)
+
+The May 14 work moved schema and form capture to `clients.*` but the broader move is **provisional, not yet team-aligned**. Detailed list of sub-decisions in the May 14 entry above:
+1. educational_institution / non_profit: clients or sites?
+2. When do impact reports cut over from `projects.*` to `clients.*`?
+3. Backfill strategy + handling of 3+ clients with conflicting per-project values.
+4. Form authority — is rep-entered data the source of truth or does ops review?
+5. When do we deprecate `projects.*` impact columns?
+6. Reconciling existing inconsistencies before backfill.
+7. Sales-rep communication about the new form fields.
+
+**Stakeholders**: Sales lead, ops, Stephanie (impact reporting), Ian, ADA contacts.
+**Until resolved**: new fields capture data but impact reports unchanged.
+
 ## Open · "Otros" category for non-gendered clients
 
 Stephanie proposed adding an "Otros" client gender category for sociedades / organizations without a leadership gender. Per Apr 8 ADA meeting. Confirm with Stephanie where the manual classification comes from (Excel? QB?) before implementing.
@@ -342,41 +356,75 @@ legalFeeConIva / (1 + taxRate)` before passing to serviciosTable.
 
 ---
 
-## 2026-05-14 · Impact indicators move from projects to canonical homes
+## 2026-05-14 · Impact indicators move from projects to canonical homes — **PROVISIONAL, needs team alignment**
 
-**Decision.** Long-term, the six impact indicators move from
-`projects.*` to their semantic owners:
+**Provisional decision** (Jake May 14, NOT yet stakeholder-confirmed). Long-term, the six impact indicators move from `projects.*` to their semantic owners:
 
-| Indicator | New home | How resolved |
+| Indicator | Proposed home | How resolved |
 |---|---|---|
 | women_led | clients | manual field |
 | youth_led | clients | manual field |
-| educational_institution | clients (open question — could be sites) | manual field |
-| non_profit | clients (open question — could be sites) | manual field |
+| educational_institution | clients (open: could be sites) | manual field |
+| non_profit | clients (open: could be sites) | manual field |
 | rural_area | derived from `sites.smod_code` | see rural decision below |
 | impoverished_area | derived from `sites.municipality_id` → `municipalities.in_poorest_20_percent` (GT only) | already in effect |
 
-**Why.** Each indicator is structurally an attribute of its owning entity.
-women_led/youth_led are about who the customer **is** (the client), not the
-specific project. Rural/impoverished are about **where** the install is
-(the site's location).
+**Why.** Each indicator is structurally an attribute of its owning entity. women_led/youth_led describe who the customer **is** (the client), not the specific project. Rural/impoverished describe **where** the install is (the site's location). The current state on `projects` produces real bugs — see Apr 8 ADA meeting prep: "3 clients have projects with **distinct** values of `women_led`, which is impossible if it's a property of leadership. The '9-client gap' in the women's count comes from this inconsistency."
 
-**Migration approach** (Jake May 14): add the new client columns now
-(nullable, no backfill). Populate as we touch each entity. Impact reports
-continue reading `projects.*` until coverage is high enough to flip.
+### What's implemented today (live, May 14-15)
 
-**Where.** Migration `add_impact_indicators_to_clients` adds four nullable
-text columns on `clients`. Quote wizard step 1 (`QuoteWizardStep1Client.tsx`)
-captures values into the new columns. Impact-discount helper resolves
-via the canonical source first, falling back to `projects.*`.
+- Migration `add_impact_indicators_to_clients` added `women_led`, `youth_led`, `educational_institution`, `non_profit` columns to `clients` (nullable, no backfill).
+- Quote wizard step 1 (`QuoteWizardStep1Client.tsx`) captures values into those columns.
+- Impact-discount helper (`src/utils/impactDiscount.ts`) resolves via the canonical source first, falling back to `projects.*` when the new column is null.
+- **Impact reports continue reading `projects.*` exclusively** — no behavior change in reporting yet.
 
-**Open question.** Should `educational_institution` and `non_profit` live on
-**clients** or **sites**? Default for now: clients. Revisit when we have a
-clearer picture of multi-site clients with mixed natures (e.g. a corporate
-parent operating both for-profit and non-profit sites).
+### What's NOT yet decided (needs broader team / stakeholder coordination)
 
-**Status.** Schema decision in effect. Data migration / canonical-source
-lookup pending.
+This is a real data-architecture change with cross-functional consequences. Each of these needs explicit alignment before the migration is "done":
+
+1. **Educational institution / non-profit: clients or sites?**
+   - Open between clients (default chosen for now) and sites (multi-site clients with mixed natures).
+   - Need to confirm with sales: do we ever have a non-profit client whose specific site is not non-profit (or vice versa)?
+   - **Stakeholder**: Sales lead, ops, Ian.
+
+2. **When do impact reports cut over from `projects.*` to `clients.*`?**
+   - Current state: form captures into `clients.*`, reports still read `projects.*`. Until cut-over happens, the new client columns have NO downstream effect on impact reporting.
+   - Risks of cutting over too early: incomplete client-level data → undercount.
+   - Risks of waiting too long: form data captured but ignored → diverging sources of truth.
+   - **Stakeholder**: ADA reporting (Stephanie, Alex, Nausica), Ian.
+
+3. **Backfill strategy.**
+   - How do we populate `clients.women_led` etc. for existing 184 clients? Sources:
+     - From `projects.*` of one of their projects? (Which one if values disagree?)
+     - From a manual review by Stephanie / Sales?
+     - Both, with manual override winning?
+   - For clients with multiple projects that have conflicting values (the "9-client gap"), how do we reconcile?
+   - **Stakeholder**: Sales (data ownership), Stephanie (impact reporting source of truth).
+
+4. **Form authority / data ownership.**
+   - The wizard form lets reps capture/edit these on the client at quote-creation time. Should reps be the source of truth, or should ops review/approve after capture?
+   - What happens when a new project is signed for an existing client whose impact data was filled in earlier — do we revisit?
+   - **Stakeholder**: Sales lead, ops.
+
+5. **Legacy `projects.*` deprecation.**
+   - Once reports cut over to client-level data, the `projects.*` columns become legacy fallback. When do we rename them to `_legacy` (per the Apr 8 follow-up) or drop them?
+   - Memory note `project_post_ada_meeting_followups.md` already had this on the slate; it's blocked on the cut-over above.
+   - **Stakeholder**: Ian, ADA.
+
+6. **Inconsistency reconciliation.**
+   - 3 known clients (as of Apr 8) have projects with conflicting `women_led` values. Before we backfill, those need a human decision. Same audit needed for the other 5 categories.
+   - **Stakeholder**: Sales (knows the actual leadership), Stephanie (does manual classification).
+
+7. **Communication to sales reps using the form.**
+   - The wizard now asks reps to fill in impact indicators on the client. Reps need to understand: (a) this is the canonical source going forward, (b) "Not Sure" is acceptable but reduces impact discount, (c) values they enter may be reviewed.
+   - **Stakeholder**: Sales training, sales lead.
+
+### Where (code, today)
+
+- Migration: `add_impact_indicators_to_clients` (applied to prod 2026-05-14).
+- Frontend: `QuoteWizardStep1Client.tsx`, `src/schemas/clientSchema.ts`, `src/utils/impactDiscount.ts`, `src/pages/DefaultQuotesPageV2.tsx`.
+
+**Status.** Schema + form + quote-flow lookup live in code as of 2026-05-15. The broader decision (canonical home, reporting cut-over, backfill) is **OPEN — pending team coordination**. Until that lands, the new fields capture data but don't change downstream reporting.
 
 ---
 
