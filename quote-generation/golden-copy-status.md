@@ -13,7 +13,7 @@ Daily drift check: each case runs a known set of inputs through the deployed `qu
 
 | # | Scenario | Retail final | Monthly pmt | Insurance | Maint | Legal | Overall |
 |---|----------|:------------:|:-----------:|:---------:|:-----:|:-----:|:-------:|
-| 01_gt_base | GT base · Subtract · 0% DP · no impact | 🟡 +1,909.60 | 🟡 +38.74 | 🟡 -0.31 | 🟡 -2.44 | ✅ | 🟡 |
+| 01_gt_base | GT base · Subtract · 0% DP · no impact | 🟡<br>+1,909.60 | 🟡<br>+38.74 | 🟡<br>-0.31 | 🟡<br>-2.44 | ✅ | 🟡 |
 
 _Cell shows the delta vs GC (sign included). ✅ = matched outright · 🟡 = matched via documented intentional delta · 🔴 = real drift._
 
