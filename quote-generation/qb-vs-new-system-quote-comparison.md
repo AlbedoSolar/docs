@@ -1,7 +1,7 @@
 # QB vs new-system quote comparison
 
 **Owner of follow-up:** Ian (calc engine)
-**Prepared:** 2026-06-03, updated 2026-06-04 after IVA + maintenance investigation
+**Prepared:** 2026-06-03, updated 2026-06-04 with maintenance-lookup follow-up test (variant backfill)
 **Data set:** 6 estimates × 1 representative QB quote each, imported from QB into Supabase as test cases for the upcoming cutover. New-system numbers come from hitting the production `irr-calculator` edge function with the same inputs QB had.
 
 ## TL;DR for Ian (revised after first-round triage)
@@ -79,6 +79,36 @@ For SANTIAGO GIRON:
 
 Quick way to verify on Ian's side: trace one rate lookup for `estimate_reference = '2535-01-01'` and confirm whether the query touches `departments.region_id` at all. If not, that's the gap.
 
+### Follow-up test (2026-06-04): backfill ESQUISOLAR MARGEN 20% from canonical, re-run Carlos Palencia
+
+To test whether the function works at all for the **simplest possible case** (country-only match, no region scoping), I backfilled `maintenance_rates` for the 18 provider variants from their canonical parents (migration `database/migrations/2026-06-04-backfill-variant-maintenance-rates.sql`). For Carlos Palencia's variant ESQUISOLAR MARGEN 20% (id 49), this added a row: `country_id=1, region_id=NULL, maintenance_rate=0.15 GTQ` — copied directly from canonical ESQUISOLAR (id 39).
+
+After the backfill, every field for a successful lookup is present:
+- Phase `project_phases.provider_id` = 49 ✅
+- Estimate `project_currency` = GTQ ✅ (matches rate currency)
+- Site `country_id` = 1 ✅ (matches rate country, no region join needed)
+- `maintenance_rate` = 0.15 (non-zero) ✅
+
+Re-running the same `irr-calculator` call:
+
+```
+monthly_maintenance_payment: 0
+```
+
+**Result: still Q0.** That isolates the bug to the calc engine, not the data — the function fails even on a clean country-only match where currency and provider line up. So the issue is broader than "missing region join" — it's possible the lookup isn't keyed on `provider_id` correctly, isn't reading from `maintenance_rates` at all, or has some other guard short-circuiting to 0.
+
+So among our 6 cases, the maintenance breakdown after backfill is:
+| # | Case | Provider rates available now? | Q0 because |
+|---|---|---|---|
+| 1 | SANTIAGO GIRON | ✅ rate exists for region 2 | calc engine bug |
+| 2 | Hospital la Fe | ❌ no canonical rates either | correctly Q0 |
+| 3 | Texaco San Miguel | ✅ rate=0.00 in data | correctly Q0 |
+| 4 | MAGNO CARTONES | ✅ country mismatch (only GT rate; site is HN) | correctly Q0 |
+| 5 | Cafe Welchez | ✅ rate=0.00 in data | correctly Q0 |
+| 6 | Carlos Palencia | ✅ **new: 0.15 GTQ country=1 via backfill** | **calc engine bug** |
+
+So we now have two confirmed maintenance-lookup failures (#1 region-scoped, #6 country-only) with clean data on both sides. That's enough to say the function isn't working — not "sometimes works, sometimes doesn't."
+
 ### Region semantics (per Jake)
 
 Useful context for Ian: region is GT-only. Honduras and El Salvador don't use region — for those countries "region" effectively equals the country. So the lookup should:
@@ -143,7 +173,7 @@ The 20 imported test projects (these 6 + 14 others) are also visible in `/sales`
 ## Asks for Ian, ranked
 
 1. **Confirm the #222 pattern on Carlos Palencia / ESQUISOLAR.** Round-2 number cleanly isolates the divide-by-(1−margin) factor (× 1.25 exact). If you already have a fix in flight on #222, this comparison gives you one regression case.
-2. **Trace the SANTIAGO GIRON maintenance lookup.** Energica has rate=0.19 USD for country=1, region=2; site is in that region (via dept 21 → region 2). New system returns 0. Hypothesis: the lookup doesn't join through `departments.region_id` and only matches on `site.country_id`.
+2. **Trace the maintenance lookup — broader than the region join.** After the 2026-06-04 follow-up test (variant backfill + clean country-only rate for Carlos Palencia / ESQUISOLAR MARGEN 20%), the function still returns 0 even when provider_id, country, currency and a non-zero rate all line up. So the bug isn't just "missing region join"; it's something more fundamental in the lookup path. Both SANTIAGO GIRON (region-scoped) and Carlos Palencia (country-only) are now confirmed misses with clean data on both sides.
 3. **Eyeball the −9.2% on Cafe Welchez monthly payment.** The other 5 cases are within ±5%, this one is slightly larger. Could be a HN-specific quirk or an artifact of one of the financial fields I'm importing — happy to dig further if you want a pointer.
 4. **Pin the maintenance Q0-when-rate-missing behavior intentional?** For the 4 cases where Q0 is correct given the data (no rates, rate=0, or country mismatch), is the current behavior "show Q0" or should there be a fallback to some default? Not blocking, just want to know the design intent before we expand the migration.
 
