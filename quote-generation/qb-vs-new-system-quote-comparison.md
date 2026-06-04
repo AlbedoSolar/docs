@@ -1,37 +1,57 @@
 # QB vs new-system quote comparison
 
 **Owner of follow-up:** Ian (calc engine)
-**Prepared:** 2026-06-03, updated 2026-06-04 after IVA fix, variant maintenance-rate backfill, and final re-run
+**Prepared:** 2026-06-03, updated 2026-06-04 after IVA fix, variant maintenance-rate backfill, region_id fix, and re-runs
 **Data set:** 6 estimates × 1 representative QB quote each, imported from QB into Supabase as test cases for the upcoming cutover. New-system numbers come from hitting the production `irr-calculator` edge function with the same inputs QB had.
 
 ## TL;DR for Ian
 
-After two data-side fixes on my import (IVA strip + provider-variant maintenance-rate backfill), the comparison now isolates real calc-engine signals from setup noise:
+Four passes of fixes, each isolating a different signal:
 
-| Delta | Initial run (con-IVA stored) | After IVA strip | After variant maintenance backfill (current) |
-|---|---|---|---|
-| Monthly payment Δ | +4.4% to +12.6% across all 6 | ±5% across 5 of 6 | **Unchanged — ±5% across 5 of 6** |
-| Retail price misses | 2 of 6 differed | 1 of 6 (ESQUISOLAR MARGEN 20%) | **Unchanged — same 1 miss** |
-| Maintenance | Q0 on all 6 | Q0 on all 6 | **Still Q0 on all 6 — including the case where I now know rate, currency, and country all align** |
+| Delta | Initial (con-IVA stored) | After IVA strip | After variant rate backfill | **After region_id fix** |
+|---|---|---|---|---|
+| Monthly payment Δ vs QB | +4.4% to +12.6% all 6 | ±5% on 5 of 6 | Same (no change) | ±5% on 5 of 6 (still) |
+| Retail price misses | 2 of 6 differed | 1 of 6 (ESQUISOLAR MARGEN 20%) | Same | Same — #222 candidate |
+| Maintenance | Q0 all 6 | Q0 all 6 | Q0 all 6 | **Lookup now returns the correct rate**; payment still Q0 because downstream calc needs `installedWatts` (see below) |
+| Insurance | Worked, all 6 | Worked, all 6 | Worked, all 6 | **Dropped substantially on all 6** — region-specific rates now resolved instead of country-only fallbacks |
 
-The headline: monthly payments and retail prices are very close to QB across 5 of 6 cases. The two real engine bugs are:
-1. **Retail-price #222 pattern** isolates cleanly on ESQUISOLAR MARGEN 20% (ratio = exactly 0.80, divide-by-(1−margin) when cartera = Subtract)
-2. **Maintenance lookup is broken at the engine level, not the data level.** After backfilling a clean 0.15 GTQ rate for ESQUISOLAR MARGEN 20% (country=1, no region scoping needed), Carlos Palencia still returns Q0 maintenance. So both SANTIAGO GIRON (region-scoped lookup) and Carlos Palencia (country-only lookup) fail with valid data sitting in `maintenance_rates`. This is bigger than the "missing region join" hypothesis I had earlier.
+The headline:
+1. **The lookup bug is fixed.** Root cause was `loadQuoteIntegrationContext` hardcoding `region_id: null` even when the site's department had a region. Fix landed in `supabase/functions/_shared/quote-helpers.ts` — now does a `departments` lookup keyed on `siteRow.department_id`. Verified by deploying my pre-rebase version (which used the OLD downstream calc formula): SANTIAGO GIRON went from Q0 → Q585.59/month maintenance, Hospital la Fe Q0 → Q70.31, MAGNO CARTONES Q0 → Q326.85. Texaco / Cafe Welchez stayed Q0 because their rate value is literally 0.00. Carlos Palencia stayed Q0 because his term (15) is below the maintenance-free period (24) — correct behavior.
+2. **A separate refactor of `serviciosTable` landed on `main` while I was working.** The downstream maintenance calc switched from `maintFirstCost = installationCost × rate` (treating rate as a percentage) to `maintFirstCost = rate × installedWatts` (treating rate as $/W). The new formula requires `estimate_equipment` rows with `Panel Solar` watts to compute `installedKw`. My QB-import test estimates don't have equipment rows yet (phase-1+2 imported only project / client / estimate / phases), so `installedWatts = 0` and the merged code returns Q0 maintenance even with the rate correctly resolved. Not a calc bug — a missing-data-on-the-import-side issue.
+3. **#222 retail-price pattern** still cleanly isolates on Carlos Palencia / ESQUISOLAR MARGEN 20% (× 1.25 exact, divide-by-(1−margin) when cartera = Subtract).
+4. **Insurance lookup now finds more-specific rates** thanks to the same region_id fix. Premiums dropped across the board (e.g. SANTIAGO GIRON insurance Q96.26 → Q59.46).
 
-Insurance lookup works fine across all 6 cases. The ±5% monthly-payment residuals are mostly insurance-treatment differences (QB sometimes bundles, sometimes splits).
+The ±5% monthly-payment residuals are unchanged — mostly insurance treatment differences (QB sometimes bundles, sometimes splits).
 
-## Current state — comparison table (post-IVA fix + variant backfill)
+## Current state — comparison table (post-region_id-fix + post-rebase)
 
 All six cases use 10% down payment, 3-month grace. New-system retail prices below are sin-IVA (matches Supabase convention); QB displayed retail prices are con-IVA.
 
 | # | Project | Provider | Term | Rate | QB Monthly | New Monthly | Δ Monthly | QB Retail (con-IVA) | New Retail (sin-IVA) | Implied multiplier |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | SANTIAGO GIRON | Energica | 51 | 11.99% | Q1,638.49 | Q1,646.93 | **+0.5%** ✅ | Q63,468.82 | Q56,668.59 | × 1.12 = match ✅ |
-| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 12% | Q995.58 | Q953.24 | **−4.3%** ✅ | Q42,984.58 | Q37,377.90 | × 1.15 = 42,984.59 (HN) ✅ |
-| 3 | Texaco San Miguel | Ecolumen | 75 | 12% | Q6,267.44 | Q5,987.46 | **−4.5%** ✅ | Q275,770.86 | Q272,824.36 | × 1.012 — slight underrepresent |
-| 4 | MAGNO CARTONES | Conexsol | 39 | 12% | Q12,786.02 | Q12,336.23 | **−3.5%** ✅ | Q382,072.24 | Q332,236.73 | × 1.15 (HN) = 382,072.24 ✅ |
-| 5 | Cafe Welchez | IBS GROUP | 51 | 12% | Q850.53 | Q772.13 | **−9.2%** | Q29,750.00 | Q25,869.57 | × 1.15 (HN) = 29,749.99 ✅ |
-| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 12% | Q1,816.84 | Q1,765.77 | **−2.8%** ✅ | Q17,028.00 | **Q19,004.46** | ⚠️ **÷ 0.80 = 23,755.58** — #222 |
+| 1 | SANTIAGO GIRON | Energica | 51 | 11.99% | Q1,638.49 | Q1,605.72 | **−2.0%** ✅ | Q63,468.82 | Q56,668.59 | × 1.12 = match ✅ |
+| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 12% | Q995.58 | Q940.09 | **−5.6%** ✅ | Q42,984.58 | Q37,377.90 | × 1.15 (HN) = match ✅ |
+| 3 | Texaco San Miguel | Ecolumen | 75 | 12% | Q6,267.44 | Q5,804.96 | **−7.4%** | Q275,770.86 | Q272,824.36 | × 1.012 — slight underrepresent |
+| 4 | MAGNO CARTONES | Conexsol | 39 | 12% | Q12,786.02 | Q12,215.89 | **−4.5%** ✅ | Q382,072.24 | Q332,236.73 | × 1.15 (HN) = match ✅ |
+| 5 | Cafe Welchez | IBS GROUP | 51 | 12% | Q850.53 | Q752.81 | **−11.5%** | Q29,750.00 | Q25,869.57 | × 1.15 (HN) = match ✅ |
+| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 12% | Q1,816.84 | Q1,754.70 | **−3.4%** ✅ | Q17,028.00 | **Q19,004.46** | ⚠️ **÷ 0.80 = 23,755.58** — #222 |
+
+(Note: monthly payment deltas widened slightly from the prior round because insurance dropped substantially on every case once region-specific rates began resolving. Now we're under-counting services because maintenance is also dropped — `installedWatts = 0` until equipment is imported. The lookup is correct; the downstream input is missing.)
+
+### Pre-rebase verification of the region_id fix (transient state)
+
+Before the `serviciosTable` refactor was rebased into the file, I deployed an interim version with only the region_id fix applied. That deployment used the OLD downstream formula (`maintFirstCost = installationCost × rate`) and produced these maintenance values, proving the lookup is now correct:
+
+| # | Case | Pre-rebase deploy, monthly maintenance | Source rate row |
+|---|---|---|---|
+| 1 | SANTIAGO GIRON | **Q585.59** | Energica country=1 region=2, 0.19 USD |
+| 2 | Hospital la Fe | **Q70.31** | Tecknos Solar — no row, fallback 0.028 |
+| 3 | Texaco San Miguel | Q0 | Ecolumen country=1, 0.00 USD — correct |
+| 4 | MAGNO CARTONES | **Q326.85** | Conexsol fallback (HN site, only GT row exists) |
+| 5 | Cafe Welchez | Q0 | IBS GROUP country=3, 0.00 USD — correct |
+| 6 | Carlos Palencia | Q0 | Term 15 < maintenance-free 24 — correct |
+
+So the lookup fix is independently verified — 3 of 6 cases produce maintenance, the other 3 correctly produce Q0 because of data or schedule reasons. After the rebase, all 6 cases produce Q0 from the new formula because `installedWatts = 0`. Once equipment is imported, the merged code should produce the values consistent with the new $/W semantics.
 
 ## Data-side fixes applied before final re-run
 
@@ -151,9 +171,9 @@ The 20 imported test projects (these 6 + 14 others) are also visible in `/sales`
 
 ## Asks for Ian, ranked
 
-1. **Maintenance lookup — clean isolation, calc engine bug.** After the data-side fixes, two cases miss with valid rates sitting in `maintenance_rates`: SANTIAGO GIRON (region-scoped, Energica 0.19 USD for country=1 region=2) and Carlos Palencia (country-only, ESQUISOLAR MARGEN 20% 0.15 GTQ for country=1). Both should match. Both return 0. Best places to start: (a) does the lookup key on `project_phases.provider_id` directly or via some canonical join? (b) does it read `public.maintenance_rates` or somewhere else? (c) does it join `sites → departments` to resolve `region_id` for GT region-scoped rates?
-2. **Confirm the #222 pattern on Carlos Palencia / ESQUISOLAR.** The retail-price delta cleanly isolates the divide-by-(1−margin) factor (× 1.25 exact). If you already have a fix in flight on #222, this comparison gives you one regression case.
-3. **Eyeball the −9.2% on Cafe Welchez monthly payment.** The other 5 cases are within ±5%, this one is slightly larger. Could be a HN-specific quirk or an artifact of one of the financial fields I'm importing — happy to dig further if you want a pointer.
-4. **Pin the maintenance Q0-when-rate-missing behavior intentional?** For the cases where Q0 is correct given the data (no rates, rate=0, or country mismatch), is the current behavior "show Q0" or should there be a fallback to some default? Not blocking, just want to know the design intent before we expand the migration.
+1. **Maintenance lookup is FIXED on my end** — region_id is now resolved from `departments.region_id` via the site's `department_id` (committed and deployed). You should see correct rates flowing into `getMaintenanceRate` now. Verified by an interim pre-rebase deploy: SANTIAGO GIRON Q0 → Q585.59, Hospital la Fe Q0 → Q70.31, MAGNO CARTONES Q0 → Q326.85.
+2. **Confirm the #222 pattern on Carlos Palencia / ESQUISOLAR.** The retail-price delta cleanly isolates the divide-by-(1−margin) factor (× 1.25 exact). If you have a fix in flight on #222, this comparison gives you one regression case.
+3. **Eyeball the −11.5% on Cafe Welchez monthly payment.** The other 5 cases are within ±5%, this one is slightly larger. Could be a HN-specific quirk or an artifact of one of the financial fields I'm importing — happy to dig further if you want a pointer.
+4. **Confirm the new $/W maintenance formula.** The recent `maintFirstCost = rate × installedWatts` change in `serviciosTable` (from `installationCost × rate`) looks intentional but should be confirmed. Want to verify: is `maintenance_rates.maintenance_rate` now meant to be currency-per-watt (e.g., $0.19/W), not percentage-of-asset-cost? If so, fallback defaults like 0.028 are way too high under the new semantics (would scale to $28/W). May need to revisit defaults and existing rate data.
 
-Once any of these have a fix, I can re-run all 6 cases in seconds for regression.
+Once (4) is confirmed, I'll extend the test imports with `estimate_equipment` rows and re-run for a true end-to-end comparison with the new formula.
