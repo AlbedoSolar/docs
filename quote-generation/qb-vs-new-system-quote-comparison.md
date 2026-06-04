@@ -67,62 +67,39 @@ So the calc engine is taking the phase cost and dividing by `(1 − provider_mar
 
 This is exactly the #222 hypothesis: divide-by-(1−margin) instead of multiply-by-(1+margin), and it bites when cartera is Subtract.
 
-## Maintenance Q0 in all 6 cases — root cause isolated to the calc engine
+## Maintenance — how each case lands after the region_id fix + equipment import
 
-Working through `public.maintenance_rates` for each case and then doing the variant backfill, here's the maintenance breakdown:
+The headline maintenance values appear in the main comparison table above. The breakdown of *why* each one lands where it does:
 
-| # | Case | Provider | Rate available now? | Why Q0 |
-|---|---|---|---|---|
-| 1 | SANTIAGO GIRON | Energica (8) | ✅ 3 rows: country=GT, region 1/2/3 (USD). Region 2 = 0.19 | ⚠️ **CALC ENGINE BUG** — site is country=1, dept=21 → region=2 via departments. Rate exists, should match, returns 0. |
-| 2 | Hospital la Fe | Tecknos Solar (112) | ❌ 0 rows (canonical has none either) | Correctly Q0 — no data |
-| 3 | Texaco San Miguel | Ecolumen (10) | ✅ 1 row: country=GT, rate = **0.00** USD | Rate IS zero, Q0 is correct |
-| 4 | MAGNO CARTONES | Conexsol (1) | ✅ 1 row: country=GT, but project is country=3 (HN) | Country mismatch — no HN rate exists |
-| 5 | Cafe Welchez | IBS GROUP (47) | ✅ 2 rows: country=HN, rate = **0.00** USD | Rate IS zero, Q0 is correct |
-| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% (49) | ✅ **NEW after backfill: 0.15 GTQ country=1** | ⚠️ **CALC ENGINE BUG** — clean country-only match, no region join needed, still returns 0 |
-
-Two of the six are confirmed calc-engine misses (#1 and #6). The other four return Q0 because that's what the data says (no rates, rate=0, or country mismatch).
-
-### Why #6 is the cleanest signal
-
-Carlos Palencia / ESQUISOLAR MARGEN 20% was deliberately set up as the simplest possible lookup case after the variant backfill:
-- Phase `project_phases.provider_id` = 49 ✅
-- Estimate `project_currency` = GTQ ✅ (matches rate currency)
-- Site `country_id` = 1 ✅ (matches rate country, no region scoping needed)
-- `maintenance_rates` row: provider=49, country=1, region=NULL, rate=0.15 GTQ ✅
-
-Re-running `irr-calculator` returns `monthly_maintenance_payment: 0`. There's nothing left on the data side to explain that — every key the lookup could plausibly use is in place.
-
-### Two hypotheses for Ian to test
-
-1. The lookup keys on the canonical `provider_id` (via a JOIN through some other table) rather than the variant `provider_id` from `project_phases.provider_id` directly. If so, ESQUISOLAR MARGEN 20% (id 49) would never match because the lookup is looking for ESQUISOLAR (id 39).
-2. The lookup isn't reading `public.maintenance_rates` at all and is reading from something else (e.g., a stale DBT view or a different source-of-truth table).
-
-Either would explain why both #1 (region-scoped) and #6 (country-only, post-backfill) miss.
-
-### Bonus context for the SANTIAGO GIRON case
-
-If the lookup IS reading `maintenance_rates` but doesn't join through `departments.region_id` to resolve site → region, then the region-scoped Energica rates will never match. Sites carry `country_id`, `department_id`, `municipality_id` — but **no `region_id` directly**. The departments table has `region_id`, so the join has to go through there.
+| # | Case | Provider | Rate row that matched | New-system result | Why |
+|---|---|---|---|---|---|
+| 1 | SANTIAGO GIRON | Energica (8) | country=GT, region=2, **0.19 USD** | Q776.56/mo | Match found via the new region_id join. Result is high (+51% off QB on monthly payment) — see ask #1 below: the 0.19 value reads as a percentage, not $/W. |
+| 2 | Hospital la Fe | Tecknos Solar (112) | None — falls back to `config.default_maintenance_percentage` = 0.028 | Q83.95/mo | Fallback applied because Tecknos Solar has 0 rate rows. Result lands at +4.1% off QB — the fallback happens to give a reasonable answer for this size system. |
+| 3 | Texaco San Miguel | Ecolumen (10) | country=GT, **0.00 USD** | Q0 | Rate IS literally zero, so Q0 is correct. |
+| 4 | MAGNO CARTONES | Conexsol (1) | None for HN — falls back to default 0.028 | Q546.77/mo | Conexsol only has a GT rate row; site is HN. Fallback applied. Result lands at +0.5% off QB. |
+| 5 | Cafe Welchez | IBS GROUP (47) | country=HN, **0.00 USD** | Q0 | Rate IS literally zero, so Q0 is correct. |
+| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% (49) | country=GT, **0.15 GTQ** (from variant backfill) | Q0 | Rate exists and matches, but term (15) is below the maintenance-free period (24), so no maintenance visits fire. |
 
 ### Region semantics (per Jake)
 
-Useful context: region is GT-only. Honduras and El Salvador don't use region — for those countries "region" effectively equals the country. So the lookup should:
+Region is GT-only. Honduras and El Salvador don't use region — for those countries "region" effectively equals the country. So the lookup should:
 - For GT: match on `country_id + region_id` (where region = rural/urban/highlands as keyed in the `regions` table)
 - For HN, SV: match on `country_id` alone (no region scoping needed)
 
-This matches what's in `maintenance_rates`: Energica's GT rows are region-scoped; IBS GROUP's HN rows are country-only.
+This matches what's in `maintenance_rates`: Energica's GT rows are region-scoped; IBS GROUP's HN rows are country-only. After the fix, `loadQuoteIntegrationContext` resolves `region_id` from `departments` via `siteRow.department_id`, so both lookup paths work.
 
-## Insurance comparison (works correctly across all 6)
+## Insurance — also improved by the region_id fix
 
-`monthly_insurance_payment` came back non-zero in every case. The lookup works. The values per case (sin-IVA, USD where the rate currency is USD):
+The same `region_id: null` bug was suppressing region-specific insurance lookups, so every case was falling back to a country-level or default insurance rate (typically higher). After the fix, insurance dropped on every case:
 
-| Case | New-system insurance |
-|---|---|
-| SANTIAGO GIRON | Q96.26 |
-| Hospital la Fe | Q62.50 |
-| Texaco San Miguel | Q426.15 |
-| MAGNO CARTONES | Q571.84 |
-| Cafe Welchez | Q43.94 |
-| Carlos Palencia | Q25.85 |
+| Case | Before fix | After fix |
+|---|---|---|
+| SANTIAGO GIRON | Q96.26 | Q59.46 |
+| Hospital la Fe | Q62.50 | Q51.07 |
+| Texaco San Miguel | Q426.15 | Q263.21 |
+| MAGNO CARTONES | Q571.84 | Q467.19 |
+| Cafe Welchez | Q43.94 | Q27.14 |
+| Carlos Palencia | Q25.85 | Q15.96 |
 
 QB stored insurance as part of the bundled monthly payment in some cases and as a separate line in others; reconciling exactly takes a per-month cashflow pull from `qb_raw.monthly_cashflows` (have it for every QB quote in the test set).
 
@@ -132,7 +109,11 @@ QB stored insurance as part of the bundled monthly payment in some cases and as 
 2. For each, pulled the actual QB quote variant from `qb_raw.quotes` with its inputs (rate, term, dp%, grace) and stored outputs (monthly payment, retail price)
 3. Imported each estimate's project, client, estimate row into `public.*` with location, sites, project_phases, and provider derived from QB data
 4. Called the production `irr-calculator` edge function with the **exact same inputs** as the QB quotes
-5. Iterated: initial run surfaced IVA-strip gap → fixed → ±5% delta. Then variant providers showed up as a maintenance data gap → backfilled rates → Carlos Palencia got a clean test case → maintenance still Q0, isolating the bug to the engine
+5. Iterated through 4 rounds of fixes:
+   - Initial run surfaced IVA-strip gap → fixed → ±5% delta on monthly payments
+   - Variant providers showed up as a maintenance data gap → backfilled rates from canonicals
+   - Lookup itself was broken: `loadQuoteIntegrationContext` hardcoded `region_id: null` → fixed by joining through `departments`
+   - Downstream calc needed equipment data: a coworker had refactored `serviciosTable` to use `installedWatts` → imported Panel Solar `estimate_equipment` rows for all 41 test estimates
 
 ## How to reproduce any case
 
