@@ -1,86 +1,117 @@
 # QB vs new-system quote comparison
 
 **Owner of follow-up:** Ian (calc engine)
-**Prepared:** 2026-06-03
+**Prepared:** 2026-06-03, updated 2026-06-04 after IVA + maintenance investigation
 **Data set:** 6 estimates × 1 representative QB quote each, imported from QB into Supabase as test cases for the upcoming cutover. New-system numbers come from hitting the production `irr-calculator` edge function with the same inputs QB had.
 
-## TL;DR for Ian
+## TL;DR for Ian (revised after first-round triage)
 
-Across 6 diverse cases:
-- **Retail price is exact in 4 of 6** ✅, but **differs by +10.8% and +25.0% in the other 2** ⚠️
-- **Monthly payment is HIGHER in the new system in all 6 cases**, by +4.4% to +12.6%
-- **Monthly maintenance comes back as Q0 from the new system in all 6 cases**, but QB had real maintenance amounts. Likely a rates-table lookup gap on the imported estimates.
-- The 25% retail-price miss looks like **issue #222** (divide-by-(1−margin) vs multiply-by-(1+margin))
+After fixing the IVA gap on my import (the original report had a self-inflicted issue: I'd stored raw QB con-IVA values where the existing Lambda strips IVA via `removeIVA(value, taxRate)` — same convention you'd expect from any QB import), the deltas collapsed dramatically:
 
-This report is meant to give you exact reproducible inputs so you can re-run them yourself and locate the calc deltas.
+| Delta | Round 1 (con-IVA stored) | Round 2 (sin-IVA stored, per Lambda convention) |
+|---|---|---|
+| Monthly payment Δ | +4.4% to +12.6% across all 6 | **±5% across 5 of 6 cases** |
+| Retail price misses | 2 of 6 differed | **1 of 6 still off, isolated to ESQUISOLAR MARGEN 20%** ← #222 candidate |
+| Maintenance | Q0 on all 6 | Still Q0 — root causes now broken down per case (mostly correct, 1 likely-bug) |
+
+So most of the original alarm was my data, not your calc engine. The two real signals are:
+1. **The retail-price #222 pattern** still cleanly isolates on ESQUISOLAR MARGEN 20% (ratio = exactly 0.80, divide-by-(1−margin))
+2. **One actual maintenance-lookup miss** on SANTIAGO GIRON (Energica) where the rate exists but the lookup returned 0
+
+The monthly-payment residuals are small (±5%, mostly insurance treatment differences). Worth eyeballing but not alarming.
+
+## Round-2 summary table (post-IVA-fix)
+
+All six cases use 10% down payment, 3-month grace. New-system retail prices below are sin-IVA (matches Supabase convention); QB displayed retail prices are con-IVA.
+
+| # | Project | Provider | Term | Rate | QB Monthly | New Monthly | Δ Monthly | QB Retail (con-IVA) | New Retail (sin-IVA) | Implied multiplier |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | SANTIAGO GIRON | Energica | 51 | 11.99% | Q1,638.49 | Q1,646.93 | **+0.5%** ✅ | Q63,468.82 | Q56,668.59 | × 1.12 = match ✅ |
+| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 12% | Q995.58 | Q953.24 | **−4.3%** ✅ | Q42,984.58 | Q37,377.90 | × 1.15 = 42,984.59 (HN) ✅ |
+| 3 | Texaco San Miguel | Ecolumen | 75 | 12% | Q6,267.44 | Q5,987.46 | **−4.5%** ✅ | Q275,770.86 | Q272,824.36 | × 1.012 — slight underrepresent |
+| 4 | MAGNO CARTONES | Conexsol | 39 | 12% | Q12,786.02 | Q12,336.23 | **−3.5%** ✅ | Q382,072.24 | Q332,236.73 | × 1.15 (HN) = 382,072.24 ✅ |
+| 5 | Cafe Welchez | IBS GROUP | 51 | 12% | Q850.53 | Q772.13 | **−9.2%** | Q29,750.00 | Q25,869.57 | × 1.15 (HN) = 29,749.99 ✅ |
+| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 12% | Q1,816.84 | Q1,765.77 | **−2.8%** ✅ | Q17,028.00 | **Q19,004.46** | ⚠️ **÷ 0.80 = 23,755.58** — #222 |
+
+## What changed between round 1 and round 2
+
+I stripped IVA from `retail_price_project_currency`, `project_cost_partner_contract_currency`, `asset_transfer_value_project_currency`, `legal_costs_project_currency`, `commission_cost_project_currency` on the imported estimates using each project's country tax rate (GT 12%, SV 13%, HN 15%) — same `value / (1 + taxRate)` formula the existing `quickbase-import-kickoff` Lambda uses. Also stripped IVA on the auto-generated `project_phases.phase_cost` and `partner_quote_amount` since they were derived from the now-corrected estimate values.
+
+This is the conventional Supabase storage state — sin-IVA at rest, with IVA added back at display time via the frontend's MoneyDisplay component.
+
+## The one real retail-price issue: Carlos Palencia / ESQUISOLAR MARGEN 20%
+
+After IVA fix:
+- QB retail (con-IVA): Q17,028
+- My import → phase_cost (sin-IVA): Q17,028 / 1.12 = **Q15,203.57**
+- New system retail (sin-IVA): **Q19,004.46**
+- Math: Q15,203.57 ÷ 0.80 = Q19,004.46 (exact)
+
+So the calc engine is taking the phase cost and dividing by `(1 − provider_margin)` (margin = 20% for ESQUISOLAR MARGEN 20%, cartera = Subtract). That's the #222 pattern — should be `partner_cost × (1 + margin)` for an Add provider or `retail = phase_cost / (1 − margin)` should be flipped for Subtract semantics. Whatever the right semantics are, the QB-stored retail of Q17,028 con-IVA reflects "what the client pays" and the new system is producing a different number.
+
+This is exactly the #222 hypothesis: divide-by-(1−margin) instead of multiply-by-(1+margin), and it bites when cartera is Subtract.
+
+## Maintenance Q0 in all 6 cases — root causes, per case
+
+After looking at `public.maintenance_rates`, the Q0 result is NOT a single bug. It's three different things:
+
+| # | Case | Provider | Maintenance rates available? | Result Q0 because |
+|---|---|---|---|---|
+| 1 | SANTIAGO GIRON | Energica (8) | ✅ 3 rows: country=GT, region 1/2/3 (USD). Region 2 = 0.19 | ⚠️ **REAL BUG** — site has country=1, dept=21 → region=2 (via departments). Rate exists, should match, returns 0. |
+| 2 | Hospital la Fe | Tecknos Solar (112) | ❌ 0 rows | Correctly Q0 — no data to lookup |
+| 3 | Texaco San Miguel | Ecolumen (10) | ✅ 1 row: country=GT, rate = **0.00** USD | Rate IS literally zero, Q0 is correct |
+| 4 | MAGNO CARTONES | Conexsol (1) | ✅ 1 row: **country=GT** but project is country=3 (HN) | Country mismatch — no HN rate exists. Could fall back? |
+| 5 | Cafe Welchez | IBS GROUP (47) | ✅ 2 rows: **country=HN, rate = 0.00 USD** | Rate IS literally zero, Q0 is correct |
+| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% (49) | ❌ 0 rows | Correctly Q0 — no data to lookup |
+
+So 4 of the 6 Q0 results are correct given the data — they just reflect "no rate exists" or "rate is zero" in `maintenance_rates`. Only case #1 (SANTIAGO GIRON) is a real lookup miss worth investigating.
+
+### Hypothesis for the SANTIAGO GIRON miss
+
+`public.sites` carries `country_id`, `department_id`, `municipality_id` — but **no `region_id`**. To get from site → region you have to JOIN through `departments.region_id`. If the calc engine's lookup against `maintenance_rates` is keyed by `region_id` but reads only `site.country_id` directly (no join through `departments`), the rate won't match for providers whose rates are region-scoped.
+
+For SANTIAGO GIRON:
+- Site has country=1 (GT), dept=21
+- `departments` row for dept 21 has region_id = 2
+- `maintenance_rates` for Energica has rows scoped to country=1 + region={1,2,3}; region=2 is 0.19 USD
+- The lookup needs to know "site is in region 2" to pick the right row
+- If the calc engine doesn't perform that join, it can't match → returns 0
+
+Quick way to verify on Ian's side: trace one rate lookup for `estimate_reference = '2535-01-01'` and confirm whether the query touches `departments.region_id` at all. If not, that's the gap.
+
+### Region semantics (per Jake)
+
+Useful context for Ian: region is GT-only. Honduras and El Salvador don't use region — for those countries "region" effectively equals the country. So the lookup should:
+- For GT: match on `country_id + region_id` (where region = rural/urban/highlands as keyed in the `regions` table)
+- For HN, SV: match on `country_id` alone (no region scoping needed)
+
+This matches what I see in `maintenance_rates`: Energica's GT rows are region-scoped; IBS GROUP's HN rows are country-only.
+
+## Insurance comparison (works correctly across all 6)
+
+`monthly_insurance_payment` came back non-zero in every case. The lookup works. The values per case (sin-IVA, USD where the rate currency is USD):
+
+| Case | New-system insurance |
+|---|---|
+| SANTIAGO GIRON | Q96.26 |
+| Hospital la Fe | Q62.50 |
+| Texaco San Miguel | Q426.15 |
+| MAGNO CARTONES | Q571.84 |
+| Cafe Welchez | Q43.94 |
+| Carlos Palencia | Q25.85 |
+
+QB stored insurance as part of the bundled monthly payment in some cases and as a separate line in others; reconciling exactly takes a per-month cashflow pull from `qb_raw.monthly_cashflows` (have it for every QB quote in the test set).
 
 ## Methodology
 
 1. Picked 6 representative estimates spanning 5 different providers, project sizes from Q17k to Q382k, and term lengths from 15 to 75 months
 2. For each, pulled the actual QB quote variant from `qb_raw.quotes` with its inputs (rate, term, dp%, grace) and stored outputs (monthly payment, retail price)
-3. Called the production `irr-calculator` edge function with the **exact same inputs**
-4. Compared outputs
-
-The estimates were imported from QB into `public.estimates` earlier today (test migration, 20 projects total). Each estimate got one `project_phases` row with the provider derived from QB field 431 (with the Record ID#2 fallback for variant providers). Sites were also backfilled so the calc engine could resolve location. **`annual_maintenance_cost_sin_iva` and `annual_maintenance_currency` were deliberately left NULL on the imported estimates** — the calc engine is expected to fall back to the `maintenance_rates` table for these.
-
-## Summary table
-
-| # | Project | Provider | Term | DP% | Rate | QB Monthly | New Monthly | Δ Monthly | QB Retail | New Retail | Δ Retail |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | SANTIAGO GIRON | Energica | 51 | 10% | 11.99% | Q1,638.49 | Q1,844.57 | **+Q206 (+12.6%)** | Q63,468.82 | Q63,468.82 | ✅ exact |
-| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 10% | 12% | Q995.58 | Q1,096.23 | **+Q101 (+10.1%)** | Q42,984.58 | Q42,984.58 | ✅ exact |
-| 3 | Texaco San Miguel | Ecolumen | 75 | 10% | 12% | Q6,267.44 | Q6,705.95 | **+Q438 (+7.0%)** | Q275,770.86 | Q305,563.28 | ⚠️ **+Q29,792 (+10.8%)** |
-| 4 | MAGNO CARTONES | Conexsol | 39 | 10% | 12% | Q12,786.02 | Q14,186.66 | **+Q1,400 (+11.0%)** | Q382,072.24 | Q382,072.24 | ✅ exact |
-| 5 | Cafe Welchez | IBS GROUP | 51 | 10% | 12% | Q850.53 | Q887.95 | **+Q37 (+4.4%)** | Q29,750.00 | Q29,750.00 | ✅ exact |
-| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 10% | 12% | Q1,816.84 | Q1,977.66 | **+Q161 (+8.9%)** | Q17,028.00 | Q21,285.00 | ⚠️ **+Q4,257 (+25.0%)** |
-
-Maintenance from new system in all 6 cases: **Q0**. QB's stored maintenance ranged from Q952/yr to Q3K+/yr.
-
-## Hypotheses, ranked by my confidence
-
-### 1. Retail price miss on Carlos Palencia = issue #222 (high confidence)
-
-Carlos Palencia uses provider **ESQUISOLAR MARGEN 20%**. The math:
-- QB retail: Q17,028
-- New retail: Q21,285
-- Ratio: 17,028 / 21,285 = **0.80** (exactly)
-
-That's the divide-by-(1−margin) pattern. Q17,028 × 1/0.80 = Q21,285. If QB stored the partner cost as Q17,028 and applied the 20% margin as ×1.20 = Q20,433.60, but the new system applies as ÷0.80 = Q21,285, that's an extra Q851. Reverse the formulas and the QB and new system would match — which is what your issue #222 hypothesis says.
-
-Suggests the new calc engine is applying margin via divide-by-(1−margin) at least for `Subtract` cartera providers (ESQUISOLAR is `Subtract`).
-
-### 2. Maintenance not loading from rates table for any case (high confidence)
-
-All 6 cases return `monthly_maintenance_payment = 0` from the calc engine. QB had real maintenance (e.g. SANTIAGO GIRON was Q952/yr).
-
-The imported estimates have `annual_maintenance_cost_sin_iva = NULL` because we deliberately left it null (waiting for the calc engine to fall back to `maintenance_rates`). Either:
-- The fallback to `maintenance_rates` isn't kicking in
-- The lookup needs more than just `provider_id` (maybe department or municipality) and the imported sites don't have it
-- Or the new behavior is "rep must enter manually" and the QB import should fill in `annual_maintenance_cost_sin_iva` directly
-
-This is independently fixable — once maintenance loads, monthly payments will go up a bit more, widening the delta from QB. So Q0 maintenance isn't currently the cause of the monthly-payment delta — it's a separate gap.
-
-### 3. Retail price miss on Texaco San Miguel (medium confidence)
-
-Texaco uses **Ecolumen**. The ratio:
-- QB retail: Q275,770.86
-- New retail: Q305,563.28
-- Ratio: 275,770.86 / 305,563.28 = **0.9025**
-
-That's not a clean (1−margin) like Carlos Palencia's was. Ecolumen has a different effective margin (need to check `providers.standard_wholesale_margin` for Ecolumen vs whatever margin was used in QB). Could still be the same divide-vs-multiply pattern but at a different margin %, or it could be something else (currency conversion?).
-
-Worth checking: what's Ecolumen's standard_wholesale_margin in Supabase, and what cartera (`quote_margin_type`) does it have?
-
-### 4. Monthly payment delta varies, not constant (medium confidence)
-
-Across the 6 cases the new-system monthly payment is ALWAYS higher, but by varying amounts (4.4% to 12.6%). If it were a single formula bug we'd expect a constant ratio. Three possibilities:
-- **Insurance treatment difference**: QB might have bundled insurance into the monthly payment for some cases but not others. The new system returns `monthly_insurance_payment` as a separate line.
-- **Grace period interpretation**: the formula for how interest accrues during grace might differ.
-- **IVA treatment**: QB stores IVA-stripped vs IVA-included differently per the existing Lambda's translation logic; we may be feeding IVA-included into the new system somewhere it expects IVA-stripped.
+3. Imported each estimate's project, client, estimate row into `public.*` with location, sites, project_phases, and provider derived from QB data
+4. Initially stored raw con-IVA QB values; first-round comparison surfaced large deltas that turned out to be the IVA-strip gap
+5. Re-ran with IVA stripped per Lambda convention; deltas now reflect real engine behavior
+6. Called the production `irr-calculator` edge function with the **exact same inputs** as the QB quotes
 
 ## How to reproduce any case
-
-The new-system call for each row above:
 
 ```bash
 curl -X POST "$SUPABASE_URL/functions/v1/irr-calculator" \
@@ -96,7 +127,7 @@ curl -X POST "$SUPABASE_URL/functions/v1/irr-calculator" \
   }'
 ```
 
-The QB quote rows are in `qb_raw.quotes`. Use `(raw_data->'6'->>'value')::int IN (...)` with the estimate IDs to find them. Each case's exact QB quote_record_id:
+The QB quote rows are in `qb_raw.quotes`. Each case's exact QB quote_record_id:
 
 | # | estimate_ref | qb_quote_id | qb_quote_ref |
 |---|---|---|---|
@@ -107,17 +138,13 @@ The QB quote rows are in `qb_raw.quotes`. Use `(raw_data->'6'->>'value')::int IN
 | 5 | 1414-01-01 | 16378 | 1414-01-01-02 |
 | 6 | 2526-01-01 | 38441 | 2526-01-01-01 |
 
-## Other things worth knowing
+The 20 imported test projects (these 6 + 14 others) are also visible in `/sales` (Ventas en proceso) on staging if you want to see the UI view.
 
-- This is the FIRST end-to-end test of the new-system calc against real QB data. Previous testing was per-component.
-- The 20 projects we imported as test data are visible in `/sales` (Ventas en proceso) on staging today. Reps can open them and try to generate quotes in the wizard — the math will be the same as what's in this report.
-- The imported estimates aren't yet wired up with the cartera variants or some of the maintenance/insurance overrides. As we expand to the 55 in-diligence projects, those gaps grow.
+## Asks for Ian, ranked
 
-## Asks for Ian
+1. **Confirm the #222 pattern on Carlos Palencia / ESQUISOLAR.** Round-2 number cleanly isolates the divide-by-(1−margin) factor (× 1.25 exact). If you already have a fix in flight on #222, this comparison gives you one regression case.
+2. **Trace the SANTIAGO GIRON maintenance lookup.** Energica has rate=0.19 USD for country=1, region=2; site is in that region (via dept 21 → region 2). New system returns 0. Hypothesis: the lookup doesn't join through `departments.region_id` and only matches on `site.country_id`.
+3. **Eyeball the −9.2% on Cafe Welchez monthly payment.** The other 5 cases are within ±5%, this one is slightly larger. Could be a HN-specific quirk or an artifact of one of the financial fields I'm importing — happy to dig further if you want a pointer.
+4. **Pin the maintenance Q0-when-rate-missing behavior intentional?** For the 4 cases where Q0 is correct given the data (no rates, rate=0, or country mismatch), is the current behavior "show Q0" or should there be a fallback to some default? Not blocking, just want to know the design intent before we expand the migration.
 
-1. Confirm #1 (Carlos Palencia / ESQUISOLAR retail miss = #222 divide-by-(1−margin) pattern). If yes, this is your existing ticket — quote the connection back to this comparison for prioritization.
-2. Look at #2 (Q0 maintenance everywhere) — is the calc engine *supposed* to fall back to `maintenance_rates` when `annual_maintenance_cost_sin_iva IS NULL`, or does the import need to set it?
-3. Sanity-check #3 (Texaco / Ecolumen retail miss) — same root cause as #1, or different?
-4. Pick one of the monthly-payment deltas and trace it through. The grace-period interpretation feels like the most likely shared cause.
-
-Once we have a fix for any of these, I can re-run all 6 cases in seconds for regression. If it's useful I can also pull the per-month cashflow breakdown from `qb_raw.monthly_cashflows` (we have it for every QB quote in the test set) and compare line-by-line against the new system's `cashflow_table` to localize the disagreement to a specific month/component.
+Once any of these have a fix, I can re-run all 6 cases in seconds for regression.
