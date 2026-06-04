@@ -22,6 +22,7 @@
   - [Default Quotes & Client Offers](quote-generation/5-default-quotes-and-client-offers.md)
   - [Business Decisions Log](quote-generation/6-business-decisions-log.md)
   - [Golden Copy Status](quote-generation/golden-copy-status.md)
+  - [QB vs New System — Quote Comparison (Jun 2026)](quote-generation/qb-vs-new-system-quote-comparison.md)
 
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
