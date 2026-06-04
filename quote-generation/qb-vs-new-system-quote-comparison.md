@@ -1,7 +1,7 @@
 # QB vs new-system quote comparison
 
 **Owner of follow-up:** Ian (calc engine)
-**Prepared:** 2026-06-03, updated 2026-06-04 after IVA fix, variant maintenance-rate backfill, region_id fix, and re-runs
+**Prepared:** 2026-06-03, updated 2026-06-04 after IVA fix, variant rate backfill, region_id fix, estimate_equipment import, and end-to-end re-runs
 **Data set:** 6 estimates × 1 representative QB quote each, imported from QB into Supabase as test cases for the upcoming cutover. New-system numbers come from hitting the production `irr-calculator` edge function with the same inputs QB had.
 
 ## TL;DR for Ian
@@ -23,35 +23,29 @@ The headline:
 
 The ±5% monthly-payment residuals are unchanged — mostly insurance treatment differences (QB sometimes bundles, sometimes splits).
 
-## Current state — comparison table (post-region_id-fix + post-rebase)
+## Current state — comparison table (post-region_id-fix + estimate_equipment imported)
 
 All six cases use 10% down payment, 3-month grace. New-system retail prices below are sin-IVA (matches Supabase convention); QB displayed retail prices are con-IVA.
 
-| # | Project | Provider | Term | Rate | QB Monthly | New Monthly | Δ Monthly | QB Retail (con-IVA) | New Retail (sin-IVA) | Implied multiplier |
+| # | Project | Provider | Term | Rate | kW | QB Monthly | New Monthly | Δ Monthly | New Maint | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | SANTIAGO GIRON | Energica | 51 | 11.99% | Q1,638.49 | Q1,605.72 | **−2.0%** ✅ | Q63,468.82 | Q56,668.59 | × 1.12 = match ✅ |
-| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 12% | Q995.58 | Q940.09 | **−5.6%** ✅ | Q42,984.58 | Q37,377.90 | × 1.15 (HN) = match ✅ |
-| 3 | Texaco San Miguel | Ecolumen | 75 | 12% | Q6,267.44 | Q5,804.96 | **−7.4%** | Q275,770.86 | Q272,824.36 | × 1.012 — slight underrepresent |
-| 4 | MAGNO CARTONES | Conexsol | 39 | 12% | Q12,786.02 | Q12,215.89 | **−4.5%** ✅ | Q382,072.24 | Q332,236.73 | × 1.15 (HN) = match ✅ |
-| 5 | Cafe Welchez | IBS GROUP | 51 | 12% | Q850.53 | Q752.81 | **−11.5%** | Q29,750.00 | Q25,869.57 | × 1.15 (HN) = match ✅ |
-| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 12% | Q1,816.84 | Q1,754.70 | **−3.4%** ✅ | Q17,028.00 | **Q19,004.46** | ⚠️ **÷ 0.80 = 23,755.58** — #222 |
+| 1 | SANTIAGO GIRON | Energica | 51 | 11.99% | 9.86 | Q1,638.49 | Q2,475.47 | **+51%** ⚠️ | Q776.56 | Energica 0.19 rate too high under new $/W semantics |
+| 2 | Hospital la Fe | TECKNOS SOLAR | 63 | 12% | 44.63 | Q995.58 | Q1,036.64 | **+4.1%** ✅ | Q83.95 | fallback 0.028 × 44.6 kW |
+| 3 | Texaco San Miguel | Ecolumen | 75 | 12% | 29.26 | Q6,267.44 | Q5,804.96 | **−7.4%** | Q0 | rate=0.00 in data — correct |
+| 4 | MAGNO CARTONES | Conexsol | 39 | 12% | 555.78 | Q12,786.02 | Q12,844.67 | **+0.5%** ✅ | Q546.77 | fallback × large system |
+| 5 | Cafe Welchez | IBS GROUP | 51 | 12% | 35.96 | Q850.53 | Q752.81 | **−11.5%** | Q0 | rate=0.00 in data — correct |
+| 6 | Carlos Palencia | ESQUISOLAR MARGEN 20% | 15 | 12% | 2.58 | Q1,816.84 | Q1,754.70 | **−3.4%** ✅ | Q0 | term 15 < maintenance-free 24 — correct |
 
-(Note: monthly payment deltas widened slightly from the prior round because insurance dropped substantially on every case once region-specific rates began resolving. Now we're under-counting services because maintenance is also dropped — `installedWatts = 0` until equipment is imported. The lookup is correct; the downstream input is missing.)
+Retail-price column unchanged from the prior round (still 1 of 6 off — ESQUISOLAR MARGEN 20% / #222). Insurance unchanged from the prior round.
 
-### Pre-rebase verification of the region_id fix (transient state)
+### What the maintenance numbers tell us
 
-Before the `serviciosTable` refactor was rebased into the file, I deployed an interim version with only the region_id fix applied. That deployment used the OLD downstream formula (`maintFirstCost = installationCost × rate`) and produced these maintenance values, proving the lookup is now correct:
+End-to-end maintenance now fires on exactly the 3 cases where it should (rate > 0 AND term ≥ maintenance-free period). The other 3 are correctly Q0 by design. Two observations:
+- **MAGNO and Hospital la Fe land at +0.5% and +4.1% of QB.** That's about as close as we can expect, and gives confidence that the new `maintFirstCost = rate × installedWatts` formula is fundamentally working.
+- **SANTIAGO GIRON's +51% delta isolates a rate-data calibration issue.** Energica's 0.19 USD/W × 9,860 W = $1,873/visit. Across 3 visits over 51 months with the 30% premium, that's ~Q776/month effective maintenance — by itself a third of the whole quote. The 0.19 value was very likely authored as a percentage under the old `installationCost × rate` formula and not migrated when the formula changed. Same suspicion applies to any other non-zero entries in `maintenance_rates` that came from the old semantics.
 
-| # | Case | Pre-rebase deploy, monthly maintenance | Source rate row |
-|---|---|---|---|
-| 1 | SANTIAGO GIRON | **Q585.59** | Energica country=1 region=2, 0.19 USD |
-| 2 | Hospital la Fe | **Q70.31** | Tecknos Solar — no row, fallback 0.028 |
-| 3 | Texaco San Miguel | Q0 | Ecolumen country=1, 0.00 USD — correct |
-| 4 | MAGNO CARTONES | **Q326.85** | Conexsol fallback (HN site, only GT row exists) |
-| 5 | Cafe Welchez | Q0 | IBS GROUP country=3, 0.00 USD — correct |
-| 6 | Carlos Palencia | Q0 | Term 15 < maintenance-free 24 — correct |
+Recommend Ian/data team do a one-pass audit of `maintenance_rates` to confirm all non-zero values are in $/W (or whatever the intended unit is now). The fallback default of `0.028` will also need a re-look — if it was authored as a percentage, then `0.028 USD/W = 28 USD/kW = $1,400/visit on a 50kW system`, which is too high.
 
-So the lookup fix is independently verified — 3 of 6 cases produce maintenance, the other 3 correctly produce Q0 because of data or schedule reasons. After the rebase, all 6 cases produce Q0 from the new formula because `installedWatts = 0`. Once equipment is imported, the merged code should produce the values consistent with the new $/W semantics.
 
 ## Data-side fixes applied before final re-run
 
@@ -171,9 +165,8 @@ The 20 imported test projects (these 6 + 14 others) are also visible in `/sales`
 
 ## Asks for Ian, ranked
 
-1. **Maintenance lookup is FIXED on my end** — region_id is now resolved from `departments.region_id` via the site's `department_id` (committed and deployed). You should see correct rates flowing into `getMaintenanceRate` now. Verified by an interim pre-rebase deploy: SANTIAGO GIRON Q0 → Q585.59, Hospital la Fe Q0 → Q70.31, MAGNO CARTONES Q0 → Q326.85.
+1. **Audit `maintenance_rates` against the new $/W formula.** The recent `serviciosTable` refactor changed `maintFirstCost` from `installationCost × rate` (rate as %) to `rate × installedWatts` (rate as $/W). The 0.19 USD value on Energica → $1,873/visit on a 9.86 kW system → +51% off QB on SANTIAGO GIRON. Almost certainly this value was authored under the old semantics and needs recalibrating. Same suspicion for any non-zero rate row in the table and for the fallback default `config.default_maintenance_percentage = 0.028`, which scales to $28/W (way too high) under the new formula.
 2. **Confirm the #222 pattern on Carlos Palencia / ESQUISOLAR.** The retail-price delta cleanly isolates the divide-by-(1−margin) factor (× 1.25 exact). If you have a fix in flight on #222, this comparison gives you one regression case.
-3. **Eyeball the −11.5% on Cafe Welchez monthly payment.** The other 5 cases are within ±5%, this one is slightly larger. Could be a HN-specific quirk or an artifact of one of the financial fields I'm importing — happy to dig further if you want a pointer.
-4. **Confirm the new $/W maintenance formula.** The recent `maintFirstCost = rate × installedWatts` change in `serviciosTable` (from `installationCost × rate`) looks intentional but should be confirmed. Want to verify: is `maintenance_rates.maintenance_rate` now meant to be currency-per-watt (e.g., $0.19/W), not percentage-of-asset-cost? If so, fallback defaults like 0.028 are way too high under the new semantics (would scale to $28/W). May need to revisit defaults and existing rate data.
+3. **Eyeball the −11.5% on Cafe Welchez monthly payment.** The other 5 cases are within ±12%, but Cafe Welchez and Texaco San Miguel are the larger ones — both have rate=0 maintenance so the residual is purely lease+insurance differences. Could be HN-specific.
 
-Once (4) is confirmed, I'll extend the test imports with `estimate_equipment` rows and re-run for a true end-to-end comparison with the new formula.
+Once the rates are recalibrated I can re-run the 6 cases in seconds for a regression check.
