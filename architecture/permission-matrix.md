@@ -9,6 +9,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | admin | Full access (role_id = 1) |
 | sales | Sales team — can create and manage quotes, estimates, clients |
 | operations | Operations team — can update/delete projects and sites |
+| finances | Finance team — can update projects (for the diligence workflow). Edits are funneled through the UI to three columns: estimated_closing_date, diligence_notes, diligence_status. |
 
 ## Helper Functions
 
@@ -35,7 +36,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 
 | Table | INSERT | UPDATE | DELETE | Notes |
 |---|---|---|---|---|
-| `projects` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
+| `projects` | sales, admin | sales, ops, finances, admin | sales, ops, admin | Finance can UPDATE (intended for diligence columns via /finances/diligence). Operations can update/delete but not create. |
 | `sites` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
 | `clients` | sales, admin | sales, admin | sales, admin | — |
 
