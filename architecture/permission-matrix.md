@@ -48,3 +48,4 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 |---|---|---|---|---|
 | `equipments` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
 | `equipment_brands` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
+| `providers` | sales, admin | sales, admin | — | SELECT public; writes gated by `is_sales_or_admin()`. DELETE intentionally not granted (downstream FKs from estimates / project_phases). |
