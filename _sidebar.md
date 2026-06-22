@@ -13,6 +13,7 @@
   - [Administración](wiki/10-administracion.md)
   - [Integraciones](wiki/11-integraciones.md)
   - [Roles y Permisos](wiki/12-roles-y-permisos.md)
+  - [Mantenimientos](wiki/13-mantenimientos.md)
 
 - **Generación de Cotizaciones**
   - [Narrative Walkthrough](quote-generation/1-narrative-walkthrough.md)

@@ -18,3 +18,4 @@ Guía de uso de la aplicación de cotizaciones de Albedo.
 | 10 | [Administración](10-administracion.md) | Configuración, comisiones y auditoría |
 | 11 | [Integraciones](11-integraciones.md) | Zoho Books y servicios externos |
 | 12 | [Roles y Permisos](12-roles-y-permisos.md) | Roles de usuario, permisos y visibilidad por sección |
+| 13 | [Mantenimientos](13-mantenimientos.md) | Calendario de mantenimientos: consultar, editar y crear |

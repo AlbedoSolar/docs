@@ -26,6 +26,7 @@ La aplicación tiene tres áreas principales:
 | Opción | Descripción |
 |--------|-------------|
 | Todos los Proyectos | Lista completa con filtros |
+| Mantenimientos | Calendario de mantenimientos por proyecto (consultar, editar y crear) |
 | Sistemas | Gestión de sistemas solares |
 | Sitios | Sitios de instalación |
 | Equipos | Catálogo de equipos y marcas |

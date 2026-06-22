@@ -40,7 +40,7 @@ Secciones visibles:
 ### Operations (`operations`)
 
 Secciones visibles:
-- **Operaciones** — Proyectos de Operaciones, Sistemas
+- **Operaciones** — Proyectos de Operaciones, Mantenimientos, Sistemas
 - **Gestión** — Sitios, Equipos, Afiliados, Proveedores, Tipos de Comisión, Códigos de Usuario
 
 ### Admin (`admin`)
@@ -64,6 +64,8 @@ Si un usuario no tiene ningún rol asignado, ve **todas las secciones** como com
 | Crear cotizaciones (Quote Wizard) | `sales` (o sin roles) |
 | Ver proyectos firmados y flujos de caja | `finances` (o sin roles) |
 | Ver y editar proyectos de operaciones | `operations` (o sin roles) |
+| Ver mantenimientos | Cualquier usuario autenticado |
+| Editar y crear mantenimientos | `operations`, `operations-admin` o `admin` |
 | Ver y gestionar sistemas | `operations` (o sin roles) |
 | Ver reportes | `view-reports` o `admin` |
 | Ver actividad de usuarios | `view-user-stats` |
