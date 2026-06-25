@@ -83,14 +83,20 @@ The same rollups are computed in **four** places:
 
 | Rollup | v_active_projects | int_projects_mega_view | Agreement |
 |---|---|---|---|
-| total_contract_value | ✅ | ✅ `total_value` | 🔴 **DRIFT: v_active_projects is ×(1+tax) [post-IVA]; mega_view is raw [pre-IVA]** |
-| finance income / insurance / maintenance / legal | ✅ (post-IVA) | ✅ (pre-IVA) | 🔴 **same tax-semantics drift** |
-| gross_investment | ✅ | ✅ | ✅ agree (both pre-IVA) |
+| total_contract_value | ✅ ×(1+tax) **con-IVA** | ✅ `total_value` raw **sin-IVA** | 🔴 **convention drift** |
+| finance income / insurance / maintenance / legal | ✅ ×(1+tax) **con-IVA** | ✅ raw **sin-IVA** | 🔴 same drift |
+| gross_investment | ✅ ×(1+tax) **con-IVA** | ✅ raw **sin-IVA** | 🔴 **also drifts** (earlier map said "agrees" — WRONG; verified all six are ×(1+tax)) |
 | project_status / duration / grace_period | ❌ | ✅ | only mega_view |
 | quotes_count / estimates_count | ✅ | ❌ (in `int_active_projects_mega_view`) | inconsistent placement |
-| approved_* shortcuts (term, dp, retail sin/con IVA, monthly pmt) | ✅ (2026-06-22) | ❌ | v_active_projects only; `approved_retail_con_iva` = retail×(1+tax), undocumented in CALCULATIONS.md |
+| approved_* shortcuts (term, dp, retail sin/con IVA, monthly pmt) | ✅ (2026-06-22) | ❌ | v_active_projects only; uses the GOOD pattern (`approved_retail_sin_iva` + `approved_retail_con_iva` suffixed pair) |
 
-🔴 **Critical:** the tax-semantics mismatch means the two live views return *different numbers for the same project's totals*. This is the highest-priority item — a correctness bug, not just duplication. Plus contract-generator computes its own copies (with `deriveEffectiveTaxRate()` reverse-engineering IVA from `income_total`).
+🔴 **The bug class is CONVENTION DRIFT, not double-counting.** All six `v_active_projects` rollups bake `×(1+tax_rate)` into the view → **con-IVA**, but are named `*_project_currency` (no suffix). The identically-named columns in mega_view/`mv_projects_v1` are **sin-IVA** (raw sums, following the storage convention "store sin-IVA, add IVA at runtime"). The two views cover *disjoint* populations (v_active = draft/`estimate_created`; mega_view = signed), so it's not the same row twice — but the same field name means con-IVA for active projects and sin-IVA for signed projects.
+
+**Consumption (verified 2026-06-25):** `v_active_projects` is read ONLY by the frontend data layer (both apps), not by edge functions or dbt:
+- `services/supabase-data-service.ts` `getActiveProjects()` (`.select('*')`) + the search variant → feeds `ProjectsTable` (/sales, /projects, /finances). The con-IVA rollups are shown **directly, no runtime IVA** → so the same `ProjectsTable` column shows con-IVA for active rows and sin-IVA for signed rows (read from `mv_projects_v1`).
+- `FinancesDiligencePage.tsx:294` selects only `approved_retail_sin_iva` (+ cost) and grosses up once (`r*(1+t)`) → **NO double-IVA**. It does not touch the baked rollups.
+
+**Fix per the storage convention:** drop `×(1+tax)` from the six `v_active_projects` rollups (return sin-IVA, add IVA at runtime like everywhere else), OR expose suffixed `_con_iva` columns the way `approved_retail_con_iva` already does — never bake IVA into a base-named column. Also: contract-generator computes its own rollup copies (`deriveEffectiveTaxRate()` reverse-engineers IVA from `income_total`).
 
 **Perf note:** `v_active_projects` full-list load was 8.8s; one index on `estimates(project_id)` → 0.2s (44×). Index not yet applied.
 
