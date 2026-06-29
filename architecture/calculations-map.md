@@ -2,7 +2,7 @@
 
 **Purpose:** A single inventory of *where every business calculation lives today*, so we can consolidate toward one definition per calculation. Working map for the calc-consolidation effort (shared language: SQL / live views).
 
-**Last updated:** 2026-06-25, after a six-surface verification audit (edge functions, lambdas, both frontends, dbt, Postgres). File:line refs are starting points — verify before editing; the codebase moves fast.
+**Last updated:** 2026-06-29 (grid type implemented; `v_active_projects` reworked 2026-06-26 + IVA expand-contract Phase 1; Zoho consumer corrected). Originally built 2026-06-25 from a six-surface verification audit (edge functions, lambdas, both frontends, dbt, Postgres). File:line refs are starting points — verify before editing; the codebase moves fast.
 
 ## Surfaces where calculations live
 
@@ -63,7 +63,7 @@ Live home: `supabase/supabase/functions/_shared/` (+ `calculate-interest/`). Res
 
 | Calculation | Live home(s) | Verdict |
 |---|---|---|
-| **System type / grid (Ongrid/Offgrid)** | `ClientOfferPage.tsx` ~line 934 | 🔴 **HARDCODED `"Ongrid"`** — no battery derivation in code. (The "derive from batteries" rule is agreed but unimplemented; an earlier edit didn't persist.) dbt investor mart separately uses `estimates.has_batteries`. |
+| **System type / grid (Ongrid/Offgrid)** | `ClientOfferPage.tsx` (derives `hasBatteries`/`systemType` from `estimate_equipment`) | ✅ **IMPLEMENTED 2026-06-29** (commit 49c2952, staging): battery equipment (name ~ "bater") → Offgrid, else Ongrid. ⚠️ Inline equipment-name match, separate from dbt's `estimates.has_batteries` — reconcile via a shared `v_estimate_derived` view eventually. |
 | Installed capacity (kWp) | `ClientOfferPage.tsx` (`installed_potential_w/1000`, fallback sums Panel Solar equipment) | low risk |
 | Savings %, bill-after-solar, annual savings | `ClientOfferPage.tsx` | display-only, single page |
 | 30-yr escalated savings plan (3%/yr) | `ClientOfferPage.tsx` (`buildYearlyPlan`) | mirrors dbt impact escalation — watch |
@@ -83,7 +83,7 @@ The same rollups are computed in **four** places:
 
 | Rollup | v_active_projects | int_projects_mega_view | Agreement |
 |---|---|---|---|
-| total_contract_value | ✅ ×(1+tax) **con-IVA** | ✅ `total_value` raw **sin-IVA** | 🔴 **convention drift** |
+| total_contract_value | ✅ ×(1+tax) **con-IVA** (formula reworked 2026-06-26 to stop double-counting admin/asset on new-engine offers) | ✅ `total_value` raw **sin-IVA** | 🔴 **convention drift** |
 | finance income / insurance / maintenance / legal | ✅ ×(1+tax) **con-IVA** | ✅ raw **sin-IVA** | 🔴 same drift |
 | gross_investment | ✅ ×(1+tax) **con-IVA** | ✅ raw **sin-IVA** | 🔴 **also drifts** (earlier map said "agrees" — WRONG; verified all six are ×(1+tax)) |
 | project_status / duration / grace_period | ❌ | ✅ | only mega_view |
@@ -92,13 +92,20 @@ The same rollups are computed in **four** places:
 
 🔴 **The bug class is CONVENTION DRIFT, not double-counting.** All six `v_active_projects` rollups bake `×(1+tax_rate)` into the view → **con-IVA**, but are named `*_project_currency` (no suffix). The identically-named columns in mega_view/`mv_projects_v1` are **sin-IVA** (raw sums, following the storage convention "store sin-IVA, add IVA at runtime"). The two views cover *disjoint* populations (v_active = draft/`estimate_created`; mega_view = signed), so it's not the same row twice — but the same field name means con-IVA for active projects and sin-IVA for signed projects.
 
-**Consumption (verified 2026-06-25):** `v_active_projects` is read ONLY by the frontend data layer (both apps), not by edge functions or dbt:
-- `services/supabase-data-service.ts` `getActiveProjects()` (`.select('*')`) + the search variant → feeds `ProjectsTable` (/sales, /projects, /finances). The con-IVA rollups are shown **directly, no runtime IVA** → so the same `ProjectsTable` column shows con-IVA for active rows and sin-IVA for signed rows (read from `mv_projects_v1`).
-- `FinancesDiligencePage.tsx:294` selects only `approved_retail_sin_iva` (+ cost) and grosses up once (`r*(1+t)`) → **NO double-IVA**. It does not touch the baked rollups.
+**Status — expand-contract (2026-06-29):** We chose to expose explicit `*_con_iva` columns (not flip the base column), done in three safe phases:
+- **Phase 1 — DONE (2026-06-29):** `v_active_projects` now has six `*_con_iva` columns = additive copies of the current con-IVA rollups (migration `2026-06-29-v-active-projects-add-con-iva-rollup-columns-phase1.sql`, committed to staging `ea49e39`). Existing `*_project_currency` untouched → no regression.
+- **Phase 2 — PENDING:** repoint the active-list displays to read `*_con_iva`; per the 2026-06-29 decision, **gross up signed-project rows to con-IVA** so the lists are one convention (active + signed both con-IVA).
+- **Phase 3 — PENDING:** drop `*_project_currency` from `v_active_projects` once nothing reads it.
+> A 2026-06-25 attempt to flip `*_project_currency` straight to sin-IVA was applied then **REVERTED** — the deployed frontend reads `*_project_currency` as con-IVA, so flipping it created a live regression. Hence expand-contract.
 
-**Fix per the storage convention:** drop `×(1+tax)` from the six `v_active_projects` rollups (return sin-IVA, add IVA at runtime like everywhere else), OR expose suffixed `_con_iva` columns the way `approved_retail_con_iva` already does — never bake IVA into a base-named column. Also: contract-generator computes its own rollup copies (`deriveEffectiveTaxRate()` reverse-engineers IVA from `income_total`).
+**Consumption (re-verified 2026-06-29):** `v_active_projects` is read ONLY by the frontend data layer (both apps), for the **active** project lists — not by edge functions or dbt:
+- `services/supabase-data-service.ts` `getActiveProjects()` (`.select('*')`) + the search variant → feeds `ProjectsTable` / `ProjectSummary` / `ProjectFilter` (/sales, /projects, /finances). Con-IVA rollups shown **directly, no runtime IVA** → same column shows con-IVA for active rows and sin-IVA for signed rows (signed load from `contracts`).
+- `FinancesDiligencePage.tsx:294` selects only `approved_retail_sin_iva` (+ cost), grosses up once → **NO double-IVA**.
+- **Zoho is NOT fed by this view.** `ZohoProjectStatus` (in `ProjectSummary`) pushes only **signed** projects, which load from the **`contracts`** table — so this IVA refactor doesn't touch Zoho. What Zoho receives (con vs sin) is a separate question about the `contracts` table (unverified; user's expectation is sin-IVA, with Zoho adding IVA at factura-time).
 
-**Perf note:** `v_active_projects` full-list load was 8.8s; one index on `estimates(project_id)` → 0.2s (44×). Index not yet applied.
+Also: contract-generator computes its own rollup copies (`deriveEffectiveTaxRate()` reverse-engineers IVA from `income_total`).
+
+**Perf note:** `v_active_projects` full-list load was 8.8s; one index on `estimates(project_id)` → 0.2s (44×). Index still NOT applied.
 
 ---
 
@@ -154,15 +161,16 @@ Workflow/diligence status → badge/chip/allowed-transitions, duplicated across 
 
 ## Drift register (prioritized for consolidation)
 
-1. 🔴 **D — project rollups tax-semantics bug** (v_active_projects post-IVA vs mega_view pre-IVA) + 4-way overlap. Correctness + highest value.
+1. 🟡 **D — project rollups** convention drift + 4-way overlap. **Expand-contract IN PROGRESS** — Phase 1 done (`*_con_iva` columns added); Phase 2 (frontend reads them; signed grossed to con-IVA) + Phase 3 (drop `*_project_currency`) pending. Decision made: app lists standardize on **con-IVA**.
 2. 🔴 **A — finance-engine internal drift** (3-4 IRR / amortization implementations; integration-KPI vs getKpis duplicate path).
 3. ⚠️ **Lambda finance copies** — `supabase-client-handler/financial-calculations.ts` is DIVERGENT/stale vs edge (different IVA handling, missing legacy amort); `quickbase-import-kickoff` has its own IRR; contract-generator rollups (G).
-4. ⚠️ **C — grid type** unimplemented (hardcoded) and contradicts dbt has_batteries.
+4. ✅ **C — grid type** IMPLEMENTED 2026-06-29 (inline equipment match). Follow-up: reconcile with dbt `has_batteries` via a shared `v_estimate_derived` view.
 5. ⚠️ **B — cross-app TS duplication** (retail-preview/retailDisplay/totalContractValue in both frontends).
 6. ⚠️ **E — PaymentSummary** brittle magic numbers (DPD −10, 2025-01-01 cutoff, status thresholds).
+7. ❓ **Zoho IVA** (separate from D) — confirm whether the `contracts` table stores con- or sin-IVA `total_contract_value` (what flows to Zoho). User expects sin-IVA.
 
-## Decisions to make with Ian
-- **D first:** pick ONE canonical project-rollup definition and ONE tax convention (post- vs pre-IVA per field). This is a correctness fix, not just cleanup.
+## Decisions
+- **D — DECIDED (2026-06-29):** app lists standardize on **con-IVA** via explicit `*_con_iva` columns; signed rows get grossed up to match. Executing via expand-contract (Phase 1 shipped).
 - For each cross-TS/SQL calc: live view vs persisted column? (Default: live view + indexes; persist only if proven too slow.)
 - Naming: rename `mv_*` → `v_*` (they're plain live views, not materialized — except `mv_impact_project_summary_v1` which IS materialized).
 - Remove dead Python deliberately (committed).
