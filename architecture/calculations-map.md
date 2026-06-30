@@ -170,6 +170,7 @@ Workflow/diligence status → badge/chip/allowed-transitions, duplicated across 
 7. ❓ **Zoho IVA** (separate from D) — confirm whether the `contracts` table stores con- or sin-IVA `total_contract_value` (what flows to Zoho). User expects sin-IVA.
 
 ## Decisions
+- **ARCHITECTURE — AGREED (2026-06-30):** Operational / app-facing calcs live as **plain Postgres views in the repo** (`database/views/`), consumed **directly by the app** — the canonical layer. **dbt consumes these views** (as `source`s) for analytics, snapshots, and funder reports — it does **NOT** parallel/recompute them. One home per calc. dbt stays (not retired) for analytics + the 15 snapshots (SCD-2) + funder marts (ADA/ATTA/investor/SPV). Guardrails: app selects **named columns, never `*`**; app-facing views are **`security_invoker`**; correctness over simplicity; all changes via **migration + CHANGELOG** (no Studio edits).
 - **D — DECIDED (2026-06-29):** app lists standardize on **con-IVA** via explicit `*_con_iva` columns; signed rows get grossed up to match. Executing via expand-contract (Phase 1 shipped).
 - For each cross-TS/SQL calc: live view vs persisted column? (Default: live view + indexes; persist only if proven too slow.)
 - Naming: rename `mv_*` → `v_*` (they're plain live views, not materialized — except `mv_impact_project_summary_v1` which IS materialized).
