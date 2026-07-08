@@ -40,6 +40,23 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | `sites` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
 | `clients` | sales, admin | sales, admin | sales, admin | — |
 
+### Gobernanza Operativa (Solarbase Release 1A)
+
+Source spec: `external-resources/Solarbase Release 1 Gobernanza Operativa.docx` Sec. 6. The DB tables are write-gated by RLS + a locking trigger; writes are funnelled through the `governance-milestones` edge function which adds role + motivo checks. Authenticated users SELECT freely (read side of the new GovernanceProjectsPage).
+
+| Table | INSERT | UPDATE | DELETE | Notes |
+|---|---|---|---|---|
+| `project_milestones` | edge function only | edge function only | — | RLS read for all authenticated. INSERT/UPDATE only via service_role (no policy for authenticated). The `enforce_project_milestone_lock` trigger auto-sets `bloqueado=true` on first registration and rejects subsequent UPDATE unless `is_admin()` AND `app.motivo` ≥ 10 chars. DELETE not granted. |
+| `governance_audit_log` | edge function only | — | — | Append-only. SELECT for admin / operations / operations-admin / finances. UPDATE and DELETE REVOKEd from every role at the grant layer (including service_role). |
+| `milestone_catalog` | migrations only | migrations only | — | RLS read-only for authenticated. No write policy. |
+
+| Edge function operation | Registrar (primera vez) | Modificar | Anular |
+|---|---|---|---|
+| operations, operations-admin, sales, finances | ✓ (subject to V1–V13 sequence rules) | — | — |
+| admin | ✓ | ✓ (motivo ≥ 10 chars) | ✓ (motivo ≥ 10 chars) |
+
+The `fecha_fee_administrativo` milestone is sourced from Finanzas (`projects.fee_administrativo_date`) — Operaciones see it read-only in the Timeline widget per spec Sec. 9.
+
 ## Other Tables
 
 > Add rows here as RLS policies are created for additional tables.
@@ -49,3 +66,4 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | `equipments` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
 | `equipment_brands` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
 | `providers` | sales, admin | sales, admin | — | SELECT public; writes gated by `is_sales_or_admin()`. DELETE intentionally not granted (downstream FKs from estimates / project_phases). |
+| `v_investor_portfolio_map` (view) | — | — | — | Read-only de-identified view (signed projects, ~2.7 km grid-snapped coords, no client fields). SELECT for all authenticated; REVOKEd from anon. Frontend `/investor-map` page and nav item are open to every authenticated user — the privacy boundary is the view itself, not a role. |
