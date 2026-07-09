@@ -561,6 +561,26 @@ deliberately left as the client saw them.
 
 ---
 
+## 2026-07-09 · Rural is GPS-only — manual fallback removed; SMOD backfilled and automated
+
+**Decision** (Jake, 2026-07-03: "we should always be using the GPS data"; implemented 2026-07-03 → 2026-07-07). Rural classification is **exclusively** GHS-SMOD-derived: `sites.smod_code IN (11, 12)` → rural, any other code → not rural, no coordinates → **Data Pending**. The manual-fallback clause of the [2026-05-14 rural definition](#2026-05-14--rural-definition-ghs-smod-1112-with-manual-fallback) is retired — `projects.rural_area` is no longer consulted anywhere. The SMOD 11/12 boundary itself is unchanged.
+
+**Why.** The fallback existed only because 64% of sites lacked coordinates. That gap is closed: the 2026-06-26 field export supplied coordinates for the whole signed portfolio, GHS-SMOD **E2020 R2023A** codes were backfilled (epoch validated 92% against the original sample; E2025/E2030 scored worse), and classification is now **automatic** — `trg_sites_set_smod_code` + the `public.ghs_smod_grid` lookup table stamp `smod_code` whenever site coordinates are saved, so the gap cannot silently reopen. Keeping the fallback after that would have meant two sources disagreeing (manual said 12% rural; GPS says 38%) with the mix depending on data coverage — exactly the ambiguity funders flagged.
+
+**Effect on published numbers.** Portfolio rural went from "14% (soft, 143 of 277 unclassified)" to **38% fully classified (104 Yes / 173 No, 0 pending)**; high-social-impact moved 53% → 69%. Same methodology as before, applied to 100% of the portfolio instead of 48% — flagged proactively in the June 30 investor redelivery.
+
+**Where.**
+  - dbt: `mart_impact_projects_summary.sql` (rural_area CASE; manual field "intentionally ignored"), consumed by all `mart_investors_*`, ADA, ATTA.
+  - Frontend: `ImpactPage.tsx` (fallback removed 2026-07-07).
+  - DB: `trg_sites_set_smod_code`, `compute_smod_code()`, `ghs_smod_grid` — docs at `albedo-automations-infra/database/triggers/sites-smod-code.md`; loader `database/scripts/load-ghs-smod-grid.py`.
+  - Epoch upgrades are a deliberate, CHANGELOG'd decision (numbers move) — see the trigger doc.
+
+**Remaining process gap.** Automation fires only when coordinates exist; WHEN GPS is captured for new projects (at quote? at install? required from socios?) is still the open item from the 2026-05-14 meeting. `projects.rural_area` is now a dead field pending the `_legacy` rename (see the provisional "canonical homes" entry above).
+
+**Status.** In effect.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
