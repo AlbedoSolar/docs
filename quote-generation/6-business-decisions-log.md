@@ -430,6 +430,8 @@ This is a real data-architecture change with cross-functional consequences. Each
 
 ## 2026-05-14 · Rural definition: GHS-SMOD 11/12 with manual fallback
 
+> **Amended 2026-07-09**: the manual fallback is retired and the backfill gap below is closed — rural is GPS-only, fully classified, and auto-maintained. See the [2026-07-09 entry](#2026-07-09--rural-is-gps-only--manual-fallback-removed-smod-backfilled-and-automated). The SMOD 11/12 rule itself is unchanged.
+
 **Decision.** Rural classification follows the
 [Global Human Settlement SMOD](https://human-settlement.emergency.copernicus.eu/ghs_smod2023.php)
 classification, based on the site's GPS coordinates:
