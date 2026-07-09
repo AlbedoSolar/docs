@@ -483,6 +483,42 @@ that's the value to use.
 
 ---
 
+## 2026-05-23 · Project useful life fixed at 30 years for impact reporting
+
+**Decision.** All impact calculations in `mart_impact_projects_summary` use a
+fixed **30-year project useful life**. Previously the horizon was derived from
+each panel's `equipments.production_guarantee_years` (the listed warranty,
+typically 25 years for the brands in our catalog).
+
+**Why.** Three reasons (transcribed from the code header comment):
+1. Different panel brands have different warranty periods (10-30 years). Using
+   the warranty creates artificial variation in reported impact driven by
+   equipment choice rather than physical reality.
+2. Physical solar panel useful life is typically 25-30 years regardless of the
+   warranty terms.
+3. Inversores have separate warranties (~10 years) and previously caused data
+   entry confusion when both warranties lived on the same `equipments` table.
+
+30 years aligns with the GIIN IRIS+ and IFC OPIM conventions for solar impact
+reporting.
+
+**Where.** `dbt/main/models/models_on_static_tables/marts/impact/mart_impact_projects_summary.sql`
+line ~40: `{% set PROJECT_USEFUL_LIFE_YEARS = 30 %}`. The rationale lives in
+the comment block above that line.
+
+**Effect on previously delivered reports.** Investor and impact reports built
+under the prior (warranty-based) horizon report lower lifetime savings, CO₂
+avoided, and electricity production than the current marts. The Dec 31 2025
+investor sheet shows aggregate `total_solar_savings` ~10-13% lower than the
+current marts for the same cohort, driven by this methodology change. This is
+a deliberate change in reporting policy, not a calculation bug — past
+deliveries reflect the prior policy and aren't directly comparable to current
+output without restating.
+
+**Status.** In effect.
+
+---
+
 ## 2026-05-14 · Maintenance rate (data correction)
 
 **Decision.** Maintenance rate for this provider/region pulls from the DB
@@ -493,6 +529,35 @@ case; Golden Copy was using 0.20% (likely rounding).
 Golden Copy was using a generic 0.20% for exploration.
 
 **Status.** Data correct; no code change.
+
+---
+
+## 2026-07-10 — Commission priced into retail = the commission type's TOTAL
+
+**Decision.** The commission included in the client's retail price is
+`commission_types.commission_percentage` (the row's total), applied to the
+post-discount sin-IVA retail and added in full. It does **not** depend on
+which vendor/affiliate rows are attached to the estimate: the sales
+director's share applies even when no director is assigned, and affiliate
+shares are governed by the chosen commission *type*, not by affiliate rows.
+Role and affiliate rows determine **payout attribution** (who receives what,
+including the tier multiplier on the earnings side) — never the price.
+
+**Why.** The engine previously summed per-role percentages for roles present
+on the estimate, which made the price depend on data-entry completeness —
+identical deals priced at 3% or 4% depending on whether someone attached the
+director row (surfaced by the 2599-01 Juan Sánchez discrepancy, issue #339).
+A separate unversioned engine build also briefly applied the total ÷ 1.12;
+that treatment is explicitly rejected — the percentage applies to sin-IVA
+retail. Quotes generated before 2026-07-10 keep their as-shared prices (no
+regeneration); the ~91 pending quotes priced under drifted definitions are
+deliberately left as the client saw them.
+
+**Where.** `supabase/functions/_shared/quote-helpers.ts` →
+`deriveCommissionPercentages` (comment links back here). Deploy tags
+`deploy/*/20260709T16*` mark when it went live.
+
+**Status.** Decided (Jake) / In effect.
 
 ---
 
