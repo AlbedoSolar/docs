@@ -38,24 +38,50 @@ The frontend must not decide persisted numbers; the model to copy is `services/e
 ### Frontend sanctioned utils (display + labeled parity copies)
 - `utils/retailDisplay.ts` (applyIva etc.), `utils/taxRate.ts`, `utils/offer-calculations.ts` (offer-sheet derivations + 30-yr projections), `utils/retail-preview.ts` (labeled pre-commission preview), `utils/maintenance.ts` (labeled engine mirror), `utils/totalContractValue.ts` (labeled contract mirror)
 
-## Duplication inventory (2026-07-10 audit)
+## Duplication inventory v2 (2026-07-10 refresh — LIVE code only)
 
-### DRIFT-HOT — surfaces can already show a human different money numbers
-1. **total_contract_value — four disagreeing formulas.** *(RULED 2026-07-10: con & sin IVA flavors, maintenance always included — app views brought into compliance same day; residue: marts recomputing inline instead of consuming the view, and the contract doc's per-offer effective rate, see E.)* SQL views: con-IVA, *no maintenance*. dbt mega-view: sin-IVA, *with* maintenance. Contract generator: two internal versions (snapshot sin-IVA vs document TOTAL at per-offer effective rate). Frontend util mirrors the contract. dbt marts split between consuming the view and recomputing inline. → Needs one blessed definition (likely per-purpose names, single formulas).
-2. **Two schedule builders inside the engine**: `quote-integration-flow` (estimate mode, canonical) vs `generateNiiTable` in `quote-calculator.ts` (manual mode) — already drifted: maintenance_premium default 0.1 vs 0.3 (in-code comment admits it). Manual-mode quotes price maintenance differently than estimate-mode today.
-3. ~~**Grace/duration off-by-one**~~ *(FIXED 2026-07-10: mega view + data-chat views now count schedule rows only, matching the contract generator; corrected duration on 40 and grace on 190 of 277 signed projects, all deltas exactly one.)*
-4. **Contado schedule built in the frontend** (`DefaultQuotesPageV2` ~:1546) and persisted to `variant_matrix` — the frontend deciding a client-facing payment plan with no engine involvement.
-5. **Frontend payout commission** (tier multipliers ×1.5/1.25/1.0, IRR tier thresholds 12/14/16, 80/20 split) exists only in `DefaultQuotesPageV2` — in-code comment admits the double-compute. Payout policy should be server-owned.
+*Re-audited 2026-07-10 by three parallel scans (edge+lambdas, frontend, SQL/dbt) with all dead/retired surfaces excluded (python package, QB importers, the orphaned lambda financial-calculations copy). Supersedes the v1 inventory below the "Resolved" section.*
 
-### DRIFT-WARM — identical today, will diverge on next edit
-6. ~~**The financial engine cloned 4×**~~ *(DOWNGRADED 2026-07-10: only the `calculate-interest` edge copy is live. The `supabase-client-handler` lambda copy is an orphan from the aborted January lambda experiment — added in 3486b50d, its callers reverted in dfcf8501 ("we're moving to supabase edge functions"), the util file left behind with zero importers since — delete it. The `quickbase-import-kickoff` and `qb-continuity-import.ts` copies are retired with the QB pipeline (API access revoked). No consolidation needed; just don't resurrect them.)*
-7. **Engine context/args assembly cloned 3×**: quote-solver has clean helpers (`loadSharedContext`, `computeRetailAndSchedules`, `buildGoalSeekArgs`); quote-generator and irr-calculator inline ~90% copies. Live asymmetry: irr-calculator passes `partnerQuoteMarginType` where the others don't.
-8. **Effective tax rate**: flat country rate (SQL/dbt) vs per-offer derived (contract generator) — differs on legacy QB offers.
-9. **Frontend inline dupes**: cash-price/admin-fee con-IVA re-implemented in BOTH offer pages (bypass `offer-calculations.ts`); down-payment con-IVA inline (bypasses `retailDisplay`); ~11 inline `×(1+tax)` sites; two `convertCurrency` implementations with different failure semantics; `MonthlyCashFlow` vs `ActiveMonthlyCashFlow` near-duplicate components; PMT fallback formula in the wizard.
+### DRIFT-HOT — two live paths can already show different money for the same input
 
-### Business logic in the wrong layer (single copy, but frontend-only)
-10. 30-year savings projection / lifetime savings / CO2 impact (`offer-calculations.ts`) — client-facing headline numbers with **no server source of truth**; grid emission factors hardcoded (`taxRate.ts`).
-11. Commission-split sum-to-1 invariant enforced only in a form (`QuoteConfigForm`) — no DB constraint.
+1. **irr-calculator resolves engine params differently than quote-solver/quote-generator.** The interactive dial and the persisting engines can price the same estimate differently:
+   - WACC default **0.09** (`irr-calculator/index.ts:112`) vs **0.10** (`quote-solver/index.ts:275`, `quote-generator/index.ts:325`, `DEFAULT_CONFIG.default_wacc` in `quote-helpers.ts:59`); irr-calculator also ignores the `albedo_wacc` alias the other two honor. WACC drives the min-APR floor → payment → IRR.
+   - Down payment: irr-calculator defaults to **0%** with no fallback (`irr-calculator/index.ts:110`); solver/generator use the three-tier chain ending in `estimates.down_payment_1_percentage` (`quote-solver/index.ts:367`, `quote-generator/index.ts:240`).
+   - `maint_premium`/`maint_inflation` short aliases honored by solver/generator, ignored by irr-calculator (`irr-calculator/index.ts:117`).
+   → Fix: one shared param resolver in `_shared/` used by all three. **Verified non-issue:** the long-suspected `partnerQuoteMarginType` asymmetry is a dead argument — `calculateRetailProjectionFromEstimateContext` doesn't accept it; margin type flows from `context.phase_pricing_inputs` identically in all three. Delete the misleading arg at `irr-calculator/index.ts:296`.
+
+2. **"Precio al Contado" computed three ways that disagree.** `ActiveProjectDetails.tsx:1286` (via `computeTotalContractValueConIva`, includes closing costs) vs `ActiveProjectDetails.tsx:1904` (plain `retail×(1+tax)`, same label, same component) vs `ClientOfferPage.tsx:586` (`Σ income_total`). For contado deals with admin/asset closing costs these are three different client-facing numbers. → One `resolveContadoCashPrice` in utils, used everywhere.
+
+3. **Grace/duration off-by-one fix NOT ported to `v_project_calcs`.** dbt got the `payment_number >= 1` gate (`int_projects_mega_view.sql:73,89`), the app view's mcf branch still counts every payment date (`v_project_calcs.sql:203,219`). Latent (view not yet app-consumed) but the definitions disagree today on signed projects.
+
+4. **Repo `v_project_calcs.sql` lags prod.** The 2026-07-08 root-first migration rewrote prod, but the checked-in source is still response-only at 9 read sites (`v_project_calcs.sql:94–226`); re-applying the file would regress the fix. → Regenerate from `pg_get_viewdef` (the maintenance term at :75 WAS back-ported; only root-first lags).
+
+5. **data_chat `v_projects_gtq/usd` TCV omits maintenance** (`v_projects_gtq.sql:59`), violating the 2026-07-10 ruling — root cause: `v_monthly_cash_flows_*` don't even emit the maintenance column. Zero live impact until the first maintenance-bearing deal signs. Same omission class in the reconciliation marts' per-row sums.
+
+6. **Manual mode is still a second engine** (`generateNiiTable` + `getKpis` in `quote-calculator.ts`, used only by quote-generator's `runManualMode`): retail gross-up differs on Subtract-margin providers (`quote-calculator.ts:236` vs `quote-helpers.ts:568`), different amortization form, different insurance-start logic. The maintenance_premium 0.1/0.3 split is FIXED (both now import `DEFAULT_MAINTENANCE_PREMIUM`), but the engines remain independent. At minimum: document that manual mode ≠ estimate mode.
+
+7. **Client-facing schedules/policy still frontend-only** (no server source): contado 50/50 schedule (`DefaultQuotesPageV2.tsx:1529`), PMT annuity seed (`:747`), payout commission tier multipliers 1.5/1.25/1.0 (`:159`, applied `:1727`), 30-yr savings/CO2 (`offer-calculations.ts`), commission-split sum-to-1 only in a form.
+
+### DRIFT-WARM — identical or latent today, will diverge on next edit
+
+8. **Two `convertCurrency` in utils/**: `retail-preview.ts:32` (canonical, USD-pivot, returns null) vs `currency.ts:35` (throws on cross-currency, zero live callers). Delete the currency.ts copy before someone imports it. Also two formatters (`currency.ts:85` vs `helpers.ts:1`).
+9. **Inline IVA gross-ups: 19 business sites** bypass `applyIva` (list in audit; worst: `DefaultQuotesPageV2` ×9, `ActiveProjectDetails` ×4, both offer pages' admin fee). Sibling gap: no `stripIva` helper, so ÷(1+tax) is always inline. `computeDownPaymentAmountConIva` (`retailDisplay.ts:25`) is ORPHANED while its exact formula is inlined 3× in DefaultQuotesPageV2. Tax-rate lookup re-inlined at 7 sites despite `getTaxRateFromCountries`.
+10. **Engine-internal clones**: frontend-shape mappers redefined verbatim in `quote-generator/index.ts:92,102` (canonical: `quote-forward-calc.ts:75,87`); `getWithFallback` copied in solver+generator; IRR bisection stack (`npv`/`irrBisection`/`annualizedIrrPercent`) exists in both `quote-integration-flow.ts:330` and `quote-calculator.ts:414`; `round2` ×3. → hoist to `_shared/quote-utils.ts`.
+11. **MonthlyCashFlow vs ActiveMonthlyCashFlow**: table render duplicated verbatim; real differences are only data source + CSV shape. → extract presentational `CashFlowTableView`, keep two thin wrappers.
+12. **Cross-layer naming hazards**: dbt mega-view `total_contract_value_project_currency` is sin-IVA but unlabeled (app views say `_sin_iva`/`_con_iva`); estimate retail vs approved (post-commission) retail share the name "retail"; installed capacity derived two ways (stored `installed_potential_w` vs Σ panel watts — `v_estimate_calcs.sql:46` vs `mart_impact_projects_summary.sql:145`); `0.12` tax fallback literal duplicated. Doc rot: `quote-rates/index.ts:26` JSDoc claims premiums the code doesn't use; `CALCULATIONS.md` still cites deprecated `mv_monthly_cash_flows_v1`.
 
 ### Meta
-12. **CLAUDE.md is not checked into any repo** — the doctrine everyone cites lives only on Jake's machine at the workspace root. Commit it (or this file) somewhere versioned.
+13. **CLAUDE.md is not checked into any repo** — the doctrine everyone cites lives only on Jake's machine at the workspace root. Commit it (or this file) somewhere versioned.
+
+### Resolved since v1 (verified by the re-audit)
+- ~~maintenance_premium 0.1 vs 0.3~~ — both builders import `DEFAULT_MAINTENANCE_PREMIUM` (0.3); only stale comments remain.
+- ~~Effective tax rate two methods~~ — single `deriveEffectiveTaxRate` (`contract-generator/src/helpers.ts:519`) feeds both contract builders.
+- ~~calculation_payload duplication~~ — one `buildCalculationPayload` (`quote-helpers.ts:1153`) called by solver + generator.
+- ~~Constants copied across the three index files~~ — centralized in `_shared/quote-constants.ts`.
+- ~~partnerQuoteMarginType asymmetry~~ — dead argument, no behavioral difference (see item 1).
+- ~~Grace/duration off-by-one in dbt~~ — fixed 2026-07-10 (but see item 3: the app view still lags).
+- ~~The financial engine cloned 4×~~ — only the `calculate-interest` edge copy is live; lambda copy is a dead orphan (delete), QB import copies retired.
+- ~~convertCurrency inline in DefaultQuotesPageV2~~ — now imports from `retail-preview.ts` (but see item 8: a second utils copy exists).
+- ~~TCV inline in ActiveProjectDetails / QuoteOfferMatrix~~ — both use `computeTotalContractValueConIva` (but see item 2: the contado block at :1904 bypasses it).
+- ~~Down-payment con-IVA on offer sheets~~ — both share `resolveDownPaymentConIva` (`offer-calculations.ts:99`).
+- dbt marts recomputing the mega view: only `mart_investors_summary_by_project_*` does, intentionally (cutoff reproducibility, documented `CALCULATIONS.md:352`). Keep.
