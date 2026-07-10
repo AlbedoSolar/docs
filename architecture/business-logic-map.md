@@ -32,8 +32,8 @@ The frontend must not decide persisted numbers; the model to copy is `services/e
 ### Analytics
 - `dbt/main/models/` — `int_projects_mega_view` → marts. ⚠ Known divergences from the app views (see inventory D/F below).
 
-### Data ingestion (QB era)
-- `packages/lambdas/quickbase-import-kickoff/` (signed deals), `scripts/qb-continuity-import.ts` (unsigned backfills) — each carries its own copy of the financial engine (see inventory A).
+### Data ingestion (QB era) — RETIRED
+- `packages/lambdas/quickbase-import-kickoff/` (signed deals), `scripts/qb-continuity-import.ts` (unsigned backfills) — retired with the QB pipeline (API access revoked); each carries its own copy of the financial engine, kept only as historical reference (see inventory item 6).
 
 ### Frontend sanctioned utils (display + labeled parity copies)
 - `utils/retailDisplay.ts` (applyIva etc.), `utils/taxRate.ts`, `utils/offer-calculations.ts` (offer-sheet derivations + 30-yr projections), `utils/retail-preview.ts` (labeled pre-commission preview), `utils/maintenance.ts` (labeled engine mirror), `utils/totalContractValue.ts` (labeled contract mirror)
@@ -48,7 +48,7 @@ The frontend must not decide persisted numbers; the model to copy is `services/e
 5. **Frontend payout commission** (tier multipliers ×1.5/1.25/1.0, IRR tier thresholds 12/14/16, 80/20 split) exists only in `DefaultQuotesPageV2` — in-code comment admits the double-compute. Payout policy should be server-owned.
 
 ### DRIFT-WARM — identical today, will diverge on next edit
-6. **The financial engine cloned 4×**: `calculate-interest` (edge) ≈ `supabase-client-handler` (lambda) ≈ `quickbase-import-kickoff` (inline) ≈ `qb-continuity-import.ts` (partial, with a *different* IRR solver — bisection vs xirr). Includes 4 copies each of `removeIVA` and the cash-flow row processor.
+6. ~~**The financial engine cloned 4×**~~ *(DOWNGRADED 2026-07-10: only the `calculate-interest` edge copy is live. The `supabase-client-handler` lambda copy is an orphan from the aborted January lambda experiment — added in 3486b50d, its callers reverted in dfcf8501 ("we're moving to supabase edge functions"), the util file left behind with zero importers since — delete it. The `quickbase-import-kickoff` and `qb-continuity-import.ts` copies are retired with the QB pipeline (API access revoked). No consolidation needed; just don't resurrect them.)*
 7. **Engine context/args assembly cloned 3×**: quote-solver has clean helpers (`loadSharedContext`, `computeRetailAndSchedules`, `buildGoalSeekArgs`); quote-generator and irr-calculator inline ~90% copies. Live asymmetry: irr-calculator passes `partnerQuoteMarginType` where the others don't.
 8. **Effective tax rate**: flat country rate (SQL/dbt) vs per-offer derived (contract generator) — differs on legacy QB offers.
 9. **Frontend inline dupes**: cash-price/admin-fee con-IVA re-implemented in BOTH offer pages (bypass `offer-calculations.ts`); down-payment con-IVA inline (bypasses `retailDisplay`); ~11 inline `×(1+tax)` sites; two `convertCurrency` implementations with different failure semantics; `MonthlyCashFlow` vs `ActiveMonthlyCashFlow` near-duplicate components; PMT fallback formula in the wizard.
