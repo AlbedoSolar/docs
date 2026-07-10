@@ -12,9 +12,9 @@ Total solar savings represents the cumulative financial benefit a project receiv
 
 - **Panel degradation** — solar panels lose efficiency over time
 - **Electricity price escalation** — grid electricity prices rise ~3% annually
-- **Equipment guarantee window** — production is set to zero after the guarantee expires
+- **Project useful life** — production is set to zero after a fixed **30-year horizon** (the `PROJECT_USEFUL_LIFE_YEARS` constant in the SQL)
 
-The final metric (`total_solar_savings`) is the sum of monthly savings across every month in the guarantee window, expressed in USD.
+The final metric (`total_solar_savings`) is the sum of monthly savings across every month in the 30-year useful life, expressed in USD.
 
 ---
 
@@ -78,7 +78,7 @@ Solar panels degrade over time. The model uses a two-phase degradation approach 
 |-----------|-------------|---------------|
 | `first_year_production_loss_percentage` | One-time loss applied after Year 1 | ~2-3% |
 | `annual_depreciation_percentage` | Ongoing annual degradation from Year 2 onward | ~0.5% |
-| `production_guarantee_years` | Window beyond which production is assumed to be 0 | ~30 years |
+| `PROJECT_USEFUL_LIFE_YEARS` | Fixed horizon (in the SQL header) beyond which production is assumed to be 0 | **30 years** |
 
 **Monthly production formula by period**:
 
@@ -86,8 +86,8 @@ Solar panels degrade over time. The model uses a two-phase degradation approach 
 |--------|---------|
 | **Year 1** (months 1–12) | `amount * potential_watts * production_multiplier` |
 | **Year 2** (months 13–24) | `amount * potential_watts * production_multiplier * (1 - first_year_loss)` |
-| **Year N** (N ≥ 2, within guarantee) | `amount * potential_watts * production_multiplier * (1 - first_year_loss) * (1 - annual_depreciation)^(N - 2)` |
-| **Beyond guarantee** (month > guarantee_years × 12) | `0` |
+| **Year N** (N ≥ 2, within useful life) | `amount * potential_watts * production_multiplier * (1 - first_year_loss) * (1 - annual_depreciation)^(N - 2)` |
+| **Beyond useful life** (month > 360) | `0` |
 
 The `year_number` is derived as `CEIL(payment_number / 12)`, where `payment_number` counts months from the project start date.
 
@@ -102,7 +102,7 @@ The `year_number` is derived as `CEIL(payment_number / 12)`, where `payment_numb
 | 10 | 673.09 | 5500 × 0.13 × (1 - 0.02) × (1 - 0.005)^8 |
 | 20 | 640.49 | 5500 × 0.13 × (1 - 0.02) × (1 - 0.005)^18 |
 | 30 | 609.33 | 5500 × 0.13 × (1 - 0.02) × (1 - 0.005)^28 |
-| 31+ | 0.00 | Beyond guarantee window |
+| 31+ | 0.00 | Beyond 30-year useful life |
 
 ---
 
@@ -139,10 +139,10 @@ Notice that despite degradation reducing production, the 3% annual price escalat
 
 ```
 total_solar_savings = SUM(monthly_solar_savings)
-    FOR ALL months WHERE payment_number BETWEEN 1 AND (production_guarantee_years * 12)
+    FOR ALL months WHERE payment_number BETWEEN 1 AND 360
 ```
 
-This sums every monthly savings value across the entire guarantee window.
+This sums every monthly savings value across the 30-year project useful life (`PROJECT_USEFUL_LIFE_YEARS * 12 = 360 months`).
 
 **Worked example** (30-year guarantee = 360 months):
 
@@ -177,32 +177,7 @@ For each month:
     monthly_solar_savings = SUM(monthly_equipment_solar_savings) across all Panel Solar equipment
 ```
 
-Each equipment row can have its own `potential_watts`, `first_year_production_loss_percentage`, `annual_depreciation_percentage`, and `production_guarantee_years`. The guarantee window is evaluated per-equipment — one equipment type might stop producing at year 25 while another continues to year 30.
-
----
-
-## Partner Estimate Comparison
-
-The model separately computes what total savings would be if using the partner's (installer's) monthly savings estimate instead of Albedo's calculated value. This uses the same degradation and escalation logic:
-
-```
-partner_monthly_savings =
-    CASE
-        Year 1:    partner_estimate_usd
-        Year N:    partner_estimate_usd * (1 - avg_first_year_loss) * (1 - avg_annual_depreciation)^(N-2) * 1.03^(N-1)
-        Beyond:    0
-    END
-```
-
-Output columns for comparison:
-
-| Column | Meaning |
-|--------|---------|
-| `partner_monthly_savings_estimate_usd` | Raw partner claim (no degradation) |
-| `average_monthly_solar_savings` | Albedo's calculated average monthly savings |
-| `monthly_savings_difference_vs_partner` | `partner_estimate - our_average` (positive = partner claims more) |
-| `partner_estimate_inflation_percent` | How much the partner's estimate exceeds Albedo's (as a percentage) |
-| `total_solar_savings_from_partner_estimate` | Lifetime savings using partner's baseline with degradation/escalation |
+Each equipment row can have its own `potential_watts`, `first_year_production_loss_percentage`, and `annual_depreciation_percentage` (so degradation curves vary by panel brand). The useful life horizon, however, is a single fixed 30-year window applied uniformly — all panels stop producing in the calculation at month 360.
 
 ---
 

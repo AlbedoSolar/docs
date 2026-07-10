@@ -123,6 +123,30 @@ This compresses the quoting process from 20 minutes to under 2 minutes, eliminat
 
 **Built on:** Existing `quote-generator` edge function — this is orchestration, not new calculation logic.
 
+#### 1.4 Automated Diligence & Predictive Scoring (Internal Beta)
+
+**What:** Build an AI-powered diligence system that automates document intake, validation, and credit-readiness scoring — enabling Albedo to approve solar financing in ~2 weeks instead of the 6-12+ months typical of traditional banks.
+
+**How it works:**
+- Client uploads legal and financial documents via the Diligence Portal (already live for basic document collection)
+- AI-powered screening validates completeness — detects missing documents, inconsistencies, and red flags before a human reviews
+- Predictive scoring model evaluates repayment capacity using financial data (cash flow, payment history), behavioral signals, and social-impact variables
+- Impact score (0–6 scale) prioritizes applications by inclusion criteria: women-led, rural, youth, educational, non-profit, impoverished area
+- Credit-readiness assessment focuses on real ability-to-pay rather than collateral — enabling clients without formal credit history to qualify
+
+**Key capabilities:**
+- Automatic verification of required documents per country/product
+- Consistency checks across submitted documents (e.g., tax ID matches across filings, revenue figures align)
+- Red-flag detection for fraud indicators or incomplete information
+- Scoring model that weights financial capacity alongside social impact — higher-impact projects can qualify with different risk thresholds
+- Automated follow-ups via Trengo for missing documents or incomplete applications
+
+**Why it matters:** This is the core of Albedo's inclusive lending model. Traditional banks reject these clients on procedural or collateral grounds. Automated diligence with impact-aware scoring lets Albedo make faster, fairer decisions at scale — the difference between financing 200 projects and 2,000.
+
+**Built on:** Existing Diligence Portal (live), Supabase client/project data, impact indicator fields (women_led, rural_area, etc.), Claude AI for document analysis, Trengo for client communication.
+
+**Status:** Diligence Portal live for basic document collection. AI screening, predictive scoring model, and automated follow-ups in development.
+
 ### Phase 2: AI Integration (Months 3–6)
 
 #### 2.1 MCP Agent Layer — Read-Only Tools
@@ -184,6 +208,21 @@ This compresses the quoting process from 20 minutes to under 2 minutes, eliminat
 6. Sales rep receives a pre-populated quote package with three options, ready to review and send
 
 **What makes this possible:** Every step in this chain already exists as a discrete, tested edge function. The AI layer is orchestration — calling existing tools in sequence — not new business logic.
+
+#### 2.5 Automated Diligence & Asset Management (Full Launch)
+
+**What:** Graduate the internal beta (Phase 1.4) to a production system integrated into the full client lifecycle: quote → diligence → approval → installation → monitoring → repayment.
+
+**Capabilities beyond the beta:**
+- AI-driven scoring embedded directly into credit decisioning — not just advisory, but gating approvals
+- Automated follow-ups, reminders, and risk alerts via Trengo and Cascade
+- Integration with Zoho Books for contract generation upon approval
+- Unified client journey from document upload through to first payment
+- Improved consistency for borrowers without formal credit history — same scoring model applied across all three countries
+
+**Why it matters:** This is the transition from "tool that helps humans decide" to "system that handles the routine cases and escalates the exceptions." At scale, most applications should flow through with minimal human intervention, freeing the team to focus on complex or high-impact cases.
+
+**Built on:** Phase 1.4 scoring model, Trengo integration, Cascade debt management, Zoho Books.
 
 ### Phase 3: Intelligence (Months 6–12)
 

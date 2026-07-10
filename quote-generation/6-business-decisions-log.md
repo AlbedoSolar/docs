@@ -534,6 +534,42 @@ Golden Copy was using a generic 0.20% for exploration.
 
 ---
 
+## 2026-07-10 — Installed capacity: equipment sum is the ONLY source
+
+**Decision.** Installed capacity (kW) = Σ (panel amount ×
+`equipments.potential_watts`) from the estimate's equipment list. No other
+source: `estimates.installed_potential_w` (QB import; nothing writes it) and
+`systems.installed_capacity_kw` (one-off ops CSV, 2026-02-26) are legacy —
+renamed `*_legacy`, unread by any live surface.
+
+**Why.** The two static fields were unmaintained snapshots that had already
+diverged: the operations table was missing capacity on 31 signed projects
+(24 CSV gaps + 7 signed after the import, with no automation creating
+system rows) and disagreed with equipment on ~36 more. Verified on all 284
+signed estimates: zero cases of stored-without-equipment, zero
+disagreements > 0.5 kW — equipment is a strict superset (272 vs 224
+covered). "Actual installed ≠ sold" corrections, if ever needed, belong in
+the auditable equipment list, not a free-typed kW field.
+
+**Where.** SQL: `v_project_installed_kw` (new, project grain),
+`v_estimate_calcs.installed_capacity_kwp` (equipment-only),
+`v_investor_portfolio_map`. dbt: `int_estimate_installed_kw` (single home)
+→ mega view / `mart_sales_by_partner` / `mart_debita_loan_tape`;
+`mart_impact_projects_summary` already complied. Code: ops table service,
+offer pages, APD maintenance panel, contract-generator
+`equipmentInstalledKw` (which also fixed leasing contracts printing an
+empty kW for new-engine quotes). Migrations
+`2026-07-10-installed-capacity-equipment-canonical.sql` +
+`...-rename-legacy-columns.sql`.
+
+**Open follow-up.** Ops to review the 35-project discrepancy list (several
+exactly 2× or ½× — smells like per-phase CSV rows or duplicated equipment
+lines); any confirmed real corrections get fixed in the equipment list.
+
+**Status.** In effect (deployed 2026-07-10).
+
+---
+
 ## 2026-07-10 — Default WACC is 9% everywhere
 
 **Decision.** When no WACC is supplied, every pricing surface uses **9%**

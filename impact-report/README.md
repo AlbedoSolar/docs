@@ -44,7 +44,7 @@ Raw tables
 | `int_estimates_convert_currencies` | Estimate fields with USD-converted prices: `price_of_electricity_per_kwh_usd`, `monthly_solar_savings_partner_estimate_usd` |
 | `int_original_quotes` | `project_date`, `contract_signing_date`, `estimate_id` |
 | `estimate_equipment` | Which equipment is on each estimate (amount, equipment_id) |
-| `equipments` | Per-equipment specs: `potential_watts`, `first_year_production_loss_percentage`, `annual_depreciation_percentage`, `production_guarantee_years` |
+| `equipments` | Per-equipment specs: `potential_watts`, `first_year_production_loss_percentage`, `annual_depreciation_percentage` |
 | `equipment_types` | Filters to `name = 'Panel Solar'` (only solar panels count for production) |
 | `countries` | `grid_factor` — CO2 emissions per MWh for the country's electric grid |
 | `stg_signed_projects` | Social impact flags: `women_led`, `non_profit`, `rural_area`, `youth_led`, `educational_institution`, `impoverished_area` |
@@ -114,10 +114,6 @@ monthly_electricity_production = SUM(monthly_equipment_production)
 monthly_solar_savings = SUM(monthly_equipment_solar_savings)
 ```
 
-#### 7. Partner Estimate Comparison (`partner_estimate_monthly_savings`)
-
-Separately calculates what savings would be if using the partner's estimate directly (with the same degradation and escalation logic), allowing comparison between Albedo's calculated value and the partner's claim.
-
 ### Output Columns
 
 | Column | Description |
@@ -127,17 +123,12 @@ Separately calculates what savings would be if using the partner's estimate dire
 | `project_reference` | e.g. `ALB-001-01` |
 | `contract_signing_date` | When the quote was signed |
 | `total_kw_installed` | `watts_installed / 1000`, rounded to 2 decimals |
-| `monthly_solar_production_kwh_estimate` | Month-0 expected production (before degradation) |
 | `electricity_production_to_date` | Sum of monthly production for months before today |
-| `total_electricity_production` | Sum of monthly production across entire guarantee window |
+| `total_electricity_production` | Sum of monthly production across the 30-year project useful life |
 | `CO2_emissions_avoided_tons` | `total_electricity_production / 1000 * grid_factor` |
 | `accumulated_savings_to_date` | Sum of monthly savings for months before today |
 | `average_monthly_solar_savings` | Average monthly savings (excluding zero-months beyond guarantee) |
-| `total_solar_savings` | Sum of monthly savings across entire guarantee window |
-| `partner_monthly_savings_estimate_usd` | Partner's claimed monthly savings |
-| `monthly_savings_difference_vs_partner` | `partner_estimate - our_average_monthly` |
-| `partner_estimate_inflation_percent` | How much higher the partner's estimate is vs ours (positive = inflated) |
-| `total_solar_savings_from_partner_estimate` | What total savings would be using partner estimate with degradation |
+| `total_solar_savings` | Sum of monthly savings across the 30-year project useful life |
 | Social impact flags | `women_led`, `non_profit`, `rural_area`, `youth_led`, `educational_institution`, `impoverished_area` |
 
 ### Filtering
@@ -250,7 +241,7 @@ Projects with `NULL` or `'Not Sure'` are **excluded from the denominator** (not 
 | CO2 per SF-Sydney flight per passenger | 2.6 metric tons | Internal Asana task (Alex) |
 | Solar tax rate (VAD) | Currently **disabled** (commented out) | Needs consumption-vs-export split data |
 | Production degradation | Year 1: `first_year_production_loss_percentage`, Year 2+: compounds `annual_depreciation_percentage` | Per-equipment in `equipments` table |
-| Production guarantee window | `production_guarantee_years` per equipment | Panel-specific, stored in `equipments` table |
+| Project useful life | **30 years (fixed constant)** | Set by `PROJECT_USEFUL_LIFE_YEARS` at the top of `mart_impact_projects_summary.sql`. Aligned with GIIN IRIS+ and IFC OPIM convention for solar impact reporting. Replaces the previous per-equipment `production_guarantee_years` which created artificial variation by panel brand. |
 | Impact flag exclusions | `NULL` and `'Not Sure'` excluded from denominator | Prevents skewing percentages |
 
 ---
