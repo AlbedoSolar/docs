@@ -583,6 +583,30 @@ deliberately left as the client saw them.
 
 ---
 
+## 2026-07-10 — Total contract value: con & sin IVA flavors, maintenance always included
+
+**Decision.** `total_contract_value` exists in two flavors — sin IVA and con
+IVA — and BOTH always include maintenance payments when the schedule has
+them, alongside monthly lease, down payment, asset transfer, insurance, and
+legal costs.
+
+**Why.** The 2026-07-10 duplication audit found four disagreeing definitions
+(app SQL views: con-IVA without maintenance; dbt: sin-IVA with; the contract
+generator carrying two internal variants). This ruling makes maintenance
+inclusion non-negotiable and blesses both IVA flavors as first-class. The
+app views were brought into compliance the same day (zero value change —
+no signed project carries maintenance rows yet).
+
+**Where.** `database/views/v_project_calcs.sql` (canonical),
+`v_active_projects` (migration 2026-07-10-views-tcv-include-maintenance.sql),
+dbt `int_projects_mega_view` (already conforming, sin-IVA flavor),
+contract-generator snapshot (already conforming). See
+`architecture/business-logic-map.md` item D.
+
+**Status.** Decided (Jake) / In effect.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
