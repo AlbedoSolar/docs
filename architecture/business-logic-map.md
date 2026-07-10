@@ -44,7 +44,7 @@ The frontend must not decide persisted numbers; the model to copy is `services/e
 
 ### DRIFT-HOT — two live paths can already show different money for the same input
 
-1. **irr-calculator resolves engine params differently than quote-solver/quote-generator.** The interactive dial and the persisting engines can price the same estimate differently:
+1. ~~**irr-calculator resolves engine params differently than quote-solver/quote-generator.**~~ *(FIXED 2026-07-10: new `_shared/quote-params.ts` is the single param-resolution home for all three engines — resolveWacc (ruled 9% everywhere; config rows + form fallback updated too), resolveDownPayment (three-tier), resolveMaint\*/resolveRiskFreeRate, getWithFallback hoisted; dead partnerQuoteMarginType arg deleted. Deployed `2276f44`; smoke test: dial and engine now return identical IRR/payment. Historic exposure was minimal — the app always sent wacc explicitly and no estimate carries a stored down-payment %.)* Original finding:
    - WACC default **0.09** (`irr-calculator/index.ts:112`) vs **0.10** (`quote-solver/index.ts:275`, `quote-generator/index.ts:325`, `DEFAULT_CONFIG.default_wacc` in `quote-helpers.ts:59`); irr-calculator also ignores the `albedo_wacc` alias the other two honor. WACC drives the min-APR floor → payment → IRR.
    - Down payment: irr-calculator defaults to **0%** with no fallback (`irr-calculator/index.ts:110`); solver/generator use the three-tier chain ending in `estimates.down_payment_1_percentage` (`quote-solver/index.ts:367`, `quote-generator/index.ts:240`).
    - `maint_premium`/`maint_inflation` short aliases honored by solver/generator, ignored by irr-calculator (`irr-calculator/index.ts:117`).

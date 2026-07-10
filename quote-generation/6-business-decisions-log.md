@@ -534,6 +534,39 @@ Golden Copy was using a generic 0.20% for exploration.
 
 ---
 
+## 2026-07-10 — Default WACC is 9% everywhere
+
+**Decision.** When no WACC is supplied, every pricing surface uses **9%**
+(0.09). One resolution chain, shared by quote-solver, quote-generator, and
+irr-calculator: payload `albedo_wacc`/`wacc` → config row `default_wacc` →
+`DEFAULT_WACC` (0.09).
+
+**Why.** The 2026-07-10 duplication re-audit (inventory v2 item 1) found the
+three engines disagreed: solver/generator fell back to 0.10, irr-calculator
+to 0.09 — so the interactive dial could price the same estimate differently
+than the persisted offer. The frontend already assumed 0.09, making 0.10 the
+outlier. WACC feeds calcRecommendedApr's min-APR floor, so the default
+matters whenever a caller omits the field.
+
+**Where.** `_shared/quote-params.ts::resolveWacc` (new single home for
+request-param resolution, same commit consolidates the down-payment
+three-tier chain and the `maint_*` aliases across all three engines);
+`DEFAULT_WACC` in `_shared/quote-constants.ts`; `quote_generator_configs`
+rows updated 0.10 → 0.09 (migration
+`2026-07-10-quote-configs-default-wacc-9pct.sql`); QuoteConfigForm fallback.
+Deploy tags `deploy/*/20260710T2126*-2276f44`.
+
+**Exposure note.** The app's offer flow always sends `wacc: 0.09`
+explicitly, and no estimate row carries a stored `down_payment_1_percentage`
+> 0, so the historic divergence had little-to-no live blast radius — the fix
+is prophylactic alignment, not a data repair.
+
+**Status.** In effect (deployed 2026-07-10). Post-deploy smoke test:
+irr-calculator `forward_with_rate` and quote-generator at the same
+estimate/term/rate return identical IRR (8.39) and payment (2,205.47).
+
+---
+
 ## 2026-07-10 — Commission priced into retail = the commission type's TOTAL
 
 **Decision.** The commission included in the client's retail price is
