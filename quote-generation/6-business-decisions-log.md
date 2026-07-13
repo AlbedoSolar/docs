@@ -534,6 +534,31 @@ Golden Copy was using a generic 0.20% for exploration.
 
 ---
 
+## 2026-07-13 — Manual mode stays, but runs THE engine
+
+**Decision.** The quote-generator's manual mode (calculator inputs with no
+estimate in the system) is kept — it may become useful — but it must produce
+the same numbers as every other surface. It now maps its inputs onto the
+shared forward-calc pipeline; the parallel engine from the original R port
+(`generateNiiTable`/`getKpis` + private amortization forms) is deleted.
+
+**Why.** The old manual engine had drifted: Subtract-margin costs weren't
+grossed up, different amortization form, insurance started at grace+1.
+Forensics showed it was never used in anger — 56 runs ever, all dev tests
+(Jake/Ian/Danniel), last on 2026-02-21 — so no client number ever came from
+it, but keeping a divergent engine invites the next drift bug.
+
+**Behavior changes for future manual runs**: Subtract margins gross up like
+everywhere else; insurance start month defaults to 4 (configurable) instead
+of grace+1; amortization matches the pipeline. Explicit `annual_rate` still
+bypasses the APR floor (old behavior preserved).
+
+**Proof.** Equivalence test on 2645-01-01's real inputs: manual mode vs
+estimate mode → all 10 KPIs and every numeric cell of all 61 cashflow months
+identical. Deploy tag `deploy/quote-generator/20260713T173900Z-d02b743`.
+
+**Status.** In effect. Closes duplication inventory v2 item 6.
+
 ## 2026-07-10 — Installed capacity: equipment sum is the ONLY source
 
 **Decision.** Installed capacity (kW) = Σ (panel amount ×
