@@ -104,6 +104,21 @@ rebuilt within minutes. Reinforces the case for a data-health check on matview e
 | K2 | retail edited post-signing | ✅ | 4 hits = 2026-04-28 QB-import initial population (null→value), not edits |
 | K3 | snapshot divergence | ✅ | see E3 |
 
+## L. Existing dbt test suite (full run, 2026-07-12)
+
+19 of 23 pass — including all four of Jake's modified working-tree tests except one.
+The four failures, dissected:
+
+| Test | Fail rows | Verdict |
+|---|---|---|
+| `test_no_orphaned_clients` | 378 | **Stale premise** — predates the full QB import, which deliberately brought prospect clients without projects (and it doesn't filter deleted). Redefine or drop. |
+| `test_interest_payments_match` | 2,684 (44 projects) | **Two populations**: (a) 577-01/02 manual cash-flow replacements (max diff Q170,919 — restructure broke interest = rate × principal); (b) whole-schedule failures on recent app-generated projects (1934-*, 2040, 2132, 2153, 2267, 2444…) with moderate diffs — the quote engine's amortization doesn't match the test's assumption (interest_t = rate × remaining_{t-1}). Since G1/G4/principal+interest=payment/zero-at-end all PASS, schedules are internally coherent — **the test's model needs review, not (necessarily) the data**. Finance to arbitrate. |
+| `test_total_income_matches` | 2 | **577-02 and 577-03 only** — the manually-replaced schedules again (payments short of retail+interest by Q17k / Q10.6k). Finance: confirm the restructure intended this. |
+| `test_ar_principal_totals` | 5,027 | **3,997 are ±Q1 rounding noise** (test threshold too tight — add tolerance). 1,030 real diffs across 213 projects, max Q1.07M (1963-01) — the AR view vs recompute genuinely disagree on long-term principal splits for a wide set. **Feeds the loan tape → top-priority finance follow-up**, likely a definition drift between `int_official_accounts_receivable_*` and the test's expected calc. |
+
+Recurring theme: **project family 577** (manual cash-flow replacement, 2026-01) shows up in
+every financial identity failure. Recommend a dedicated reconciliation of 577-01/02/03.
+
 ## Fix batch (awaiting approval)
 
 1. **F1b backfill**: 14 monthly production estimates from QB values.
@@ -114,6 +129,9 @@ rebuilt within minutes. Reinforces the case for a data-health check on matview e
 
 ## Human-review queue
 
+- **AR view vs recompute: 1,030 real diffs / 213 projects (L) — top finance item (loan-tape input)**
+- **577-01/02/03 reconciliation** — manual cash-flow replacement broke interest + income identities
+- `test_interest_payments_match` model vs quote-engine amortization — finance arbitrate, then fix test or engine
 - F1d: 17 GT estimates off the con-IVA line — finance eyeball
 - D7: 776-04, 98-01 installation date inversions — ops
 - J2/J1 low-$/kW: add-on projects carrying full panel lists — decide whether their kW/savings should attribute to the parent project (affects per-project ratios, not totals)
