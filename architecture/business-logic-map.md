@@ -20,7 +20,7 @@ The frontend must not decide persisted numbers; the model to copy is `services/e
 - `supabase/functions/_shared/quote-integration-flow.ts` — insurance/maintenance schedules, NII table (the canonical schedule builder)
 - `supabase/functions/_shared/quote-goal-seek.ts` + `quote-forward-calc.ts` — solving
 - `supabase/functions/calculate-interest/utils/financial-calculations.ts` — IRR/XIRR/amortization
-- Entry points: `quote-solver` (offers), `quote-generator` (single quotes + manual mode), `irr-calculator` (variant matrices), `quote-rates`
+- Entry points: `offer-generator` (offers; formerly `quote-solver` — renamed 2026-07-13 when the dormant solve_tiers tier mode was deleted), `quote-generator` (single quotes + manual mode, both on the shared engine), `irr-calculator` (variant matrices), `quote-rates`
 - Written spec: `docs/quote-generation/` + decisions in `6-business-decisions-log.md`. ⚠ The legacy spec still sits in the dead `packages/shared/python-calculations/docs/` — port pending.
 
 ### Contract production

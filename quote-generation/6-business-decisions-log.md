@@ -534,6 +534,20 @@ Golden Copy was using a generic 0.20% for exploration.
 
 ---
 
+## 2026-07-13 — solve_tiers deleted; quote-solver renamed offer-generator
+
+**Decision.** The `solve_tiers` mode (original Gold/Silver/Bronze flow: fix
+payment at the client's monthly savings, goal-seek the TERM per target IRR
+16/14/12) is deleted — 23 runs ever, all March 2026, zero callers in code
+since the offer-flow redesign replaced it with `generate_offer`. With one
+job left, the function is renamed **offer-generator**.
+
+**Transition.** Old `quote-solver` deployment stays live until browser
+sessions cycle out (todo: delete ~2026-07-20 after confirming zero traffic).
+Frontend hits the new name as of staging deploy 2026-07-13.
+
+**Status.** In effect. Deploy tag `deploy/offer-generator/20260713T182125Z-262d278`.
+
 ## 2026-07-13 — Manual mode stays, but runs THE engine
 
 **Decision.** The quote-generator's manual mode (calculator inputs with no
