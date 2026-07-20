@@ -715,6 +715,43 @@ contract-generator snapshot (already conforming). See
 
 ---
 
+## 2026-07-20 — Addendum supersession uses SEAM semantics
+
+**Decision.** When an addendum is signed, the old contract is frozen **at the
+seam** (= the addendum's signing date). The old quote's cash-flow rows are
+stamped `addended_at = seam`, so payments up to the seam remain **active
+history** and payments after the seam are nullified; the addendum's schedule
+governs from the seam on. The old quote and its estimate (when the addendum
+lives on a different estimate) also get `addended_at = seam`. An addendum is
+declared at **approval** time (`approve-quote-variant` with
+`addendum_of_quote_id`, which stamps `replaces_quote_id` /
+`original_quote_id` / `addendum_number`) and supersession executes at **sign**
+time (`supersedeAddendumChain` in the contract-generator sign path). Full
+restatement (old flows entirely nullified because the new schedule restates
+history — the 541-02 early-payoff shape) is the exception and stays a manual
+operation.
+
+**Why.** The seven pre-migration chains were hand-crafted under two
+conflicting conventions: seam (577-02/03 — by accident: rows never stamped,
+old schedules happened to end at the seam) and full-nullify-via-backdating
+(981-x, 679-01, 541-02). Seam is the loan-servicing-standard "modification"
+shape: it preserves real payment history for the loan tape / Zoho sync /
+Debita reporting, and it is what the `is_nullified` formula
+(`addended_at IS NOT NULL AND payment_date > addended_at`) was designed to
+express. It also matches what the calc engine naturally produces (schedules
+run forward from the signing date).
+
+**Where.** `supabase/functions/approve-quote-variant` +
+`disapprove-quote-variant` (addendum mode; supabase PR #22),
+`packages/shared/supabase-sdk` `supersedeAddendumChain` + contract-generator
+sign hook + `QuoteOfferMatrix.addendumTarget` (infra PR #369). The invariant
+to test: per project, the active (non-nullified) flows across the chain form
+one timeline — no month covered by two quotes, no gap at the seam.
+
+**Status.** Decided (Jake) / In effect.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
