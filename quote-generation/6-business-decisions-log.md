@@ -752,6 +752,40 @@ one timeline — no month covered by two quotes, no gap at the seam.
 
 ---
 
+## 2026-07-21 — 810-07 addendum: QB rows verbatim, grace 5→12 (pure deferral)
+
+**Decision.** The 810-07 addendum restates the original QB contract's payment
+breakdown **exactly** — 48 paying months of Q3,470.14 lease (first row
+3,470.13, QB's own rounding) + Q109.89 insurance, IVA 12% → Q4,009.63/month
+all-in, asset transfer Q1,067.83 in the final row — with the grace period
+extended from 5 to 12 months (paying window moves Mar 2026–Feb 2030 →
+Oct 2026–Sep 2030). The 7 extra grace months are a **pure deferral**: the
+balance freezes at Q115,691.68 (the original post-grace balance) with zero
+interest accrual — Albedo absorbs the year of financing, the client's total
+obligation is unchanged. The legal fee is excluded (paid Sep 2025 under the
+original contract).
+
+**Why.** The calc engine cannot reproduce another engine's rows (its own rate
+solve, insurance and rounding differ), so a re-generated offer at the same
+Q4,009.63 total produced a different internal breakdown and, at "plazo 53",
+only 41 paying months instead of 48. The client agreed to the *original
+numbers, later* — so the offer is hand-crafted from the imported original
+schedule (monthly_cash_flows of quote 33884), not engine-generated. The
+capitalizing alternative (engine offer at 12-month grace, higher payments)
+was considered and rejected in favor of matching the QB contract exactly.
+
+**Where.** Quote 20 (`810-07-04-03`) + quote_offer 1261 (single manual cell,
+`calc_engine_version = 'manual-addendum-restatement'`), created by
+`albedo-automations-infra/database/migrations/2026-07-21-810-07-addendum-restated-offer.sql`.
+Cash flows materialize from this variant at sign time; supersession of quote
+33884 then follows the seam ruling above with the seam re-stamped to
+2025-10-01 (keeps the paid legal fee active, nullifies the forgiven
+Mar–Jul 2026 rows).
+
+**Status.** Decided (Jake, 2026-07-21) / In effect — pending signature.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
