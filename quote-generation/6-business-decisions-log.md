@@ -786,6 +786,114 @@ Mar–Jul 2026 rows).
 
 ---
 
+## 2026-07-22 (bis) — Bombeo Solar - Offgrid: cualquier bomba basta
+
+**Decision.** Supersedes the same-day entry below. An estimate classifies as
+**`Bombeo Solar - Offgrid`** whenever it contains one or more `Bomba de agua`
+(equipment type 7), **unconditionally** — panels, baterías, medidores,
+calentadores, anything else present does not matter. The pump branch remains
+first in the CASE, ahead of the battery test.
+
+**Why.** Gerson's ruling, July 22nd 2026: having a bomba is what makes it a
+bombeo project — the rest of the equipment mix is irrelevant to the
+classification. This replaces Jake's earlier same-day "pump must be sole
+load" rule (below), under which a pump system with batteries stayed plain
+Offgrid.
+
+**Where.** `v_estimate_calcs.system_type` (single canonical definition).
+Migration
+`albedo-automations-infra/database/migrations/2026-07-22-v-estimate-calcs-bombeo-any-pump.sql`;
+CHANGELOG entry same date. Still forward-looking: zero pump equipment in
+catalog or estimates at ruling time.
+
+**Status.** Decided (Gerson, 2026-07-22) / In effect.
+
+---
+
+## 2026-07-22 — Bombeo Solar - Offgrid: cuarto tipo de sistema, bomba como carga única — SUPERSEDED (same day, see entry above)
+
+**Decision.** A fourth `system_type` exists alongside Ongrid/Híbrida/Offgrid:
+**`Bombeo Solar - Offgrid`**, for solar water-pumping projects. An estimate
+classifies as Bombeo when it contains `Bomba de agua` equipment (type 7) AND
+has no batteries AND no calentador solar térmico (the pump is the sole load;
+panels/inverters/reguladores are allowed as supporting equipment) AND
+`number_of_meters_to_install = 0`. The branch is evaluated **before** the
+battery test. A pump system **with** batteries stays plain Offgrid.
+
+**Why.** New solar-pumping product line needs its own type for offers and
+reporting. Under the 3-way rule a battery-less pump system fell through to
+Ongrid (the "no batteries → Ongrid" branch fired first), which is wrong —
+pumping systems are inherently isolated. Alternatives considered: (a) any
+pump present → Bombeo regardless of batteries (rejected: a pump+battery
+system is a hybrid load, not a pumping project); (b) relabel only within the
+existing Offgrid branch (rejected: battery-less pump systems would stay
+Ongrid). Jake ruled for "pump must be sole load."
+
+**Where.** `v_estimate_calcs.system_type` — the single canonical definition
+(no TS/dbt recomputation). Migration
+`albedo-automations-infra/database/migrations/2026-07-22-v-estimate-calcs-bombeo-solar-offgrid.sql`;
+CHANGELOG entry same date. Forward-looking: zero pump equipment existed in
+catalog or estimates at decision time; verified no existing estimate
+reclassified.
+
+**Status.** Superseded same day by Gerson's any-pump rule (entry above); never
+in effect on real data (no pump estimates existed).
+
+---
+
+## 2026-07-24 — Quote status semantics: QuickBase overwrite convention retired
+
+**Decision** (Jake). "Current quote" is a **derived** property, never a status
+convention: the current contract for a project is the latest non-deleted quote
+with `status IN ('signed','signed_and_addended')`, ordered by `created_at`.
+A quote's status describes its own lifecycle only — `signed_and_addended`
+means "was signed, later addended," NOT "no longer counts" (that was the
+QuickBase semantics, where an addendum overwrote the record and the old quote
+stopped counting as signed). Any reader that filters `status = 'signed'` alone,
+or relies on the write-side invariant "the newest addendum quote is literally
+'signed'," is on the retired convention.
+
+**Why.** dbt's whole staging layer (`stg_signed_quotes` and everything above
+it) still encodes the QB convention; it agrees with the canonical app views
+today only because the write side happens to maintain the old invariant. The
+2026-07-24 drift audit confirmed data parity is currently exact (279 = 279
+signed set, 0 kW/cash-flow mismatches) — which makes now the moment to migrate
+dbt to the derived rule while the swap is provably a no-op. Deriving currency
+from data rather than encoding it in sibling statuses is also the standard
+modeling shape and what the next reader will expect.
+
+**Where.** Canonical implementation: the `signed` CTE of
+`database/views/v_operations_projects.sql` and the equivalents in
+`v_active_projects` / `v_project_installed_kw`. dbt migration tracked as the
+"repoint staging at canonical views" cleanup (this entry is its Phase 0).
+
+**Status.** Decided (Jake, 2026-07-24) / dbt migration in progress.
+
+---
+
+## 2026-07-24 — Funder reports: origination columns read the ORIGINAL quote, everything else the CURRENT contract
+
+**Decision** (Jake). In funder-facing marts, columns that describe
+**origination** (monto prestado / original principal, contract signing date,
+original term) are read from the original quote (`addendum_number = 0`) —
+explicitly and labeled as such. Every other measure (outstanding, payments,
+prices, capacity, TCV, status) tracks the **current contract** (see the status
+entry above) with seam-semantics cash-flow history (2026-07-20 entry).
+
+**Why.** dbt's `int_original_quotes` currently feeds original-quote values
+into *all* marts indiscriminately — a QB relic, since under QB the original
+was the only record. Post-addendum that silently freezes prices/equipment at
+origination everywhere. Loan-tape convention (industry standard) is:
+origination fields frozen, servicing fields current.
+
+**Where.** dbt `int_original_quotes` (to be renamed/scoped to origination use
+only during the cleanup's Phase 3). Consumers: `mart_debita_*`,
+`mart_finance_*`, `mart_investors_*`.
+
+**Status.** Decided (Jake, 2026-07-24) / implementation pending (Phase 3).
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
