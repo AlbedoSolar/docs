@@ -9,7 +9,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | admin | Full access (role_id = 1) |
 | sales | Sales team — can create and manage quotes, estimates, clients |
 | operations | Operations team — can update/delete projects and sites |
-| finances | Finance team — can update projects (for the diligence workflow). Edits are funneled through the UI to three columns: estimated_closing_date, diligence_notes, diligence_status. |
+| finances | Finance team — can update projects (for the diligence workflow; UI funnels edits to estimated_closing_date, diligence_notes, diligence_status) and non-signed quotes (added 2026-07-27 so DD can mark the winning quote as firmada). |
 
 ## Helper Functions
 
@@ -26,7 +26,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 
 | Table | INSERT | UPDATE | DELETE | Signed Protection |
 |---|---|---|---|---|
-| `quotes` | sales, admin | sales, admin | sales, admin | Yes — quote with status `signed` or `signed_and_addended` is immutable |
+| `quotes` | sales, admin | sales, finances, admin | sales, admin | Yes — quote with status `signed` or `signed_and_addended` is immutable |
 | `estimates` | sales, admin | sales, admin | sales, admin | Yes — estimate with any signed quote is immutable |
 | `estimate_equipment` | sales, admin | sales, admin | sales, admin | Yes — inherits from parent estimate |
 | `estimate_affiliates` | sales, admin | sales, admin | sales, admin | Yes — inherits from parent estimate |
