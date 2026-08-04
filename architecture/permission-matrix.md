@@ -65,5 +65,5 @@ The `fecha_fee_administrativo` milestone is sourced from Finanzas (`projects.fee
 |---|---|---|---|---|
 | `equipments` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
 | `equipment_brands` | sales, admin | sales, admin | sales, admin | SELECT public; writes gated by `is_sales_or_admin()` |
-| `providers` | sales, admin | sales, admin | — | SELECT public; writes gated by `is_sales_or_admin()`. DELETE intentionally not granted (downstream FKs from estimates / project_phases). |
+| `providers` | sales, admin | sales, admin | — | SELECT public; writes gated by `is_sales_or_admin()`. DELETE intentionally not granted (downstream FKs from estimates / project_phases). **Nav (2026-08-04):** the Proveedores item is shown to sales, operations **and finances**; finances needs payment schedules and margins for payables. Read-only for finances — `ProvidersTable` gates create/edit on `isAdmin \|\| hasSalesRole`, so no write action is offered and RLS is unchanged. |
 | `v_investor_portfolio_map` (view) | — | — | — | Read-only de-identified view (signed projects, ~2.7 km grid-snapped coords, no client fields). SELECT for all authenticated; REVOKEd from anon. Frontend `/investor-map` page and nav item are open to every authenticated user — the privacy boundary is the view itself, not a role. |
