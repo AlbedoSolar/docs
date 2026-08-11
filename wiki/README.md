@@ -19,3 +19,4 @@ Guía de uso de la aplicación de cotizaciones de Albedo.
 | 11 | [Integraciones](11-integraciones.md) | Zoho Books y servicios externos |
 | 12 | [Roles y Permisos](12-roles-y-permisos.md) | Roles de usuario, permisos y visibilidad por sección |
 | 13 | [Mantenimientos](13-mantenimientos.md) | Calendario de mantenimientos: consultar, editar y crear |
+| 14 | [Adendas](14-adendas.md) | Cómo modificar un contrato firmado: cotización, aprobación, contrato y firma |
