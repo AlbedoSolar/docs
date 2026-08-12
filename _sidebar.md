@@ -38,6 +38,7 @@
   - [Platform Separation of Concerns](architecture/platform-separation-of-concerns.md)
   - [Calculations Map](architecture/calculations-map.md)
   - [Logic → Views: Status](architecture/logic-to-views-status.md)
+  - [Addendum Robustness: Review Packet](architecture/addendum-robustness-review-2026-08.md)
 
 - **Impact Report**
   - [Technical Reference](impact-report/README.md)
