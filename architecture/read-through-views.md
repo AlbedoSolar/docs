@@ -127,6 +127,8 @@ likely to matter as views take over: `quote_offers.estimate_id`,
 
 ## Enforcement
 
+> Program-wide progress (this ruling + calc views + mv_ retirement + dbt repoint) is tracked in [logic-to-views-status.md](logic-to-views-status.md) — measured numbers, next moves, re-measure commands.
+
 The rule is only worth writing down if the wrong thing gets caught. In order of
 how little it depends on anyone remembering:
 

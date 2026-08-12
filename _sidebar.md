@@ -37,6 +37,7 @@
 - **Architecture**
   - [Platform Separation of Concerns](architecture/platform-separation-of-concerns.md)
   - [Calculations Map](architecture/calculations-map.md)
+  - [Logic → Views: Status](architecture/logic-to-views-status.md)
 
 - **Impact Report**
   - [Technical Reference](impact-report/README.md)
