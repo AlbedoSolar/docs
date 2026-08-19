@@ -894,6 +894,224 @@ only during the cleanup's Phase 3). Consumers: `mart_debita_*`,
 
 ---
 
+## 2026-07-27 — Insurance coverage is DERIVED: ends 30 days after the last financing payment
+
+**Decision** (Jake, from Fernanda's Release 1 Proyectos request 2026-07-22).
+Insurance vigencia in the projects layer is derived from financing state, not
+maintained by hand: coverage ends **30 days after the last financing
+payment** (`financing_end_date + 30`). Financed projects are `Vigente` until
+that date and `Vencido` after it; Contado projects are `No aplica` (no
+financed coverage). The manual `projects.insurance_status` column (QB-era
+free text) is untouched and shown separately — it is not the source of truth
+for vigencia.
+
+**Why.** Ops needs to exclude finished policies from insurance management
+without hand-updating a status field per project. The end date was already
+being computed as `financing_end_date + 30 días` in the frontend table — the
+rule is now in one place, in the view.
+
+**Where.** `public.v_operations_projects` (`insurance_end_date`,
+`insurance_coverage_status`), migration
+`2026-07-27-v-operations-projects-insurance-coverage.sql`. Both frontends
+read the columns; the local `computeInsuranceEndDate()` duplicates were
+removed. Filterable as "Vigencia Seguro" on the ops projects page.
+
+**Status.** Implemented and live 2026-07-27 (279 projects: 64 No aplica /
+201 Vigente / 14 Vencido).
+
+---
+
+## 2026-07-27 — Cierre operativo for pre-2026 projects = milestone #14; 'Instalado' override retired
+
+**Decision (Jake, with Fernanda's rule from the 2026-07-22 Release 1 meeting).**
+Pre-2026 projects get a real fecha de cierre operativo instead of a display
+override. The date is the fecha de cambio de medidor, or 2025-12-31 when there
+is none — exactly as agreed in the meeting. The cierre operativo is not a new
+concept: it is milestone catalog #14 (`fecha_cierre_operativo_intensivo`), so
+closed projects rank as **'O&M Activo'** through the normal estado ladder. No
+'Cerrado' label was introduced; if ops wants different wording we relabel later.
+
+**Why.** Fernanda's ask was that pre-2026 projects stop appearing as pending
+in management lists and become countable as closed in the upcoming summary
+panel. Once they carry milestone #14, the 2026-07-08 'Instalado' override
+(created because their milestone history was sparse) loses its reason to
+exist — one condition, one word.
+
+**Where.** Backfill + view change in migration
+`2026-07-27-cierre-operativo-pre-2026-backfill.sql` (206 projects: 194 meter
+dates, 12 fallback). Override removed from `v_project_milestone_stage` and the
+three `computeEstado` TS mirrors (quotes-app, solar_base_frontend, supabase
+`_shared/governance`); `governance-milestones` edge function redeployed.
+
+**Data note.** 1080-02 has meter_change_date 2027-07-25 (future — typo); it
+took the fallback. Correct the meter date, then update its milestone.
+
+**Status.** Implemented and live 2026-07-27 (estado distribution: 206 O&M
+Activo / 33 Medidor Bidireccional Instalado / 18 sin actividad / 22 others).
+
+---
+
+## 2026-07-28 — Layering: canonical views are the semantic layer; dbt is reporting, history and tests
+
+**Decision (Jake).** Reaffirms and sharpens the 2026-06-30 architecture. There
+is **one** definition of every business concept, it lives in a canonical
+`public` view in the infra repo, and everything else reads it:
+
+    tables → public canonical views → dbt marts → funder deliverables
+                     ↘ app reads canonical views directly
+
+- **Canonical `public` views = what is true.** Signed set, cash-flow validity,
+  installed capacity, milestone estado, insurance vigencia, retail money. The
+  app reads these directly; dbt reads them as the `canonical` source.
+- **dbt = what a given audience is shown.** Four jobs, no more: (1) report
+  shaping — Debita tapes, ADA/ATTA factsheets, investor splits are opinionated
+  *documents*, not truths; (2) history — snapshots/SCD-2 answer "what did the
+  portfolio look like on 31 March", which a live view cannot; (3) the test
+  harness — schema tests plus source tests pointed at the canonical views, so
+  the nightly audits the semantic layer; (4) `data_chat` flattenings.
+- **The flow is one-way. dbt never publishes to the app.** Any app read of an
+  `app.mv_*` model inverts ownership (the product depending on nightly-flavoured
+  analytics output) and is to be retired.
+
+**Rule of thumb for new logic.** App shows it, or two or more consumers need
+it → canonical view. Exactly one report needs it → dbt int/mart. Needs
+point-in-time history → dbt snapshot. Quote generation → edge functions
+(unchanged, see the calculations rule).
+
+**What this means for the dbt layers.** The `stg_`/`int_` layers split in two.
+Models that re-derive shared business concepts (`stg_signed_quotes`,
+`stg_signed_projects`, cash-flow validity, capacity, the mega views,
+original-quote selection) dissolve into canonical views — dbt sources the view
+instead. Models that are genuinely report math (currency conversion at report
+FX, month-0 adjustments, AR ladders, remaining-principal schedules) stay: no
+app page needs them and their shape is dictated by what the funder asked for.
+The staging layer shrinks to a few `source()` pass-throughs kept only so
+lineage stays legible in dbt docs.
+
+**Why not move the app-facing views into dbt** (considered 2026-07-24 and
+again 2026-07-28, rejected): (a) it splits every feature across two repos —
+today a change like the derived seguros columns is one infra commit carrying
+the migration and the frontend together; (b) dbt-authored views need
+`security_invoker = true` and grants applied via post-hooks, so one forgotten
+hook silently bypasses RLS, whereas the infra-repo convention keeps that in
+the file being edited; (c) the hoped-for reuse of the `stg`/`int` layers does
+not materialise in a *separate* dbt project anyway. The real prize — tests and
+lineage over app views — is obtained instead by pointing dbt **source tests**
+at the existing `canonical` source. Revisit only if authoring plain SQL
+becomes the measured bottleneck; so far the canonical views have each been
+written faster than their verification.
+
+**Where.** Canonical views: `albedo-automations-infra/database/views/` (+
+migration + CHANGELOG per change). dbt `canonical` source: `dbt/main/models/
+sources.yml`. Prior entries: 2026-06-30 (architecture agreed), 2026-07-24
+(status semantics + origination-vs-current rulings).
+
+**Status.** Direction agreed 2026-07-28. Phases 0–2 of the dbt cleanup are
+live (canonical repoint verified no-op on prod). Outstanding: two app reads of
+`app.mv_*` still to retire (`mv_monthly_cash_flows_v1`,
+`mv_impact_project_summary_v1`), Phase 3 (original-contract scoping), Phase 4
+(housekeeping + source tests).
+
+---
+
+## 2026-07-29 — project_date cutover is 2025-11-01, not 2025-12-01
+
+**Decision** (Jake, 2026-07-29). The signing-date cutover in
+`int_original_quotes` is **November 1, 2025**. Quotes with
+`contract_signing_date >= 2025-11-01` take `contract_signing_date` as their
+`project_date` (falling back to `adjusted_project_date` when set); anything
+earlier uses `first_payment_date`, because older signing dates are not
+trustworthy. Originally approved by Jacob Stern.
+
+**Why this needed a ruling.** The code has always said `'2025-11-01'` while the
+comment above it said "December 1, 2025". One of the two was wrong and nobody
+had established which. It was not academic — the disagreement covers every
+quote signed in November 2025:
+
+- 11 signed original quotes fall in the window
+- **0** carry an `adjusted_project_date` (which would have made both readings agree)
+- **8** resolve to a different `project_date` under the two readings
+
+Five of those eight cross a fiscal-year boundary — signed 2025-11-19 with
+`first_payment_date` 2026-01-01 — so the reading decides whether they are FY2025
+or FY2026 contracts. `mart_investors_portfolio_overview` buckets by
+`EXTRACT(YEAR FROM project_date)` into literal "2025"/"2026" columns, so this
+moves funder-facing figures, and it feeds the ADA/ATTA quarterlies and the EEFFs
+month spine as well.
+
+Affected projects: `1665-01`, `1847-01`, `1934-02`, `1934-03`, `1934-05`,
+`1959-01`, `2040-01`, `820-01`. The five that would have shifted year are
+`1847-01`, `1934-02`, `1934-03`, `1934-05`, `2040-01`.
+
+**Outcome.** The code was right; the comment was wrong. **No output changed** —
+this ruling confirms current behaviour and corrects the documentation, so no
+report needs restating and the five projects stay in FY2025.
+
+**Where.** `dbt/main/models/models_on_static_tables/intermediate/int_original_quotes.sql`
+(both `CASE` expressions, unchanged). The misleading comment was replaced
+2026-07-29 and now links back to this entry.
+
+**Status.** Decided and in effect. Closes the date half of the open Phase 3
+question on `int_original_quotes`; scoping that model to origination-only
+columns is still outstanding.
+
+---
+
+## 2026-04-13 — Production starts at installation, not at signing (logged 2026-07-29)
+
+**Decision** (Jake, from the ADA 8-abril-2026 prep). Impact "to date" metrics
+count production from when the system actually started generating, not from
+the contract signing date. Resolved by a three-branch waterfall, in order:
+
+1. `actual_installation_end_date` — the real commissioning date.
+2. `GREATEST(actual_installation_start_date + 1 month, project_date)` — assume
+   one month from start of installation to commissioning, but **never claim
+   production started before signing**.
+3. `project_date + 2 months` — last resort.
+
+Both constants are empirical, from the April analysis: the observed average
+gap between signing and installation was **~62 days (2 months)**, and one
+month is the assumed start→commissioning lag.
+
+**Why.** The previous behaviour assumed production began on the signing date,
+which overstates accumulated production and accumulated savings for every
+project that took weeks or months to install — directly inflating the ADA and
+ATTA impact numbers. The `GREATEST` clamp in branch 2 exists because the
+install dates are dirty: **15 of the 50 projects currently on that branch**
+have an install date more than a month before signing, including a handful
+decades off. Without the clamp those would claim production years before the
+contract existed.
+
+The `CASE` wrapper around branch 2 is load-bearing, not style: Postgres
+`GREATEST()` ignores NULLs, so without it a NULL install start would return
+`project_date` and swallow branch 3 rather than falling through to it.
+
+**Why it was logged late.** The rule shipped in dbt commit `7b1ee9c`
+(2026-04-13) documented only as a code comment plus talking point #9 in
+`docs/reunión-ada-8-abril-2026.md`. It surfaced during the 2026-07-29
+extraction and is recorded here because it moves funder-facing numbers.
+
+**Current branch distribution** (281 signed original quotes, measured
+2026-07-29): branch 1 **205** · branch 2 **50** (15 of them clamped) ·
+branch 3 **26**. Note this has shifted a lot since the rule was designed —
+the April doc had `actual_installation_end_date` on only 21/269 (8%), so
+branch 2 was expected to carry ~90% of projects. Today branch 1 carries 73%,
+because the Feb 2026 CSV data-entry pass filled in the completion dates.
+
+**Where.** `dbt/main/models/models_on_static_tables/intermediate/int_production_start_dates.sql`
+— the single definition since 2026-07-29 (`23788c6`). It was previously
+copy-pasted character-for-character into both `int_project_monthly_solar_savings`
+and `mart_impact_projects_summary`; both now `ref()` it. Install dates come
+from `source('canonical', 'v_project_governed_dates')`, which reads
+`project_milestones` first — see the 2026-07-29 entry on governed dates.
+
+**Status.** In effect since 2026-04-13; consolidated to one model 2026-07-29.
+Open question worth revisiting: branch 2's one-month assumption was tuned when
+it covered 90% of projects and now covers 18%, so its weight in the reported
+totals is much smaller than when it was chosen.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
