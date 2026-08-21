@@ -19,6 +19,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | `user_has_role(role_name text)` | Returns true if user has the specified role |
 | `is_sales_or_admin()` | Shorthand for `user_has_role('sales') OR is_admin()` |
 | `estimate_is_signed(est_id bigint)` | Returns true if estimate has any quote with status `signed` or `signed_and_addended` |
+| `is_signed_quote_status(s quote_status)` | The atomic predicate: `s IN ('signed','signed_and_addended')`. Single source of truth for "signed". Note `annulled` is deliberately NOT signed. |
 
 ## Business Tables
 
@@ -39,6 +40,26 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | `projects` | sales, admin | sales, ops, finances, admin | sales, ops, admin | Finance can UPDATE (intended for diligence columns via /finances/diligence). Operations can update/delete but not create. |
 | `sites` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
 | `clients` | sales, admin | sales, admin | sales, admin | — |
+
+### Project annulment (admin-only RPC)
+
+Voiding a **signed** contract. Not a table permission — a pair of
+`SECURITY DEFINER` functions, because every write annulment performs is
+blocked by the signed-protection policies above (a signed quote is not
+updatable, a signed contract is not updatable) and because the four writes
+must be atomic.
+
+| Function | Who | Notes |
+|---|---|---|
+| `annul_project(bigint, date, text)` | **admin only** | `is_admin()` gate inside the function body, not at the call site. `EXECUTE` granted to `authenticated` + `service_role`, revoked from `PUBLIC` and `anon`. |
+| `unannul_project(bigint)` | **admin only** | Same gate. |
+
+Frontend: the "Anular proyecto" action in `ActiveProjectDetails` is hidden
+unless `useIsAdmin()`, and hidden again once the project is annulled
+(reversal lives in the banner). This is UI boxing only — the database gate is
+authoritative.
+
+Rationale and full behaviour: `albedo-automations-infra/database/annulment.md`.
 
 ### Gobernanza Operativa (Solarbase Release 1A)
 

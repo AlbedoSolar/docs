@@ -1112,6 +1112,60 @@ totals is much smaller than when it was chosen.
 
 ---
 
+## 2026-08-20 — Annulment: voiding a SIGNED contract is its own state
+
+**Decision.** Four rulings, taken together:
+
+1. **A new `annulled` state**, on both `projects.workflow_status` and
+   `quotes.status` — *not* the existing `cancelled`. `cancelled` and
+   `rejected` mean the deal died **before** signature; annulment means a
+   signed contract was voided **after** the fact. One value for both would
+   make them indistinguishable in every current-state read.
+2. **Seam semantics**, reusing the 2026-07-20 addendum ruling. Payments on or
+   before `projects.annulled_on` stay live history; payments after it are
+   void. An annulment is a supersession with no successor.
+3. **The signed quote moves to `annulled`**, which is what actually removes
+   the project from the post-signature surfaces.
+4. **The forward book disappears from the loan tape; the cash received does
+   not.** dbt drops the project's *schedule* entirely, which is correct —
+   nothing is owed. What was actually collected survives in
+   `mart_debita_historical_payment_tape` (driven by `lease_payments`, no
+   signed filter) and in `mart_debita_snapshots` (incremental, append-only),
+   so tapes already delivered to Debita still reconcile.
+
+Annulment is **admin-only** and runs through one RPC, `annul_project()`.
+
+**Why.** Almost every post-signature surface gates on quote status, and every
+one of them filters *for* signed rather than against cancelled — so moving the
+quote off `signed` drops the project from the 32 dbt models under
+`stg_signed_quotes`, `v_operations_projects`, `v_financial_risk_portfolio`,
+`financing_date_ranges` and `v_project_calcs` with no changes to any of them.
+The strongest evidence this is the right seam is that two health checks
+*self-resolve*: `v_addendum_chain_health` and dbt's
+`test_quotes_accounted_for` both assert "signed quote ⇒ has flows", and
+annulment keeps that invariant true instead of requiring a carve-out.
+
+A separate `annulled` quote status (rather than reusing `cancelled`) also
+closed a real hole: the APD status dropdown offered `signed → cancelled`
+directly. RLS blocks that for sales and finance but **not for admins** — the
+people who annul. Taken, it dropped the project out of dbt while leaving no
+seam, no voided contract, no reason and no audit trail. With one shared value
+that option could not be removed without also removing the legitimate one.
+
+The alternative on ruling 4 — widening `stg_signed_quotes` to keep the
+pre-seam schedule — was rejected: it edits the chokepoint 32 models depend on,
+and would have forced carve-outs into both health checks above.
+
+**Where.** `database/annulment.md` (full DB/code split),
+`database/migrations/2026-08-20-*.sql` (four migrations; the enum one must
+land first), `v_cash_flows_all_states.is_active`, and
+`ActiveProjectDetails` / `AnnulProjectModal` on the frontend.
+Supersedes nothing; extends the 2026-07-20 seam ruling to a second seam.
+
+**Status.** Decided (Jake) / Implemented, verified locally, not yet deployed.
+
+---
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).

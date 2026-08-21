@@ -15,6 +15,7 @@
   - [Roles y Permisos](wiki/12-roles-y-permisos.md)
   - [Mantenimientos](wiki/13-mantenimientos.md)
   - [Adendas](wiki/14-adendas.md)
+  - [Anulaciones](wiki/15-anulaciones.md)
 
 - **Generación de Cotizaciones**
   - [Narrative Walkthrough](quote-generation/1-narrative-walkthrough.md)

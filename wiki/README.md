@@ -20,3 +20,4 @@ Guía de uso de la aplicación de cotizaciones de Albedo.
 | 12 | [Roles y Permisos](12-roles-y-permisos.md) | Roles de usuario, permisos y visibilidad por sección |
 | 13 | [Mantenimientos](13-mantenimientos.md) | Calendario de mantenimientos: consultar, editar y crear |
 | 14 | [Adendas](14-adendas.md) | Cómo modificar un contrato firmado: cotización, aprobación, contrato y firma |
+| 15 | [Anulaciones](15-anulaciones.md) | Cómo dejar sin efecto un contrato firmado y qué pasa con los pagos ya cobrados |
