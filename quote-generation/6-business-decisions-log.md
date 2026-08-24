@@ -80,9 +80,11 @@ When resolving a per-quote down payment, the edge function uses this priority or
 
 Per-quote down payment is stored in `quotes.generation_parameters` (JSONB). The `estimates.down_payment_1_percentage` column is **legacy only** — do not use as source of truth for a specific quote. Canonical doc: `CLAUDE.md` § "Quote Generator — Down Payment Priority".
 
-## ~2026-04 · Cartera convention
+## ~2026-04 · Cartera convention — ⚠️ PAIRING SUPERSEDED 2026-08-21
 
-`projects.cartera` distinguishes whether a deal was sourced by Albedo or by a partner. "Albedo" = deal sourced internally; "Socio" = sourced by the partner installer. Affects retail-price computation (Subtract margin → Albedo cartera; Add margin → Socio cartera). Memory: `project_cartera_field.md`.
+`projects.cartera` distinguishes whether a deal was sourced by Albedo or by a partner. "Albedo" = deal sourced internally; "Socio" = sourced by the partner installer. Affects retail-price computation.
+
+**The margin-type pairing originally recorded here (Subtract → Albedo, Add → Socio) was WRONG — it is the inverse.** See the 2026-08-21 entry "Cartera Albedo = margin type Add" for the corrected convention and the QuickBase evidence. Memory: `project_cartera_field.md`.
 
 ## ~2026-03 · IVA tax rate source
 
@@ -1165,6 +1167,40 @@ Supersedes nothing; extends the 2026-07-20 seam ruling to a second seam.
 **Status.** Decided (Jake) / Implemented, verified locally, not yet deployed.
 
 ---
+
+## 2026-08-21 — Cartera Albedo = margin type "Add" (labels were inverted)
+
+**Status: In effect** (data migration ran 2026-08-23; UI label fix pending).
+
+**Decision.** The canonical pairing is **cartera Albedo = `quote_margin_type
+'Add'`**, cartera Socio = `'Subtract'`. Every internal surface that encoded the
+inverse (wizard/ProviderForm dropdowns, `ProvidersTable.carteraLabel`, the
+Spanish tooltip, the earlier ~2026-04 entry in this log, `v_estimate_calcs*`
+views, `scripts/qb-continuity-import.ts`) is wrong and is being corrected.
+`resolveSocioSolarName` (issue #325, `Add` → "Albedo Solar") was correct all
+along.
+
+**Evidence.** QuickBase is the source of truth:
+- `qb_raw.proveedores` f8: Albedo Solar (id 5) = `Add`, margin 0.2 (queried 2026-08-21).
+- QB `Estimates` f585: cartera = "Albedo" iff the user code's provider is "Albedo Solar".
+- QB `Estimates` f451: quote shows "Albedo Solar" when cartera = Albedo — matches
+  `resolveSocioSolarName` only under Add = Albedo.
+- QB `Estimates` f681: vendor commission priced into retail only for `Add` — Albedo house
+  reps (cartera Albedo) must carry commission, so Albedo Solar is `Add`.
+- Phase-ratio forensics: provider-5 phases stamped before the 2026-07-17 flip have
+  `phase_cost = partner_quote_amount` (Add semantics); phases stamped after have the
+  ×0.8 Subtract signature.
+
+**Impact.** Provider 5 (`Albedo Solar`) held `Subtract` from 2026-07-17 to the fix,
+under-pricing every Albedo Solar quote written in that window by 20% (no gross-up) plus
+the missing vendedor commission. 5 estimates affected, all unsigned; 3 phases restamped.
+
+**Where.** Migration
+`albedo-automations-infra/database/migrations/2026-08-21-fix-albedo-solar-cartera-margin-type-inversion.sql`
+(run scoped `AND p.id = 5`; margin-0 providers 76/87/95/100 pending a name-match check —
+one has signed exposure and needs its retail pinned first). Import-script fix in the same
+commit. Related: known-inconsistency §1.3 (mixed-phase commission) is unchanged by this;
+issue #222 (imported Subtract phase_cost) is a separate defect.
 
 ## How to add a new entry
 
