@@ -1202,6 +1202,86 @@ one has signed exposure and needs its retail pinned first). Import-script fix in
 commit. Related: known-inconsistency §1.3 (mixed-phase commission) is unchanged by this;
 issue #222 (imported Subtract phase_cost) is a separate defect.
 
+## 2026-08-25 · Ops signing date = ORIGINAL contract date, even for addendums
+
+**Decision.** The signing date shown on the operations page (and any future
+canonical "project signing date") is the **original** client contract's
+`signed_on` — the addendum-0 quote's contract. Addendums do not move it.
+Truth for signing dates is `contracts.signed_on` (client contract row);
+`quotes.contract_signing_date` is legacy/denormalized and slated for
+demotion to a synced mirror, then `_legacy` rename.
+
+**Why.** Signing dates today are split across `quotes.contract_signing_date`
+(QB-era imports only — the in-app sign flow never writes it, which is why
+ops rows show blanks) and `contracts.signed_on` (what the sign endpoint
+actually stamps). `v_operations_projects` reads the quote column via
+newest-signed-quote (`ORDER BY created_at DESC`), so an addendum silently
+swaps the date shown to the addendum's date — ops wants the anchor date of
+the deal, not the latest paperwork event. Addendum-level dates still exist
+per contract row for invoicing/seam logic (see the adenda procedure:
+invoicing changes at addendum signature); this decision is about the
+project-level display/reporting anchor only.
+
+**Where.** Implemented 2026-08-25: resolver view
+`database/views/v_project_signing.sql` (chain-root quote → client-contract
+`signed_on`, frozen legacy quote column as fallback), `v_operations_projects`
+repointed to it — migration
+`2026-08-25-signing-date-source-of-truth-ops-view.sql`. One refinement vs the
+original plan: the 8 QB-era addended originals with no contract row do NOT get
+fabricated contract rows (readers expect real `data` snapshots) — the resolver
+falls back to their frozen legacy date instead, same shape as
+`v_project_governed_dates`. Legacy-column mirror (backfill + sync trigger):
+`2026-08-25-sync-quote-contract-signing-date.sql` +
+`database/triggers/quote-signing-date-sync.md`. Sign flow that stamps the
+truth: `contract-generator/src/controllers.ts` (`updateContract`, final-sign
+path).
+
+**Status.** In effect (views live in prod 2026-08-25; audited 300 signed
+quotes, 0 copy disagreements, 0 blanks after). Follow-up: repoint direct
+readers of `quotes.contract_signing_date` (dbt `mart_debita_snapshots`,
+`int_original_quotes`; generator fallback), then rename the column
+`*_legacy`.
+
+## 2026-08-25 · 1499-01 payoff restructure: manual addendum, two August rows, totals win
+
+**Decision.** 1499-01 (Gasolinera / Distribuidora Mapher, 5+ invoices in
+arrears) gets a negotiated payoff addendum ending Dec 2026: arrears stay on
+the still-active old rows (the "Vencido" Q88,087.10 is a collection target
+against existing invoices, not a new cash-flow row), an extra August
+principal payment of 99,922.24 sin IVA (modeled as enganche:
+`down_payment` column, `monthly_payment = 0`, so the old Aug-1 row and the
+extra row coexist without tripping `double_billed_month`), then Sep–Dec at
+exactly **Q152,500.00 con IVA** each. Where the negotiation sheet's
+component splits disagree with its own totals (its IVA math mixes 12%-of-
+gross with 12/112), the **negotiated totals win** and components are rebased
+(principal 132,372.71 + flat interest 3,053.00 + seguro 735.00). Book
+restates 694,493.02 → 629,413.08 at the seam: write-down 65,079.94 plus all
+future scheduled interest — accepted as part of the deal.
+
+**Why.** The schedule is not engine-producible (flat fixed interest,
+zero-interest enganche month, 4-month tail), so it follows the legacy
+hand-crafted-chain pattern (541-02) — but with full FK linkage and the
+standard `supersede_addendum_chain` RPC so the health view, APD tabs, and
+contract dedupe all keep working. Keeping the arrears on the old rows avoids
+voiding/re-issuing the Zoho invoices that already exist (1900, 2996).
+Alternative considered and rejected: writing the Vencido row into the new
+schedule with a backdated seam — cleaner sheet-match, but double-invoices
+Mar/Apr and detaches the Feb partial payment from its row.
+
+**Known residual.** Old active rows carry Q41,234.84 more scheduled-unpaid
+than the negotiated arrears figure (sheet credits the Feb 15,000 against
+Mar–Jul and skips one month vs. the DB's ledger; the Dec-2025 row has a
+paid amount with NULL date). After the client pays Q88,087.10, that residual
+still shows overdue until Finanzas reconciles or writes it off.
+
+**Where.** Migration
+`database/migrations/2026-08-25-1499-01-addendum-restructure.sql`
+(self-verifying; seam/date constants edited at run time). CHANGELOG entry
+same date. Source sheet: Drive `1WqM6qzd9ww1VJmRDIYK6NwC_LetsdFBi` cols E–J.
+
+**Status.** Decided (migration drafted; runs after the adenda is physically
+signed).
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
