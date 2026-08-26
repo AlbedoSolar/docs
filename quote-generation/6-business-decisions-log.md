@@ -1256,7 +1256,13 @@ component splits disagree with its own totals (its IVA math mixes 12%-of-
 gross with 12/112), the **negotiated totals win** and components are rebased
 (principal 132,372.71 + flat interest 3,053.00 + seguro 735.00). Book
 restates 694,493.02 → 629,413.08 at the seam: write-down 65,079.94 plus all
-future scheduled interest — accepted as part of the deal.
+future scheduled interest — accepted as part of the deal. (Amended same
+day: the extra payment is a NORMAL cuota, not an enganche —
+monthly_payment = principal = **99,922.23**, invoicing Q111,912.90 so
+August collects a flat Q200,000.00; the sheet's 99,922.24 principal cell
+was mis-rounded against its own top-down total, and the book restates to
+629,413.07. `double_billed_month` refined to permit deliberate seam-month
+extras — see infra `database/addendum-supersession.md`.)
 
 **Why.** The schedule is not engine-producible (flat fixed interest,
 zero-interest enganche month, 4-month tail), so it follows the legacy
