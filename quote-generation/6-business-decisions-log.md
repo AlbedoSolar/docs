@@ -1202,11 +1202,15 @@ one has signed exposure and needs its retail pinned first). Import-script fix in
 commit. Related: known-inconsistency §1.3 (mixed-phase commission) is unchanged by this;
 issue #222 (imported Subtract phase_cost) is a separate defect.
 
-## 2026-08-25 · Ops signing date = ORIGINAL contract date, even for addendums
+## 2026-08-25 · Project signing date = ORIGINAL contract date, even for addendums (all surfaces)
 
-**Decision.** The signing date shown on the operations page (and any future
-canonical "project signing date") is the **original** client contract's
-`signed_on` — the addendum-0 quote's contract. Addendums do not move it.
+**Decision.** The project-level signing date — on EVERY surface (operations
+page, proyectos firmados, dbt project-level marts, reports), not just ops
+(scope widened by Jake 2026-08-26 from the original ops-only ruling) — is the
+**original** client contract's `signed_on` — the addendum-0 quote's contract.
+Addendums do not move it. All surfaces must resolve it through the
+`v_project_signing` intermediate view (or, for frozen snapshot surfaces,
+stamp from the truth at sign time) — never re-derive it locally.
 Truth for signing dates is `contracts.signed_on` (client contract row);
 `quotes.contract_signing_date` is legacy/denormalized and slated for
 demotion to a synced mirror, then `_legacy` rename.
@@ -1220,7 +1224,10 @@ swaps the date shown to the addendum's date — ops wants the anchor date of
 the deal, not the latest paperwork event. Addendum-level dates still exist
 per contract row for invoicing/seam logic (see the adenda procedure:
 invoicing changes at addendum signature); this decision is about the
-project-level display/reporting anchor only.
+project-level display/reporting anchor. Contract snapshots stay faithful to
+their OWN contract (an addendum contract's snapshot carries the addendum's
+dates) — the project-level anchor is a display/reporting concern resolved via
+`v_project_signing`, not by rewriting snapshots.
 
 **Where.** Implemented 2026-08-25: resolver view
 `database/views/v_project_signing.sql` (chain-root quote → client-contract
@@ -1241,6 +1248,37 @@ quotes, 0 copy disagreements, 0 blanks after). Follow-up: repoint direct
 readers of `quotes.contract_signing_date` (dbt `mart_debita_snapshots`,
 `int_original_quotes`; generator fallback), then rename the column
 `*_legacy`.
+
+## 2026-08-26 · project_date: one rule everywhere (cutover applies to all surfaces)
+
+**Decision (Jake).** There is ONE `project_date` (Fecha de Proyecto) rule for
+every surface — display pages, ops, dbt marts, investor/Debita reporting:
+
+1. Manual `adjusted_project_date` override always wins.
+2. Signing date on/after **2025-11-01**: use the signing date, contract-first
+   (`contracts.signed_on` on the client contract, frozen legacy quote column
+   as fallback).
+3. Signing date before the cutover: use the project's **first payment date**
+   (earliest live cash-flow row) — pre-cutover signing dates are not
+   trustworthy.
+4. Addendums never move it: everything anchors on the chain-root quote's
+   contract.
+
+This confirms the 2026-07-29 cutover ruling and widens it from the marts to
+all surfaces. It supersedes the interim display-only rule (override → signing
+date, no cutover) that `v_project_signing.project_date` carried earlier the
+same day.
+
+**Why.** Phase 0 of the post-QB audit measured the two coexisting rules
+disagreeing on 188 of 292 projects (all pre-cutover) — one name, two values,
+with the marts feeding external reporting on one and the app displaying the
+other.
+
+**Where.** Canonical home: `public.v_project_signing.project_date`
+(migration `2026-08-26-v-project-signing-project-date-cutover.sql`, applied;
+in-transaction verify 0/292 disagreements vs `int_original_quotes`). dbt keeps
+its re-implementation and pins it with a canonical parity test (dbt repo,
+`tests_on_static_tables/canonical_parity/`).
 
 ## 2026-08-25 · 1499-01 payoff restructure: manual addendum, two August rows, totals win
 
