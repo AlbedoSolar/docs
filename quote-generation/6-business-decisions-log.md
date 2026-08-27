@@ -1249,6 +1249,27 @@ readers of `quotes.contract_signing_date` (dbt `mart_debita_snapshots`,
 `int_original_quotes`; generator fallback), then rename the column
 `*_legacy`.
 
+## 2026-08-27 · Month-0 row ratified as the schedule convention
+
+**Decision (Jake, 2026-08-27).** The payment_number = 0 closing row — down
+payment, legal costs, opening balance, dated at closing — is the standing
+convention for native financed originals. The engine already writes it
+(offer cashflow month 0 -> sign-time materialization); contado and addendum
+schedules correctly have none. Ian owns the accounting treatment of the
+closing row.
+
+**Consequences.**
+1. QB-continuity imports should synthesize the month-0 row AT IMPORT TIME
+   (normalize at the source), shrinking the analytics normalizer's pool to
+   the frozen legacy set.
+2. The analytics normalizer (dbt int_monthly_cash_flows_month_0_adjustment,
+   rewritten assumption-free 2026-08-27) covers the 25 legacy projects that
+   will never be re-imported.
+
+**Where.** Engine: quote-forward-calc.ts month-0 cell + sign-time
+materialization (already live). Census + rewrite: dbt repo
+AUDIT-2026-08.md, Phase 2.
+
 ## 2026-08-26 · project_date: one rule everywhere (cutover applies to all surfaces)
 
 **Decision (Jake).** There is ONE `project_date` (Fecha de Proyecto) rule for
