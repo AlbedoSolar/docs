@@ -1342,6 +1342,14 @@ column is display-rounded). Book 635,397.85 → 0.00 Dec; write-down
 superseded: August collects 88,087.10 + 20,617.42 + 111,912.90 =
 Q220,617.42. Migration `2026-08-28-1499-01-final-negotiated-values.sql`.)
 
+(Same day, completing the intent: the OLD Aug-1 cuota is nullified — row
+seam backdated to 2026-07-31, quote stamp keeps the legal signing date
+2026-08-08 — and the extra payment moves to Aug 1. August therefore
+collects a flat Q200,000.00 = 88,087.10 vencido + 111,912.90 extra, and
+the addendum rows number 17–21 after 16 active old rows, matching the
+sheet. Write-down vs the Jul-2026 book 699,300.66 = 63,902.81. Migration
+`2026-08-28-1499-01-nullify-old-august-cuota.sql`.)
+
 **Why.** The schedule is not engine-producible (flat fixed interest,
 zero-interest enganche month, 4-month tail), so it follows the legacy
 hand-crafted-chain pattern (541-02) — but with full FK linkage and the
