@@ -1323,6 +1323,15 @@ was mis-rounded against its own top-down total, and the book restates to
 629,413.07. `double_billed_month` refined to permit deliberate seam-month
 extras — see infra `database/addendum-supersession.md`.)
 
+(Amended 2026-08-28, corrected Finanzas figures, edited in place on the
+same quote: extra-August = **81,513.82** sin IVA (Q91,295.48) — the earlier
+figure double-counted the old contract's still-active Aug-1 cuota; the flat
+Q200,000.00 August = 88,087.10 vencido + 20,617.42 old cuota + 91,295.48
+extra. Sep–Dec re-split: seguro 823.20, cuota 135,337.51, interest flat
+3,053, principal 132,284.51; totals stay Q152,500.00. Book restates to
+610,651.86. Migration
+`2026-08-28-1499-01-revised-addendum-values.sql`.)
+
 **Why.** The schedule is not engine-producible (flat fixed interest,
 zero-interest enganche month, 4-month tail), so it follows the legacy
 hand-crafted-chain pattern (541-02) — but with full FK linkage and the
