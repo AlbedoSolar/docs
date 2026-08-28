@@ -1332,6 +1332,16 @@ extra. Sep–Dec re-split: seguro 823.20, cuota 135,337.51, interest flat
 610,651.86. Migration
 `2026-08-28-1499-01-revised-addendum-values.sql`.)
 
+(FINAL, 2026-08-28 later same day — definitive Finanzas sheet with
+interest: extra-August base 99,922.23 = seguro 735 + principal 99,187.23
+(Q111,912.90); Sep–Dec cuota 135,425.71 + seguro 735 (Q152,500.00) with
+DECLINING interest 2,192.42 / 1,647.66 / 1,100.68 / 551.46 (exact values
+recovered from the penny-exact principal cells; the sheet's interest
+column is display-rounded). Book 635,397.85 → 0.00 Dec; write-down
+59,095.17; interest income 5,492.22. The "flat Q200,000 August" reading is
+superseded: August collects 88,087.10 + 20,617.42 + 111,912.90 =
+Q220,617.42. Migration `2026-08-28-1499-01-final-negotiated-values.sql`.)
+
 **Why.** The schedule is not engine-producible (flat fixed interest,
 zero-interest enganche month, 4-month tail), so it follows the legacy
 hand-crafted-chain pattern (541-02) — but with full FK linkage and the
