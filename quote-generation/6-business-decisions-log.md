@@ -1374,6 +1374,31 @@ same date. Source sheet: Drive `1WqM6qzd9ww1VJmRDIYK6NwC_LetsdFBi` cols E–J.
 **Status.** Decided (migration drafted; runs after the adenda is physically
 signed).
 
+## 2026-09-01 · 810-07 adenda: six-month interest-free payment holiday
+
+**Decision.** 810-07 (El Macheton/Sepela, in arrears since its first real
+cuota) gets an adenda signed 2026-08-17: Mar–Aug 2026 become a payment
+holiday with the balance FROZEN at 115,691.68 (no interest accrual during
+the holiday), and the original 48-cuota schedule resumes Sep 2026
+cent-for-cent identical, ending Aug 2030 (6 months later than the original
+Feb 2030). Grace-period history (Oct 2025–Feb 2026) unchanged.
+
+**Why.** Client couldn't start paying in March as contracted; renegotiated
+as a shift rather than a restructure of amounts. Albedo forgoes holiday
+interest (~11.2k at the prior capitalization pace) and delays all cash
+flows 6 months. Source: Finanzas' "Soporte de Adendas Agosto 2026.xlsx",
+tab "Con Adenda 810-07" (the Sep-2026 interest cell equals the old
+Mar-2026 interest — proof the balance is frozen, not capitalizing).
+
+**Where.** Migration `2026-09-01-810-07-addendum-payment-holiday.sql`
+(1499-01 manual-restructure playbook: hand-written rows, FK linkage, row
+seam 2026-02-28 vs quote stamp 2026-08-17). The dead 2026-07-21 wizard
+attempt's addendum linkage (quotes 20, 1000488) was cleared in the same
+migration. Zoho credit notes for the four posted Mar–Jun invoices are
+Finanzas' follow-up.
+
+**Status.** In effect (applied to prod 2026-09-01; chain health clean).
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
