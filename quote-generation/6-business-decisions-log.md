@@ -1425,6 +1425,31 @@ CHANGELOG same date; AUDIT-2026-08.md (dbt repo) Phase-2 section.
 **Status.** In effect (applied to prod 2026-09-04; verify block confirms
 0 NULL tax rates and installed_kw ≡ calc layer).
 
+## 2026-09-04 · Stamping doctrine: freeze base facts and client-facing commitments; derive aggregates live
+
+**Decision.** (Jake) Write-time stamping applies to *base-level, client-facing
+values* — the rate, the retail price, the per-month cash-flow rows the client
+agreed to. *Aggregates* (contract totals, finance income, margins) are always
+derived live from those static base facts, with exactly one definition: if
+the definition is corrected, history restates — deliberately. Externally
+shipped figures (Debita tapes) restate with a note, never silently.
+
+**Why.** Proven the same day: the purchase-option epsilon bug in
+v_active_projects' totals was healed retroactively on 14 projects *because*
+totals are derived live. Had they been stamped at approval, the bug would be
+frozen into history behind a backfill. Conversely, rates were being
+re-derived and drifted (the 28-quote label backfill) — commitments need
+freezing, summaries need one live definition.
+
+**Where.** Precedents: approve-quote-variant rate stamp (supabase 8b2d045);
+v_active_projects rollup rework
+(`2026-09-04-v-active-projects-rollup-rework.sql`). Consequence for later:
+the offer-JSON parsing in that view should eventually move to a calc-layer
+view (one format-parsing home, e.g. v_offer_cell_flows) — NOT to stamped
+totals, per this ruling.
+
+**Status.** Decided (doctrine; applied to the rollup rework in effect).
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
