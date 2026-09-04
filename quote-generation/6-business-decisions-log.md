@@ -1399,6 +1399,32 @@ Finanzas' follow-up.
 
 **Status.** In effect (applied to prod 2026-09-01; chain health clean).
 
+## 2026-09-04 · Equipment-derived views: loud NULL over GT default; representative estimate = signed > approved > recent; watts formula gets one home
+
+**Decision.** Three rulings from the governance walkthrough (Jake):
+(1) `v_estimate_calcs` no longer falls back to 0.12 when an estimate's
+site/country link is broken — tax_rate and retail_con_iva go NULL loudly
+("prefer that the system breaks rather than assume Guatemalan tax rate").
+(2) The estimate that represents a project (capacity, calc reads) is chosen
+signed > **approved** > most recent — an approved-but-unsigned estimate
+outranks a newer draft (14 projects changed representative at apply time).
+(3) The Σ panels×watts formula has exactly one home:
+`v_estimate_calcs.installed_capacity_kwp` (matched by `equipment_types.slug`,
+never hardcoded type ids); `v_project_installed_kw` reads it rather than
+re-summing. Third copy in dbt solar-savings remains a Phase-4 audit lead.
+
+**Why.** The 0.12 fallback silently priced HN/SV estimates at GT IVA on any
+broken link (0 such rows at apply time — the rule is prevention); the old
+chooser let a newer draft displace an approved estimate; the formula lived
+twice with different matching rules (id vs slug), identical only by luck.
+
+**Where.** Infra migration
+`2026-09-04-estimate-calcs-slug-match-and-installed-kw-one-home.sql`;
+CHANGELOG same date; AUDIT-2026-08.md (dbt repo) Phase-2 section.
+
+**Status.** In effect (applied to prod 2026-09-04; verify block confirms
+0 NULL tax rates and installed_kw ≡ calc layer).
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
