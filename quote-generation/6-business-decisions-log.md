@@ -1450,6 +1450,29 @@ totals, per this ruling.
 
 **Status.** Decided (doctrine; applied to the rollup rework in effect).
 
+## 2026-09-14 · Per-phase custom margin supersedes the provider margin (and rescues NULL-margin providers)
+
+**Decision.** (Jake + team) The wholesale-margin override lives on
+`project_phases.custom_wholesale_margin` (phase grain, fraction storage,
+entered as percent in the estimate form). The engine resolves
+`phase.custom_wholesale_margin ?? provider.standard_wholesale_margin`; the
+missing-margin error now fires only when BOTH are null — an override
+deliberately rescues a provider with no configured margin. Margin TYPE
+(Add/Subtract) still comes from the provider/cartera. Endgame: retire the
+margin-variant provider clones ("ESQUISOLAR MARGEN 20%" et al).
+
+**Why.** The engine consumes margin per phase; multi-provider estimates have
+per-phase margins; the clone was always a per-phase choice. Estimate grain
+was considered and rejected (team ruling 2026-09-14).
+
+**Where.** Column: infra `2026-09-14-custom-wholesale-margin-to-project-phases.sql`.
+Engine: supabase d886f2d (deployed + tagged all 5 calc functions). Offer
+page: infra `2026-09-14-offer-sheet-phases-custom-margin.sql`. Form:
+ProjectPhasesManager per-row input. Verified: byte-identical prod A/B with
+all overrides NULL; exact-formula positive cycle on 1050-13-01.
+
+**Status.** In effect.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
