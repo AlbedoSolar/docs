@@ -1450,6 +1450,21 @@ totals, per this ruling.
 
 **Status.** Decided (doctrine; applied to the rollup rework in effect).
 
+## 2026-09-15 · "Margen de venta (estimado)" — a ruled exception to no-frontend-calculation
+
+**Decision.** (Jake) The calculadora header may show an *estimated* sales
+margin computed in the browser — retail con IVA ÷ costo socio con IVA − 1 —
+from Ian's PR #482. The no-business-calculation-in-the-frontend rule stands;
+this is allowed because it is a display-only ratio of two engine outputs,
+never stored or sent, labelled "estimado" with a tooltip that says what it
+approximates and why it differs from the engine's per-phase, sin-IVA,
+pre-discount margin. Any future exception needs the same: a comment naming the
+rule and the ruling, and "estimado" in the label.
+
+**Where.** `DefaultQuotesPageV2.tsx` header block (comment names this entry).
+
+**Status.** In effect.
+
 ## 2026-09-15 · Per-phase margin override — Ian's implementation is the one (column `margin_override_percent`)
 
 **Decision.** (Jake) The 2026-09-14 entry below duplicated a feature Ian had
