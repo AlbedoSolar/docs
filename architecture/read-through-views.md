@@ -92,6 +92,17 @@ data open to `anon` — see the separate anon exposure on `clients`, `projects`,
 `quotes`, `estimates` and `users`, which predates this document and is tracked
 independently.
 
+## Amendment 2026-09-15: liveness is enforced by RLS
+
+The deferral above is about *who* may read *what area*. Row **liveness** is a different
+concern and is no longer deferred: `estimates` and `quotes` reads as `authenticated`
+exclude `deleted_at IS NOT NULL` rows at the policy level (`OR is_admin()` keeps the
+restore path). This is enforcement level 3 from the list below in a form that works
+for a table that is still an embed target and a by-id lookup — a raw read can no longer
+return a deleted estimate, however it is written. Definer views, edge functions and dbt
+are outside RLS and filter explicitly; see `database/policies/soft-delete.md` in the
+infra repo for the per-consumer table.
+
 ## Two costs to know about
 
 ### PostgREST embedding
