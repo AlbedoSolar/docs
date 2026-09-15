@@ -1450,6 +1450,25 @@ totals, per this ruling.
 
 **Status.** Decided (doctrine; applied to the rollup rework in effect).
 
+## 2026-09-15 · Per-phase margin override — Ian's implementation is the one (column `margin_override_percent`)
+
+**Decision.** (Jake) The 2026-09-14 entry below duplicated a feature Ian had
+already built (infra PR #482 / supabase PR #26, 2026-09-11). Nobody had used the
+new column (holidays), so the column is renamed to Ian's
+`project_phases.margin_override_percent` and his form, plumbing and engine read
+are the ones in the codebase. Everything else in the 09-14 entry still holds:
+phase grain, fraction storage, percent entry, engine resolves
+`phase.margin_override_percent ?? provider.standard_wholesale_margin`, direction
+from the provider, NULL-margin providers rescued by an override.
+
+**One behavioural difference.** Ian's input is shown only for Albedo-cartera
+(Add) projects; the 09-14 input showed for every phase.
+
+**Where.** Rename: infra `2026-09-15-rename-custom-wholesale-margin-to-margin-override-percent.sql`.
+Engine: supabase main (quote-helpers). Form: `ProjectPhasesManager` `MarginOverrideInput`.
+
+**Status.** In effect.
+
 ## 2026-09-14 · Per-phase custom margin supersedes the provider margin (and rescues NULL-margin providers)
 
 **Decision.** (Jake + team) The wholesale-margin override lives on
