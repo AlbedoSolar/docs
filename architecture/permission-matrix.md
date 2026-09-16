@@ -41,6 +41,16 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 | `sites` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
 | `clients` | sales, admin | sales, admin | sales, admin | — |
 
+### Admin-only UI gates on `projects` columns
+
+These columns are restricted in the frontend only. The `projects` UPDATE policy
+(sales, ops, finances, admin) still permits them through the API — the gate is
+the UI, not RLS. Listed here so the gap is visible rather than assumed.
+
+| Column | UI gate | DB enforcement | Notes |
+|---|---|---|---|
+| `guarantee_investment_id` | admin only — project page edit form, projects/sales/finanzas table modal, operations project form | **none** | Issue #440, gate added 2026-09-16. Non-admin submits omit the key entirely, so an unrelated edit cannot clear a pledged guarantee. If this needs real enforcement, copy `enforce_project_milestone_lock`: a trigger rejecting the column change unless `is_admin()`. |
+
 ### Project annulment (admin-only RPC)
 
 Voiding a **signed** contract. Not a table permission — a pair of
