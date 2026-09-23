@@ -1507,6 +1507,33 @@ all overrides NULL; exact-formula positive cycle on 1050-13-01.
 
 **Status.** In effect.
 
+## 2026-09-23 · Cash-flow interest column = interest *accrued*, not interest paid
+
+**Decision.** (Jake) In materialized cash flows (`monthly_cash_flows.interest_payment_project_currency`),
+the interest column states the interest that **accrued** that month — including
+grace-period months, where the client pays nothing and the accrual capitalizes
+into the balance. "The client makes one payment we break down on our side";
+the breakdown should tell the truth about accrual, not report 0 because no
+cash moved.
+
+**Why.** The 2026-06-08 sign-time materialization mapped the engine's
+`interest` field (interest *paid* — 0 during grace) and dropped
+`interest_accrued`, silently changing the convention for every native signing
+from July 2026 on (~14 projects): grace months showed 0 interest while the
+saldo visibly grew. Erwin (accounting) flagged it on project 2373-01 —
+accounting recognizes interest income monthly during grace, as all pre-July
+schedules did. On payment months `interest_accrued == interest` (the payment
+covers the accrual in full), so the mapping change only affects months with
+no/partial payment — exactly the months where "paid" under-reports.
+
+**Where.** Mapper: infra `packages/shared/supabase-sdk/src/client.ts`
+(`interest_payment_project_currency` now prefers `cf.interest_accrued`, falls
+back to `cf.interest` for older offer JSONs). Backfill of the ~14 post-July
+signings: pending Jake's Zoho damage check (issue #446 thread has the related
+month-0 questions for Ian).
+
+**Status.** In effect for new signings; backfill pending.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
