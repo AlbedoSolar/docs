@@ -1534,6 +1534,81 @@ month-0 questions for Ian).
 
 **Status.** In effect for new signings; backfill pending.
 
+## 2026-09-24 · Cartera is a property of the estimate; provider commercial terms are one versioned row; unsigned quotes float, signed quotes freeze
+
+**Decision.** (Jake, with Ian's per-phase override as the given)
+
+1. **Cartera lives on the estimate** (`estimates.cartera` ∈ `albedo` | `socio`),
+   because it describes who sourced the deal, not who installs it. The engine
+   takes the pricing *direction* from it. The provider row stops carrying a
+   direction (`providers.quote_margin_type` becomes read-only legacy and is
+   dropped after cutover).
+2. **A provider's commercial terms are one versioned row** in
+   `provider_payment_schedules` (to be renamed `provider_terms` once both
+   frontends are off the old embed name): payout split **and** two margins,
+   `albedo_margin` / `socio_margin`. The effective margin for a phase is
+   `phase.margin_override_percent ?? terms.<cartera>_margin`. This is what lets
+   the 43 margin-variant provider rows ("ESQUISOLAR MARGEN 20%", "INESO +",
+   "JK ENERGY +" …) be deleted: variant = base provider + cartera + (rarely) a
+   per-phase override.
+3. **Unsigned quotes float, signed quotes freeze.** A phase is re-pinned to the
+   provider's terms row *in force today* on every save (existing behaviour of
+   `resolvePhasesWithPaymentSchedules`, kept deliberately): a quote is not a
+   commitment until signed, so it is regenerated on whatever terms are in force
+   when the rep regenerates it. Signed quotes are snapshots and never move.
+   Versioning still buys two things: signed phases keep the row they were
+   signed under (auditable by join), and future-dated changes ("90/10 from
+   Oct 1") can be entered ahead of time — which requires the lookup to select
+   by date (`valid_from <= today AND (valid_until IS NULL OR valid_until >=
+   today)`), not by `valid_until IS NULL` as today.
+4. **Correction vs renegotiation.** A typo on the current row is an in-place
+   UPDATE (the audit trigger records it); a real change of terms is a new
+   version with a `valid_from`. The provider form offers both.
+5. **Sales owns schedule corrections.** 14 providers created 2026-06-17 →
+   2026-09-17 sit on the trigger's `0 / 1 / 0` placeholder (the create form
+   dropped the schedule fields). Nothing in the system can recover the intended
+   splits (single trigger-written row each, never edited; no partner contract
+   documents on their phases; post-QB). Three have a same-entity sibling with
+   real terms (2032 Diseños Equipos y Sistema 10 % → 0.80/0.15/0.05; 2037 JK
+   ENERGY + → 0.50/0.40/0.10; 2039 INESO + 5 → 0.60/0.30/0.10) — proposed to
+   sales as defaults, not applied unilaterally.
+
+**Why.** The provider-row-as-cartera model forced one provider row per
+(entity × cartera × margin) and has bitten three times: the 2026-03-13 dedupe
+that had to be reverted (consumers read the row), the 2026-08-21 inversion
+(labels vs QB), and the 2026-09-24 IRR failure on 2804-01-01 (enganche above
+the month-0 payout — 40 % on a 50/40/10 split, *any* enganche on 0/1/0).
+QuickBase itself stored cartera per estimate (`Carteras` table, Estimates
+f593/f594) independent of the variant row: even the "clean" ESQUISOLAR family
+has 18 Albedo-cartera deals on the Subtract base and 24 Socio-cartera deals on
+MARGEN 20 %. Alternatives considered: margins on `providers` (non-versioned) —
+rejected because it leaves the payout split and the margin with different
+histories for the same negotiation; pin-once terms for in-flight quotes —
+rejected because an unsigned quote should reflect the terms in force at
+signing.
+
+**Multienergias is not a broken row.** The 2026-08-20 cartera audit flagged
+provider 9 "ROTO" (base name ⇒ expected Socio) at *confianza baja*. Evidence
+says Add 0.2 is right: QB `proveedores` #19 = Add/0.2 since 2025-03-19; QB's
+own per-deal cartera on its 1,072 estimates = 1,027 Albedo vs 42 Socio; the
+124 signed contracts price at retail ÷ cost ≈ 1.25. No wrong retail prices
+went out. Techsol (76) *is* inverted vs QB but its margin is 0, so direction
+never changed a price; it is flipped in the cleanup with no exposure.
+
+**Where.** Migration
+`albedo-automations-infra/database/migrations/2026-09-24-provider-terms-margins-and-estimate-cartera.sql`
+(additive: columns, stamp, trigger default). Engine read:
+`supabase/functions/_shared/quote-helpers.ts` (cartera → direction, terms →
+margin; NULL cartera falls back to the provider direction until the frontend
+writes it). Frontend: `solar_base_frontend` ProviderForm / ProjectPhasesManager /
+QuoteWizardStep3Estimate / `resolveSocioSolarName`. Dedupe + variant deletion:
+a later DATA migration that proves recomputed retail is unchanged for every
+unsigned estimate before deleting a row.
+
+**Status.** Decided 2026-09-24. Step 1 (schema) drafted, not applied.
+Supersedes the pairing notes in the 2026-08-21 entry only in *where* cartera
+is stored — the `Add` = Albedo mapping is unchanged and is what the stamp uses.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
