@@ -1631,6 +1631,33 @@ The month-0 table backfill (#505) must materialize this same shape.
 
 **Status.** In effect (view layer). Guides the #505 backfill.
 
+## 2026-09-25 · "NA" department + municipality placeholders, always last in dropdowns
+
+**Decision.** Every country has exactly one department named `NA`, and that
+department has exactly one municipality named `NA`. They are the only sanctioned
+way to record "no real location" on a site/project — never leave a wrong
+department picked, never invent per-country variants. In every dropdown the
+`NA` rows sort last, after the alphabetical list.
+
+**Why.** Sites with no usable location (placeholder projects, off-book
+equipment, early drafts) were being parked under whatever department came
+first. A shared placeholder keeps the FK chain intact without polluting the
+real geography. Alphabetical order would bury `NA` mid-list, so the ordering
+rule lives in one helper rather than per-dropdown hacks. The placeholders carry
+NULL poverty/rural flags, so impact metrics treat them as unknown, not "no".
+`departments.region_id` is NOT NULL and unread anywhere; GT's `NA` uses region 3
+(Remote), SV 5, HN 4.
+
+**Where.** Rows: infra migration
+`2026-09-25-add-na-department-and-municipality-per-country.sql` (departments
+57/58/59, municipalities 7/8/9). Ordering: `frontend/quotes-app/src/utils/locations.ts`
+(`sortLocationsNaLast`), applied in `supabase-data-service.getDepartments` /
+`getMunicipalities` and the KPI calculator's direct reads; mirrored in
+`solar_base_frontend`. CHANGELOG entry 2026-09-25.
+
+**Status.** In effect (prod rows since 2026-09-25; ordering on infra staging
+commit 74f29573).
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
