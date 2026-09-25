@@ -1609,6 +1609,28 @@ unsigned estimate before deleting a row.
 Supersedes the pairing notes in the 2026-08-21 entry only in *where* cartera
 is stored — the `Add` = Albedo mapping is unchanged and is what the stamp uses.
 
+## 2026-09-25 · No interest at month 0 — the enganche is entirely principal
+
+**Decision.** (Jake) A payment-0 row never shows interest: no time has passed
+at signing. The enganche counts entirely as principal. Where the QB migration
+transform charged one month of interest inside the enganche (59 legacy
+quotes), that charge is presented as ordinary accrued interest in payment 1,
+capitalizing into the saldo — the same convention as modern grace months.
+
+**Why.** The transform split each enganche into interest + principal (the
+enganche settled the first month's accrual at the first payment date). Three
+presentations were tried: split in payment 1 (phantom principal on a
+zero-payment row), split in row 0 (interest income at the signing instant),
+and this one — which reconciles with the frozen tape to the cent by
+construction, because the split identity (interest + principal = enganche)
+is exactly the capitalization identity (saldo₁ = saldo₀ + interest₁).
+
+**Where.** View: infra `2026-09-25-mv-cash-flows-month0-no-interest-at-signing.sql`
+(v5 of `app.mv_monthly_cash_flows_v1`; presentation only, table untouched).
+The month-0 table backfill (#505) must materialize this same shape.
+
+**Status.** In effect (view layer). Guides the #505 backfill.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
