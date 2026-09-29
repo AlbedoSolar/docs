@@ -1658,6 +1658,37 @@ NULL poverty/rural flags, so impact metrics treat them as unknown, not "no".
 **Status.** In effect (prod rows since 2026-09-25; ordering on infra staging
 commit 74f29573).
 
+## 2026-09-29 · 1037-01 adenda: one extra interest-free grace month, first cuota moves to December
+
+**Decision.** 1037-01 (Texaco San Miguel / Corporación DZ, S.A.) gets Adenda
+No. 1: November 2026 becomes a fourth grace month, **interest-free**, and the
+whole 60-cuota schedule of Q2,734.27 + Q114.60 seguro slides one month later —
+Dec 2026 – Nov 2031 instead of Nov 2026 – Oct 2031 — cent-for-cent identical,
+final row still folding in the Q1,113.66 opción de compra. The Aug-2026 head
+row (Q11,136.64 enganche + Q2,098.21 gastos legales) and the Sep/Oct grace
+months are untouched.
+
+**Why.** Sales negotiated an extra month of grace before the client's first
+payment (infra issue #517). Ian: "this addendum does not modify the amounts of
+the contract, but only the payment plan" — and the adenda's own table proves
+it, totalling Q178,404.71 cuota solar + Q6,876.00 seguro (sin IVA), exactly the
+original contract's totals. So the extra month does **not** capitalize the way
+the original Aug–Oct grace months did: Albedo absorbs Q1,688.03 of interest
+(≈Q4,383 compounded to maturity) rather than repricing the cuota or extending
+the term. Same shape as the 810-07 holiday (2026-09-01 entry) — a shift, not a
+restructure of amounts. Source: adenda document "ADENDUM CONTRATO Texaco San
+Miguel 1037-01" (Drive `1EfZXR4caV98G-dOJlltG1lRS9yT-9a43`), dated 2026-09-29.
+
+**Where.** Migration `2026-09-29-1037-01-addendum-extra-grace-month.sql`
+(1499-01 / 810-07 manual-restructure playbook: hand-written rows generated from
+the live flows, full FK linkage, row seam 2026-10-31 vs quote stamp 2026-09-29,
+Model B contracts row with the consolidated 64-row timeline).
+
+**Status.** Decided, **not yet applied.** Dry-run against prod 2026-09-29 —
+full transaction, every assertion passed, rolled back clean. Held until the
+adenda is signed: Legal's note on issue #517 is still asking whether it can go
+out via DocuSign.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
