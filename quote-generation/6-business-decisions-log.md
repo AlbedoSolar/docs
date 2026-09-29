@@ -1684,10 +1684,10 @@ Miguel 1037-01" (Drive `1EfZXR4caV98G-dOJlltG1lRS9yT-9a43`), dated 2026-09-29.
 the live flows, full FK linkage, row seam 2026-10-31 vs quote stamp 2026-09-29,
 Model B contracts row with the consolidated 64-row timeline).
 
-**Status.** Decided, **not yet applied.** Dry-run against prod 2026-09-29 —
-full transaction, every assertion passed, rolled back clean. Held until the
-adenda is signed: Legal's note on issue #517 is still asking whether it can go
-out via DocuSign.
+**Status.** In effect (applied to prod 2026-09-29 — quote 54, contract 622;
+chain health clean). The consolidated `v_cash_flows` timeline for project 888
+reproduces the adenda's 64-line plan exactly: Q178,404.71 cuota solar +
+Q6,876.00 seguro, sin IVA.
 
 ## How to add a new entry
 
