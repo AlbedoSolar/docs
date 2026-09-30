@@ -1689,6 +1689,30 @@ chain health clean). The consolidated `v_cash_flows` timeline for project 888
 reproduces the adenda's 64-line plan exactly: Q178,404.71 cuota solar +
 Q6,876.00 seguro, sin IVA.
 
+## 2026-09-30 · One canonical cash-flows view; the month-0 table backfill is shelved
+
+**Decision.** (Jake) Day-to-day consumers (the app, ad-hoc SQL, future calc
+views) read ONE canonical view, `public.v_project_cash_flows`: chain-consolidated
+live rows (`chain_payment_number`, month 0 at position 0) with the month-0
+derivation baked in at read time, plus currency/IVA columns. The raw
+`monthly_cash_flows` table stays frozen — historical reports (dbt, yearly
+accounting, AR/EEFFs) keep their current inputs and never move. The #505
+physical backfill is shelved: it remains a documented option, not a
+prerequisite.
+
+**Why.** The month-0 treatment was the only substantive disagreement between
+read paths; unifying reports onto it means restating history, which we are
+deliberately not doing. A read-time canonical view gives the "one view"
+benefits without touching a row. Non-consumers by design: the contract
+generator (frozen Anexos), v_project_signing / v_financing_date_ranges (date
+anchors — the derived row-0 date comes FROM v_project_signing), dbt analytics.
+
+**Where.** Infra `2026-09-30-v-project-cash-flows-canonical.sql` (applied;
+`app.mv_monthly_cash_flows_v1` is now a byte-identical shim over it), dbt#9
+(model mirrors the shim), infra #528 (repoint app + drop shim), #505 (shelved).
+
+**Status.** In effect.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
