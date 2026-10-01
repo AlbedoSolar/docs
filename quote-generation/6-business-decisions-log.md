@@ -1713,6 +1713,51 @@ anchors — the derived row-0 date comes FROM v_project_signing), dbt analytics.
 
 **Status.** In effect.
 
+## 2026-10-01 · Albedo margin is one going-forward default (12 %), not a provider attribute; socio discount stays per provider
+
+**Decision.** (Javi, in a meeting with Jake 2026-10-01; recorded by Jake.)
+
+- **Cartera Albedo:** the installer quotes us the *cost*. Every phase gets the
+  same margin regardless of installer — default **12 %**, stored once in
+  `quote_generator_configs.default_albedo_margin`, shown on the estimate form
+  and adjustable per phase (`project_phases.margin_override_percent`). Retail =
+  cost ÷ (1 − margin) — margin is a share of retail, the engine's existing
+  convention (cost 100 → retail 113.64), not a markup on cost.
+- **Cartera Socio:** the installer quotes the client's *retail*. We finance that
+  retail and pay the installer retail × (1 − discount). The discount is the
+  provider's (`provider_payment_schedules.socio_margin`) and is never shown on
+  the form.
+- **12 % is going-forward only.** Nothing already quoted moves: every Albedo
+  phase that had no margin of its own got the margin it had been pricing with
+  stamped into `margin_override_percent` (859 phases), so the engine switch is
+  a proven price no-op.
+
+**Why.** Under the previous model the Albedo margin was a provider attribute,
+which is what forced one provider row per (installer × margin) — "ESQUISOLAR
+MARGEN 20 %", "INESO + 5" — and left reps overriding downward by hand (live
+overrides at 12 %, 10 %, 8 % existed before this ruling). Making it a single
+default removes the only information the Add-variant rows carried, so the
+dedupe becomes a pure re-pointing. The 2026-09-24 entry's "two margins per
+provider" (`albedo_margin` / `socio_margin`) is superseded on the Albedo side;
+cartera-on-the-estimate and the versioned terms row stand.
+
+**Where.** Engine: `supabase/functions/_shared/quote-helpers.ts`
+`resolvePhasePricingTerms()` (albedo → override ?? config default; socio →
+override ?? terms.socio_margin ?? provider std); constant
+`DEFAULT_ALBEDO_MARGIN` in `quote-constants.ts`. DB: supabase migration
+`20261001120000_albedo_margin_default_and_stamp.sql` (config column, stamp,
+`v_offer_sheet_phases`, `get_public_offer_data`). Frontend (step 3): the
+per-phase margin input is prefilled with the config default on Albedo
+estimates and hidden on Socio ones. `provider_payment_schedules.albedo_margin`
+is deprecated, not yet dropped (`v_partner_contract_context` depends on it).
+
+**Open.** Whether Tix Solar's socio discount is 3 % (in-app since 2026-07-06,
+what has priced) or 5 % (QuickBase) — the migration keeps 3 %. Javi's margin
+sheet shrinks to one column: the socio discount per company.
+
+**Status.** Decided 2026-10-01. Supabase PR #27 reworked to this ruling; not
+yet merged.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
