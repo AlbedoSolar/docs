@@ -1758,6 +1758,31 @@ sheet shrinks to one column: the socio discount per company.
 **Status.** Decided 2026-10-01. Supabase PR #27 reworked to this ruling; not
 yet merged.
 
+## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
+
+**Decision.** A project's signing date is the `signed_on` of the client
+contract on its ORIGINAL (root) quote, and nothing else.
+`quotes.contract_signing_date` is no longer a fallback. It stays as a mirror
+kept in sync by `trg_sync_quote_signing_date`. Adenda keep their own
+contracts, but those never set the project's signing date. Tightens
+"Project signing date = ORIGINAL contract date" (2026-08-25).
+
+**Why.** Two sources for one date is how they drift. The fallback only ever
+fired for 7 projects, all adenda chains where the 2026-06-01 QuickBase import
+created a contract for the newest quote only.
+
+**Where.** `v_project_signing` (infra migration
+`2026-10-02-signing-date-contract-only.sql`, which first backfilled the 8
+missing client contracts with their quotes' existing dates, marked
+`data.backfill`). No displayed date changed.
+
+**Open.** Adenda dates to check against the signed PDFs: 981-01/02/03
+(adenda dated the same day as the original), 679-01 (original 2025-09-01,
+seam 2025-08-31, both adendas 2025-08-28), 577-03 (adenda exactly one year
+after the original).
+
+**Status.** In effect 2026-10-02.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
