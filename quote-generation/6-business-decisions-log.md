@@ -1605,7 +1605,8 @@ QuoteWizardStep3Estimate / `resolveSocioSolarName`. Dedupe + variant deletion:
 a later DATA migration that proves recomputed retail is unchanged for every
 unsigned estimate before deleting a row.
 
-**Status.** Decided 2026-09-24. Step 1 (schema) drafted, not applied.
+**Status.** In effect. Step 1 applied 2026-09-24; steps 2–4 (engine, frontend,
+dedupe) applied 2026-10-05 — see the 2026-10-01 entry.
 Supersedes the pairing notes in the 2026-08-21 entry only in *where* cartera
 is stored — the `Add` = Albedo mapping is unchanged and is what the stamp uses.
 
@@ -1755,8 +1756,10 @@ is deprecated, not yet dropped (`v_partner_contract_context` depends on it).
 what has priced) or 5 % (QuickBase) — the migration keeps 3 %. Javi's margin
 sheet shrinks to one column: the socio discount per company.
 
-**Status.** Decided 2026-10-01. Supabase PR #27 reworked to this ruling; not
-yet merged.
+**Status.** In effect since 2026-10-05 (migrations 20261001120000 + 20261001130000
+applied 04:14 UTC; supabase PR #27 and infra PR #533 merged and deployed). The
+27 margin-variant provider rows are gone; full-table backups in
+`backups.*_2026_10_04_cartera`.
 
 ## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
 
