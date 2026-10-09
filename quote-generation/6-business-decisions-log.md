@@ -1775,13 +1775,13 @@ applied 04:14 UTC; supabase PR #27 and infra PR #533 merged and deployed). The
   on the estimate, the Albedo margin on the config / phase override, the
   Socio discount on the terms row. The estimate's old Add/Subtract select is
   gone too; `estimates.cartera` is the only cartera.
-- **No silent zero.** A Socio-cartera phase whose provider has no agreed
-  discount on its terms row (and no per-phase override) is **not priced**: the
-  engine refuses with a message naming the provider. Before, it fell back to
-  the provider row's legacy margin — 1511-02 (Premium Value Services) priced a
-  Socio quote on 2026-10-08 at a 0 % discount for that reason, i.e. financing
-  the installer's retail and paying the installer all of it. Unsigned deals in
-  that state are deliberately left to refuse rather than frozen at 0 %.
+- **No discount means 0 %.** (Jake, 2026-10-09, same day.) A provider with no
+  negotiated Socio discount carries `socio_margin = 0` on its terms row (NOT
+  NULL, default 0): the deal is financed at the installer's retail and the
+  installer is paid all of it — that is the deal, not an error. The migration
+  applied at 02:18 had briefly made such phases refuse to price; the 13:00
+  follow-up set the 19 empty rows to 0 and the engine prices them again
+  (1511-02 Premium Value Services, 2801-01 AT ENERGY, 1511-01 GRUPO SEP).
 
 **Why.** Jake 2026-10-02: "we only need one margin per provider … payouts
 don't vary depending on add or subtract so we only need three payout
@@ -1795,9 +1795,7 @@ engine `resolvePhasePricingTerms()` (cartera required, no provider fallback);
 frontend provider form writes the terms row directly; contract lambda and
 HubSpot read the terms row / the estimate's cartera. Infra CHANGELOG 2026-10-09.
 
-**Open.** Discounts to set with sales for 1511-01 (GRUPO SEP), 1511-02
-(Premium Value Services), 2801-01 (AT ENERGY). Sales floor on the margin
-(Javi's number) still pending.
+**Open.** Sales floor on the margin (Javi's number) still pending.
 
 ## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
 
