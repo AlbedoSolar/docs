@@ -1761,6 +1761,44 @@ applied 04:14 UTC; supabase PR #27 and infra PR #533 merged and deployed). The
 27 margin-variant provider rows are gone; full-table backups in
 `backups.*_2026_10_04_cartera`.
 
+## 2026-10-09 · One provider terms row per provider; a Socio deal cannot be priced without the provider's discount
+
+**Decision.** (Jake, 2026-10-02 and 2026-10-09; in effect since 2026-10-09 02:18 UTC.)
+
+- A provider's commercial terms are **one versioned row** in `provider_terms`
+  (formerly `provider_payment_schedules`): the installer payout split
+  (`period_1/2/3_payout`, month 0 / 1 / 2, summing to 1) and the Socio
+  discount (`socio_margin`). The payout split does not depend on the cartera,
+  so the parallel `add_*` columns are gone; so is `albedo_margin` (the Albedo
+  margin is the config default, 2026-10-01 entry).
+- The provider row carries **no pricing information** any more: cartera lives
+  on the estimate, the Albedo margin on the config / phase override, the
+  Socio discount on the terms row. The estimate's old Add/Subtract select is
+  gone too; `estimates.cartera` is the only cartera.
+- **No silent zero.** A Socio-cartera phase whose provider has no agreed
+  discount on its terms row (and no per-phase override) is **not priced**: the
+  engine refuses with a message naming the provider. Before, it fell back to
+  the provider row's legacy margin — 1511-02 (Premium Value Services) priced a
+  Socio quote on 2026-10-08 at a 0 % discount for that reason, i.e. financing
+  the installer's retail and paying the installer all of it. Unsigned deals in
+  that state are deliberately left to refuse rather than frozen at 0 %.
+
+**Why.** Jake 2026-10-02: "we only need one margin per provider … payouts
+don't vary depending on add or subtract so we only need three payout
+columns." The legacy columns were the last place a pricing input could hide
+outside the three homes above; removing them makes "where did this price
+come from" answerable from the estimate, the phase and the terms row alone.
+
+**Where.** Supabase migrations `20261009120000_provider_terms_schema_cleanup.sql`
+(renames, drops, proofs) and `20261009120100_estimates_drop_quote_margin_type.sql`;
+engine `resolvePhasePricingTerms()` (cartera required, no provider fallback);
+frontend provider form writes the terms row directly; contract lambda and
+HubSpot read the terms row / the estimate's cartera. Infra CHANGELOG 2026-10-09.
+
+**Open.** Discounts to set with sales for 1511-01 (GRUPO SEP), 1511-02
+(Premium Value Services), 2801-01 (AT ENERGY). Sales floor on the margin
+(Javi's number) still pending.
+
 ## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
 
 **Decision.** A project's signing date is the `signed_on` of the client
