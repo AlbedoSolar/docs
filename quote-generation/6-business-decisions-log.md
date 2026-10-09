@@ -1795,7 +1795,15 @@ engine `resolvePhasePricingTerms()` (cartera required, no provider fallback);
 frontend provider form writes the terms row directly; contract lambda and
 HubSpot read the terms row / the estimate's cartera. Infra CHANGELOG 2026-10-09.
 
-**Open.** Sales floor on the margin (Javi's number) still pending.
+- **Sales floor: 5 %.** (Jake, 2026-10-09.) On Albedo cartera a rep may lower
+  a phase's margin below the 12 % default but not below 5 %; the estimate form
+  refuses to save below that. UI guard only — the engine prices what is
+  stored (27 phases carried overrides below 5 % that day, 1 signed; they keep
+  pricing as quoted until edited). Socio phases carry the provider's
+  discount, not a typed margin, so no floor applies.
+
+**Open.** Nothing on pricing. "Add provider is inactive" (#387) still needs
+Ian's one sentence.
 
 ## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
 
