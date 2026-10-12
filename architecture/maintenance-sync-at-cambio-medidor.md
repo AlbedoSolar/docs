@@ -1,7 +1,10 @@
 # Maintenance rows at Cambio Medidor — design
 
-**Status:** ruled 2026-10-12 (Jake with Javi). Ready to build once the V-rule
-question in §8 is answered.
+**Status:** ruled 2026-10-12 (Jake with Javi); built the same day — supabase
+#35 (edge function + seed module + catalog migration), solar_base_frontend
+#22 (confirm dialog + catalog), albedo-automations-infra #561 (canonical
+migration + CHANGELOG + mirror), dbt #12 (guard test). Merge order: supabase
+→ apply migration → frontend.
 **Supersedes:** the 2026-10-09 draft of this file, which placed the seed on
 the client-contract signing path. That trigger is dropped.
 **Scope:** `public.project_maintenances` gets its rows when ops registers
@@ -187,16 +190,16 @@ Baseline today: to be measured before shipping (projects whose Cambio
 Medidor predates this feature but that were seeded by the SQL batches will
 have rows; any without rows are the backlog in §9).
 
-## 8. Open: the V-rules
+## 8. The V-rules (answered 2026-10-12)
 
 The sequence rules (spec §5, V1–V13) are preconditions keyed on milestone
 *names*, not on `orden`, so the reorder does not change them by itself —
 but two now contradict the new order:
 
-| Rule | Today | Question for Javi |
+| Rule | Before | Now (Javi, 2026-10-12) |
 |---|---|---|
-| V9 | Recepción Póliza requires Aprobación Calidad | Póliza now comes before Calidad. What must precede Póliza — Fin Construcción? |
-| V4 | Aprobación Calidad requires Fin Construcción | Should Calidad now require Cambio Medidor (and Póliza) first? |
+| V9 | Recepción Póliza requires Aprobación Calidad | requires **Fin Construcción** |
+| V4 | Aprobación Calidad requires Fin Construcción | requires Fin Construcción + **Recepción Póliza + Cambio Medidor** |
 
 V7 (Gestión Medidor requires Fin Construcción) and V8 (Cambio Medidor
 requires Gestión Medidor) fit the new order. Projects signed before 2026
