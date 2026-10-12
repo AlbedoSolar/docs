@@ -109,9 +109,22 @@ Si solo ves texto en lugar de campos editables, es porque tu usuario no tiene un
 
 ## Relación con otras entidades
 
-- Cada mantenimiento pertenece a un **proyecto** financiado.
-- El cronograma se genera a partir de los **pagos del leasing** y el **flujo de caja** de la cotización firmada del proyecto.
-- El costo mostrado proviene del flujo de caja de la cotización original (es informativo, no afecta cálculos financieros).
+- Cada mantenimiento pertenece a un **proyecto** financiado (los proyectos de contado no tienen mantenimientos).
+- El cronograma se crea **cuando Operaciones registra la fecha de Cambio Medidor** en la página del proyecto (ver abajo). El primer mantenimiento queda 12 meses después de esa fecha; luego uno por cada año del contrato.
+- El costo mostrado proviene del flujo de caja de la cotización firmada (es informativo, no afecta cálculos financieros). Los años sin cargo de mantenimiento en el flujo son años cubiertos por el socio.
+
+## Cómo se crea el cronograma
+
+Desde el 2026-10-12 el cronograma de un proyecto nuevo se crea desde el panel de hitos de la página del proyecto, al registrar **Cambio Medidor**:
+
+1. Al presionar **Registrar** en Cambio Medidor, el sistema muestra una ventana con lo que va a crear: cuántos mantenimientos, la fecha del primero (12 meses después) y del último, y qué años paga Albedo con su costo sin IVA.
+2. Al confirmar, se registra el hito y se crean los mantenimientos. Hasta ese momento el proyecto **no aparece** en el módulo de mantenimientos.
+3. Si después se **modifica** la fecha de Cambio Medidor, los mantenimientos pendientes se reprograman con la nueva fecha; la ventana de modificación lo indica antes de guardar. Si el proyecto ya tiene algún mantenimiento completado, las fechas no se mueven.
+4. **Anular** el hito conserva los mantenimientos.
+
+Los proyectos que ya tenían cronograma antes de esa fecha conservan sus fechas (anclaje en la entrega al cliente o el primer pago).
+
+Si al confirmar aparece el mensaje "el calendario de mantenimientos no se creó", el hito sí quedó registrado; avisa a sistemas para crear el cronograma.
 
 ## Preguntas frecuentes
 
