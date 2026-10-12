@@ -85,11 +85,23 @@ Cuando se habilite, el flujo será:
    - **Cobertura** — Paga Albedo / No paga Albedo
 4. Haz clic en **Guardar** (o **Cancelar** para descartar).
 
+## Las tres fechas
+
+| Fecha | Qué es | Quién la pone |
+|-------|--------|---------------|
+| **Fecha objetivo** | Cuándo corresponde el mantenimiento según el contrato (12 meses por año desde el ancla del proyecto) | El sistema |
+| **Fecha de visita** | Fecha tentativa en que se hará la visita; se puede cambiar cada vez que se reprograme | Operaciones |
+| **Fecha real** | Día en que se realizó el mantenimiento; al llenarla el estado pasa a Completado | Operaciones |
+
+Usa **Fecha de visita** para anotar una visita coordinada. No uses Fecha real para eso: una fecha real a futuro cuenta como completado y el sistema la rechaza en la revisión nocturna.
+
+Las tarjetas de arriba muestran un contador por estado. **Programación vencida** es la lista de seguimiento: o la visita se hizo y falta registrar la fecha real, o no se pudo hacer y hay que poner una nueva fecha de visita.
+
 ## Estados y cobertura
 
 | Concepto | Valores |
 |----------|---------|
-| Estado | **Pendiente** (programado a futuro) · **Vencido** (pendiente y atrasado) · **Completado** (con fecha real) |
+| Estado | Se calcula con las tres fechas, nunca se elige a mano: **Pendiente** (no vence todavía, sin visita) · **Vencido** (ya venció, sin visita) · **Pendiente programado** (no vence todavía, con visita a futuro) · **Vencido programado** (ya venció, con visita a futuro) · **Programación vencida** (la visita ya pasó y no se marcó como realizada) · **Completado** (con fecha real) |
 | Cobertura | **Paga Albedo** · **No paga Albedo** — indica quién asume el costo del mantenimiento frente al socio instalador |
 | Financiamiento | **Vigente** · **Finalizado** — según la fecha de fin del financiamiento del proyecto |
 
