@@ -90,7 +90,7 @@ Cuando se habilite, el flujo será:
 | Fecha | Qué es | Quién la pone |
 |-------|--------|---------------|
 | **Fecha objetivo** | Cuándo corresponde el mantenimiento según el contrato (12 meses por año desde el ancla del proyecto) | El sistema |
-| **Fecha de visita** | Fecha tentativa en que se hará la visita; se puede cambiar cada vez que se reprograme | Operaciones |
+| **Fecha de visita** | Fecha tentativa en que se hará la visita; se puede cambiar cada vez que se reprograme. No se puede borrar desde la pantalla: si una visita se cancela, pide a sistemas que la quite | Operaciones |
 | **Fecha real** | Día en que se realizó el mantenimiento; al llenarla el estado pasa a Completado | Operaciones |
 
 Usa **Fecha de visita** para anotar una visita coordinada. No uses Fecha real para eso: una fecha real a futuro cuenta como completado y el sistema la rechaza en la revisión nocturna.
