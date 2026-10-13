@@ -159,13 +159,41 @@ Workflow/diligence status → badge/chip/allowed-transitions, duplicated across 
 
 ---
 
+## J. Quote-level Due Diligence figures — `v_quote_calcs` (2026-10-13)
+
+One row per committed quote (approved / signed / signed_and_addended), built on
+`v_estimate_calcs` (tax rate, project currency) + `v_approved_offer_cells` /
+`v_offer_cell_flows` (the offer-JSON "one home") + the latest `exchange_rates`
+row. Created when solar_base_frontend #18 added these figures to the project
+page computed in the component; the page now reads the view.
+
+| Column | Definition | Notes |
+|---|---|---|
+| `retail_sin_iva` | `COALESCE(gp.retail_price, quotes.retail_price_project_currency, estimates.retail_price_project_currency)` | same resolution the page used |
+| `partner_cost_project_ccy` | `estimates.project_cost_partner_contract_currency` converted partner ccy → project ccy via USD pivot (`exchange_rates` latest row) | mirrors `utils/retail-preview.ts convertCurrency` |
+| `install_margin_pct` | `(retail_sin_iva − partner_cost_project_ccy) / partner_cost_project_ccy` | margin on cost |
+| `total_contract_value_sin_iva` | Σ `income_total` + Σ (`legal_costs` + `down_payment` where `income_total` = 0) + Σ `purchase_option` | **= `v_active_projects`' 2026-09-04 rule**, verified equal on every approved quote at creation |
+| `total_contract_value_con_iva` | the above × (1 + tax) | |
+| `total_contract_cost_sin_iva` | Σ `capital_costs` + `commission_costs` + `legal_costs` + `insurance_cost` + `maintenance_cost` + `debt_cost` | `cost_tax` excluded |
+| `gross_margin_sin_iva` | value sin IVA − cost sin IVA | NULL when cost ≤ 0 |
+| `annual_interest_rate` | `COALESCE(quotes.annual_interest_rate, quotes.monthly_interest_rate × 12, cell.solved_annual_rate)` | |
+| `payback_months` | engine KPI `Payback.Period`, column "Total w IVA"; 9999 sentinel → NULL | only engine cells carry KPIs (17 of 354 at creation) |
+
+Drift found while building it: frontend `utils/totalContractValue.ts` still
+carries the pre-2026-09-04 contract-value rule (purchase-option epsilon,
+`income_total` treated as con IVA) and disagreed with `v_active_projects` on
+21 of the approved quotes. Register item 5 below now has a concrete target:
+retire that util once `QuoteOfferMatrix` reads per-cell values from the DB.
+
+---
+
 ## Drift register (prioritized for consolidation)
 
 1. 🟡 **D — project rollups** convention drift + 4-way overlap. **Expand-contract IN PROGRESS** — Phase 1 done (`*_con_iva` columns added); Phase 2 (frontend reads them; signed grossed to con-IVA) + Phase 3 (drop `*_project_currency`) pending. Decision made: app lists standardize on **con-IVA**.
 2. 🔴 **A — finance-engine internal drift** (3-4 IRR / amortization implementations; integration-KPI vs getKpis duplicate path).
 3. ⚠️ **Lambda finance copies** — `supabase-client-handler/financial-calculations.ts` is DIVERGENT/stale vs edge (different IVA handling, missing legacy amort); `quickbase-import-kickoff` has its own IRR; contract-generator rollups (G).
 4. ✅ **C — grid type** IMPLEMENTED 2026-06-29 (inline equipment match). Follow-up: reconcile with dbt `has_batteries` via a shared `v_estimate_derived` view.
-5. ⚠️ **B — cross-app TS duplication** (retail-preview/retailDisplay/totalContractValue in both frontends).
+5. ⚠️ **B — cross-app TS duplication** (retail-preview/retailDisplay/totalContractValue in both frontends). `totalContractValue.ts` is now also **drifted** from the DB rule — see §J; the project page no longer uses it for the DD card (2026-10-13), `QuoteOfferMatrix` still does.
 6. ⚠️ **E — PaymentSummary** brittle magic numbers (DPD −10, 2025-01-01 cutoff, status thresholds).
 7. ❓ **Zoho IVA** (separate from D) — confirm whether the `contracts` table stores con- or sin-IVA `total_contract_value` (what flows to Zoho). User expects sin-IVA.
 
