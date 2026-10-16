@@ -1830,6 +1830,123 @@ after the original).
 
 **Status.** In effect 2026-10-02.
 
+## 2026-10-12 · Maintenance visits are anchored on the Cambio de Medidor date
+
+**Decision.** (Jake, 2026-10-12, after talking to Javi.) When ops registers
+the **Cambio Medidor** milestone on the ops page, the app seeds the project's
+maintenance calendar: `scheduled_date = fecha de cambio de medidor + maintenance_year × 12 months`,
+one row per year up to the end of the lease, with the ordinal cost mapping
+and flags of the 2026-10-09 seed. Ops confirms a dialog first ("esto creará
+el calendario de mantenimientos… primer mantenimiento el <fecha + 12 m>").
+Only signed Financiado projects with no maintenance rows; Contado and
+already-seeded projects save the milestone normally. Correcting the cambio
+medidor date later moves the maintenance dates with it while no visit is
+Completado, and the UI says so. Trade-off accepted: a project signed from now
+on does not appear on Mantenimientos until its cambio de medidor is
+registered.
+
+**History.** The 230 projects seeded before this ruling keep their dates: an
+earlier anchor (Fernanda, 2026-06-04) used the client delivery date, else
+the first paid cuota, and those rows are not re-anchored. An
+installation-end anchor validated in May was never applied.
+
+**Why.** The meter change is the moment the system starts producing for the
+client, and ops records it in the app already; delivery dates were rarely
+filled. One trigger, one dialog, no silent rescheduling.
+
+**Where.** `governance-milestones` edge function (`_shared/maintenance/seed.ts`,
+replaying the 2026-10-09 seed exactly); ops page milestone dialog
+(`GovernanceTimelineWidget`); design doc `architecture/maintenance-sync-at-cambio-medidor.md`.
+Failures land in `signing_failures` (stage `seed_project_maintenances`).
+
+**Status.** In effect since 2026-10-12 (no project has reached Cambio
+Medidor since, so no rows seeded by this path yet as of 2026-10-16).
+
+## 2026-06-23 · Displayed monthly payment = median of the paying months; the engine KPI stays month 10
+
+**Decision.** Every surface that shows one monthly payment for a quote (offer
+sheet headline and matrix, the per-year plan, the project page's DD panel)
+shows the **median** of `total_payment_con_iva` over the variant's cash-flow
+rows with `income_total > 0`. Fallback chain, mirrored everywhere: manual
+override on the approved cell → median → the engine's `Monthly.Payment` KPI
+(skeleton QB imports only). The engine KPI and `goalSeekAprByMonthlyPayment`
+still use **month 10**, and the rep matrix shows that number.
+
+**Why.** Insurance and maintenance change the cuota over the term, so one
+month is a poor headline; the median is what the client will most often pay.
+Switching the engine KPI too would mean rewriting the goal-seek from its
+analytic shortcut to a true bisection; we fixed what clients and reviewers
+see and left the rep-facing math alone until that rewrite is worth it.
+
+**Where.** `ClientOfferPage.getMonthlyPayment` / `buildYearlyPlan`,
+`ActiveProjectDetails` (aligned 2026-06-23); engine
+`quote-integration-flow.ts` (`monthVal(10, …)`), `QuoteOfferMatrix.extractMonthlyPayment`.
+
+**Open.** If the engine KPI ever changes, the goal-seek and the rep matrix
+change with it in the same PR.
+
+**Status.** In effect.
+
+## 2026-08-11 · "Pagaré" deals stay out of Solar Base
+
+**Decision.** (Jake.) QuickBase quotes whose status is **Pagaré** (a
+promissory note, not a lease: 768-01 and 888-01, both November 2025) are
+deliberately not imported. Sweeps of `qb_raw` for signed-but-missing deals
+filter on `Firmado` / `Firmado y adendado` only, and the continuity import
+cohort omits them.
+
+**Why.** A pagaré is a different instrument with no installment schedule to
+materialize; importing it as a lease would put wrong cash flows in every
+report.
+
+**Where.** `scripts/qb-continuity-import.ts` (infra) and the signed-deals
+gap queries from 2026-08-11.
+
+**Status.** Decided.
+
+## 2026-09-19 · Electricity price inflation is a country constant: 5 % GT, 5 % SV, 6 % HN since 2026-09-22
+
+**Decision.** The yearly inflation of the client's electricity price, used in
+every savings projection (offer page, impact reports), lives as a column on `countries`
+(`electricity_price_escalation_rate`, a fraction, next to `tax_rate` and
+`grid_factor`), with change tracking. One value per country, no per-project
+override. Loaded 2026-09-22 at Alex's request: Guatemala 0.05, El Salvador
+0.05, Honduras 0.06 (previously 0.03 everywhere). The Valuing Impact
+model's savings file is a 3 % snapshot: regenerate it for VI at 3 % only.
+
+**Why.** Jake rejected a separate key-value constants table as overkill for
+one value; a real constants table comes when the Valuing Impact parameters
+(about 40) move into Solar Base. Changing the rate restates every savings
+figure from the next rebuild (30-year gross savings rose about 45 % on the
+Jun-30 cut), so the value is tracked and never defaulted.
+
+**Where.** Infra migrations 2026-09-19 (column + audit trigger) and the
+`get_public_offer_data` RPC; dbt `int_estimate_electricity_escalation` with
+`POWER(1 + rate, year)` in both savings models and a test that every signed
+estimate resolves a rate; frontend `utils/taxRate.ts` (baked fallback map,
+kept equal to the table).
+
+**Status.** In effect; the three values are live in production.
+
+## 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista, the commercial bucket), not 10 (Casa habitacional)
+
+**Decision.** (Convention in use since mid-2026; logged now.) When the client
+is an asociación de vecinos, condominio or asociación civil that owns or
+runs a residential building, `project_sector_id` is **3**, the commercial
+catch-all. Sector **10** is reserved for a private individual's home. Judge by
+the client's legal name, not the project name: "Residencial X" as a project
+name does not make it residential. Precedents: 492, 1814, 2358.
+
+**Why.** `project_sectors` has no multifamily or real-estate bucket, and a
+building that collects fees from residents is run as a business. Sector
+curation stopped being manual in January 2026, so the rule has to be
+written down for the form.
+
+**Where.** `projects.project_sector_id`; QB free-text sectors flow into
+`colloquial_name` only.
+
+**Status.** Decided.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
