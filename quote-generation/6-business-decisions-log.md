@@ -1830,26 +1830,37 @@ after the original).
 
 **Status.** In effect 2026-10-02.
 
-## 2026-06-04 · Maintenance visits are anchored on the client delivery date (logged 2026-10-16)
+## 2026-10-12 · Maintenance visits are anchored on the Cambio de Medidor date
 
-**Decision.** (Fernanda, 2026-06-04; live since 2026-06-07.) A project's
-scheduled maintenance dates are
-`COALESCE(projects.client_delivery_date, first scheduled payment with monthly_payment > 0) + maintenance_year × 12 months`.
-Actual Zoho / `lease_payments` dates are not in the waterfall. Costs are
-ordinal-aligned to the year. Rows are created once (at Cambio Medidor since
-2026-10-12; one-off catch-ups before that) and do **not** move when ops later
-fills `client_delivery_date` (679-01 is the precedent).
+**Decision.** (Jake, 2026-10-12, after talking to Javi.) When ops registers
+the **Cambio Medidor** milestone on the ops page, the app seeds the project's
+maintenance calendar: `scheduled_date = fecha de cambio de medidor + maintenance_year × 12 months`,
+one row per year up to the end of the lease, with the ordinal cost mapping
+and flags of the 2026-10-09 seed. Ops confirms a dialog first ("esto creará
+el calendario de mantenimientos… primer mantenimiento el <fecha + 12 m>").
+Only signed Financiado projects with no maintenance rows; Contado and
+already-seeded projects save the milestone normally. Correcting the cambio
+medidor date later moves the maintenance dates with it while no visit is
+Completado, and the UI says so. Trade-off accepted: a project signed from now
+on does not appear on Mantenimientos until its cambio de medidor is
+registered.
 
-**Why.** Delivery is when the client starts running the system; the first
-paid cuota is the best proxy when ops has not recorded delivery. An
-installation-end anchor was validated in May (median actual − install end =
-365 days) but never applied; an earlier note claiming it was live was wrong.
+**History.** The 230 projects seeded before this ruling keep their dates: an
+earlier anchor (Fernanda, 2026-06-04) used the client delivery date, else
+the first paid cuota, and those rows are not re-anchored. An
+installation-end anchor validated in May was never applied.
 
-**Where.** Infra migration `2026-06-07-anchor-maintenance-on-client-delivery-date.sql`
-and its three siblings; drift view `v_maintenance_anchor_drift`; CHANGELOG
-2026-06-07 / 06-12 / 09-01 (verified 1,192 of 1,197 rows on 2026-09-01).
+**Why.** The meter change is the moment the system starts producing for the
+client, and ops records it in the app already; delivery dates were rarely
+filled. One trigger, one dialog, no silent rescheduling.
 
-**Status.** In effect.
+**Where.** `governance-milestones` edge function (`_shared/maintenance/seed.ts`,
+replaying the 2026-10-09 seed exactly); ops page milestone dialog
+(`GovernanceTimelineWidget`); design doc `architecture/maintenance-sync-at-cambio-medidor.md`.
+Failures land in `signing_failures` (stage `seed_project_maintenances`).
+
+**Status.** In effect since 2026-10-12 (no project has reached Cambio
+Medidor since, so no rows seeded by this path yet as of 2026-10-16).
 
 ## 2026-06-23 · Displayed monthly payment = median of the paying months; the engine KPI stays month 10
 
@@ -1893,10 +1904,10 @@ gap queries from 2026-08-11.
 
 **Status.** Decided.
 
-## 2026-09-19 · Electricity price escalation is a country constant, 5 % / 5 % / 6 % since 2026-09-22
+## 2026-09-19 · Electricity price inflation is a country constant: 5 % GT, 5 % SV, 6 % HN since 2026-09-22
 
-**Decision.** The yearly escalation of the client's electricity price used in
-savings projections lives as a column on `countries`
+**Decision.** The yearly inflation of the client's electricity price, used in
+every savings projection (offer page, impact reports), lives as a column on `countries`
 (`electricity_price_escalation_rate`, a fraction, next to `tax_rate` and
 `grid_factor`), with change tracking. One value per country, no per-project
 override. Loaded 2026-09-22 at Alex's request: Guatemala 0.05, El Salvador
@@ -1915,56 +1926,9 @@ Jun-30 cut), so the value is tracked and never defaulted.
 estimate resolves a rate; frontend `utils/taxRate.ts` (baked fallback map,
 kept equal to the table).
 
-**Status.** In effect.
+**Status.** In effect; the three values are live in production.
 
-## 2026-09-22 · ADA factsheet CO2 and kWh rows are the accrued basis, not 30-year lifetime
-
-**Decision.** (Jake, after ADA queried the Q2 2026 figures.) On the ADA
-quarterly factsheet, rows 67/68 (CO2 avoided, cumulative and period) and
-71/72 (kWh, cumulative and period) report what the installed systems have
-**generated so far**, not the 30-year lifetime projection. Lifetime figures
-stay in the impact marts for investor and narrative use.
-
-**Why.** Q1 2026 had been filled by hand on the accrued basis; Q2 came from
-the factsheet view while it still mapped those rows to lifetime, so the
-number jumped by a factor of twenty and ADA asked why. Closed-quarter cells
-are never changed afterwards; discrepancies get a note.
-
-**Where.** dbt `mart_ada_quarterly_extras` (fixed in dbt PR #2, 2026-09-22).
-Related rule in the same report: the social rows count distinct clients, not
-projects.
-
-**Status.** In effect.
-
-## 2026-10-14 · Pagos: a cuota's invoice is the cuota invoice of its due month; "pagado" is the settled amount
-
-**Decision.** The invoice that billed a scheduled cuota is the Zoho invoice
-of the same project, carrying a "Cuota mensual" line, issued in the cuota's
-due month; failing that, the link the old manual load stored on the row.
-**Not** the "Cuota No. N" printed on the invoice line: Zoho keeps the
-original schedule's numbering while Solar Base renumbers after an adenda
-(810-07: Zoho's cuota 12 is payment 7, both due 2026-09-01). The amount shown
-as paid is the settled amount (`total − balance`), which counts the tax the
-client withheld and credits applied; Zoho's own `payment_made` is cash
-received and can be lower. A month with two cuota invoices, or an invoice
-issued more than a week late, is flagged for Finanzas rather than guessed.
-
-**Why.** The Pagos tab had been frozen since April because only the old
-manual load wrote payment data onto the schedule. Pairing in one database
-view keeps the frontend, the mora calculator and reports on one rule. On
-2026-10-14 all 1,562 cuota invoices paired by month; 2150-01's pairs match
-Zoho's own records exactly.
-
-**Where.** `v_project_payments` (supabase migration
-`20261014180000_v_project_payments.sql`); infra docs
-`zoho-books-integration/05-payments-sync-operations.md`.
-
-**Open.** The mora calculator and `v_cash_flows_all_states` still read the
-frozen schedule columns; moving them to the view is pending.
-
-**Status.** In effect.
-
-## 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista), not 10 (Casa habitacional)
+## 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista, the commercial bucket), not 10 (Casa habitacional)
 
 **Decision.** (Convention in use since mid-2026; logged now.) When the client
 is an asociación de vecinos, condominio or asociación civil that owns or
