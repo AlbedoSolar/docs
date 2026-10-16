@@ -1830,6 +1830,159 @@ after the original).
 
 **Status.** In effect 2026-10-02.
 
+## 2026-06-04 · Maintenance visits are anchored on the client delivery date (logged 2026-10-16)
+
+**Decision.** (Fernanda, 2026-06-04; live since 2026-06-07.) A project's
+scheduled maintenance dates are
+`COALESCE(projects.client_delivery_date, first scheduled payment with monthly_payment > 0) + maintenance_year × 12 months`.
+Actual Zoho / `lease_payments` dates are not in the waterfall. Costs are
+ordinal-aligned to the year. Rows are created once (at Cambio Medidor since
+2026-10-12; one-off catch-ups before that) and do **not** move when ops later
+fills `client_delivery_date` (679-01 is the precedent).
+
+**Why.** Delivery is when the client starts running the system; the first
+paid cuota is the best proxy when ops has not recorded delivery. An
+installation-end anchor was validated in May (median actual − install end =
+365 days) but never applied; an earlier note claiming it was live was wrong.
+
+**Where.** Infra migration `2026-06-07-anchor-maintenance-on-client-delivery-date.sql`
+and its three siblings; drift view `v_maintenance_anchor_drift`; CHANGELOG
+2026-06-07 / 06-12 / 09-01 (verified 1,192 of 1,197 rows on 2026-09-01).
+
+**Status.** In effect.
+
+## 2026-06-23 · Displayed monthly payment = median of the paying months; the engine KPI stays month 10
+
+**Decision.** Every surface that shows one monthly payment for a quote (offer
+sheet headline and matrix, the per-year plan, the project page's DD panel)
+shows the **median** of `total_payment_con_iva` over the variant's cash-flow
+rows with `income_total > 0`. Fallback chain, mirrored everywhere: manual
+override on the approved cell → median → the engine's `Monthly.Payment` KPI
+(skeleton QB imports only). The engine KPI and `goalSeekAprByMonthlyPayment`
+still use **month 10**, and the rep matrix shows that number.
+
+**Why.** Insurance and maintenance change the cuota over the term, so one
+month is a poor headline; the median is what the client will most often pay.
+Switching the engine KPI too would mean rewriting the goal-seek from its
+analytic shortcut to a true bisection; we fixed what clients and reviewers
+see and left the rep-facing math alone until that rewrite is worth it.
+
+**Where.** `ClientOfferPage.getMonthlyPayment` / `buildYearlyPlan`,
+`ActiveProjectDetails` (aligned 2026-06-23); engine
+`quote-integration-flow.ts` (`monthVal(10, …)`), `QuoteOfferMatrix.extractMonthlyPayment`.
+
+**Open.** If the engine KPI ever changes, the goal-seek and the rep matrix
+change with it in the same PR.
+
+**Status.** In effect.
+
+## 2026-08-11 · "Pagaré" deals stay out of Solar Base
+
+**Decision.** (Jake.) QuickBase quotes whose status is **Pagaré** (a
+promissory note, not a lease: 768-01 and 888-01, both November 2025) are
+deliberately not imported. Sweeps of `qb_raw` for signed-but-missing deals
+filter on `Firmado` / `Firmado y adendado` only, and the continuity import
+cohort omits them.
+
+**Why.** A pagaré is a different instrument with no installment schedule to
+materialize; importing it as a lease would put wrong cash flows in every
+report.
+
+**Where.** `scripts/qb-continuity-import.ts` (infra) and the signed-deals
+gap queries from 2026-08-11.
+
+**Status.** Decided.
+
+## 2026-09-19 · Electricity price escalation is a country constant, 5 % / 5 % / 6 % since 2026-09-22
+
+**Decision.** The yearly escalation of the client's electricity price used in
+savings projections lives as a column on `countries`
+(`electricity_price_escalation_rate`, a fraction, next to `tax_rate` and
+`grid_factor`), with change tracking. One value per country, no per-project
+override. Loaded 2026-09-22 at Alex's request: Guatemala 0.05, El Salvador
+0.05, Honduras 0.06 (previously 0.03 everywhere). The Valuing Impact
+model's savings file is a 3 % snapshot: regenerate it for VI at 3 % only.
+
+**Why.** Jake rejected a separate key-value constants table as overkill for
+one value; a real constants table comes when the Valuing Impact parameters
+(about 40) move into Solar Base. Changing the rate restates every savings
+figure from the next rebuild (30-year gross savings rose about 45 % on the
+Jun-30 cut), so the value is tracked and never defaulted.
+
+**Where.** Infra migrations 2026-09-19 (column + audit trigger) and the
+`get_public_offer_data` RPC; dbt `int_estimate_electricity_escalation` with
+`POWER(1 + rate, year)` in both savings models and a test that every signed
+estimate resolves a rate; frontend `utils/taxRate.ts` (baked fallback map,
+kept equal to the table).
+
+**Status.** In effect.
+
+## 2026-09-22 · ADA factsheet CO2 and kWh rows are the accrued basis, not 30-year lifetime
+
+**Decision.** (Jake, after ADA queried the Q2 2026 figures.) On the ADA
+quarterly factsheet, rows 67/68 (CO2 avoided, cumulative and period) and
+71/72 (kWh, cumulative and period) report what the installed systems have
+**generated so far**, not the 30-year lifetime projection. Lifetime figures
+stay in the impact marts for investor and narrative use.
+
+**Why.** Q1 2026 had been filled by hand on the accrued basis; Q2 came from
+the factsheet view while it still mapped those rows to lifetime, so the
+number jumped by a factor of twenty and ADA asked why. Closed-quarter cells
+are never changed afterwards; discrepancies get a note.
+
+**Where.** dbt `mart_ada_quarterly_extras` (fixed in dbt PR #2, 2026-09-22).
+Related rule in the same report: the social rows count distinct clients, not
+projects.
+
+**Status.** In effect.
+
+## 2026-10-14 · Pagos: a cuota's invoice is the cuota invoice of its due month; "pagado" is the settled amount
+
+**Decision.** The invoice that billed a scheduled cuota is the Zoho invoice
+of the same project, carrying a "Cuota mensual" line, issued in the cuota's
+due month; failing that, the link the old manual load stored on the row.
+**Not** the "Cuota No. N" printed on the invoice line: Zoho keeps the
+original schedule's numbering while Solar Base renumbers after an adenda
+(810-07: Zoho's cuota 12 is payment 7, both due 2026-09-01). The amount shown
+as paid is the settled amount (`total − balance`), which counts the tax the
+client withheld and credits applied; Zoho's own `payment_made` is cash
+received and can be lower. A month with two cuota invoices, or an invoice
+issued more than a week late, is flagged for Finanzas rather than guessed.
+
+**Why.** The Pagos tab had been frozen since April because only the old
+manual load wrote payment data onto the schedule. Pairing in one database
+view keeps the frontend, the mora calculator and reports on one rule. On
+2026-10-14 all 1,562 cuota invoices paired by month; 2150-01's pairs match
+Zoho's own records exactly.
+
+**Where.** `v_project_payments` (supabase migration
+`20261014180000_v_project_payments.sql`); infra docs
+`zoho-books-integration/05-payments-sync-operations.md`.
+
+**Open.** The mora calculator and `v_cash_flows_all_states` still read the
+frozen schedule columns; moving them to the view is pending.
+
+**Status.** In effect.
+
+## 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista), not 10 (Casa habitacional)
+
+**Decision.** (Convention in use since mid-2026; logged now.) When the client
+is an asociación de vecinos, condominio or asociación civil that owns or
+runs a residential building, `project_sector_id` is **3**, the commercial
+catch-all. Sector **10** is reserved for a private individual's home. Judge by
+the client's legal name, not the project name: "Residencial X" as a project
+name does not make it residential. Precedents: 492, 1814, 2358.
+
+**Why.** `project_sectors` has no multifamily or real-estate bucket, and a
+building that collects fees from residents is run as a business. Sector
+curation stopped being manual in January 2026, so the rule has to be
+written down for the form.
+
+**Where.** `projects.project_sector_id`; QB free-text sectors flow into
+`colloquial_name` only.
+
+**Status.** Decided.
+
 ## How to add a new entry
 
 1. Date the entry (`YYYY-MM-DD`).
