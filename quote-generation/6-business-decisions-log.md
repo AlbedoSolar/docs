@@ -1,43 +1,273 @@
 # Quote Generation: Business Decisions Log
 
-Chronological record of business + convention decisions that affect the
-quote generation pipeline. Each entry: **what was decided, why, where it
-lives in the code, and status**.
+Chronological record of the business and convention decisions behind quote
+generation, cash flows, dates, impact reporting and the data model. Each entry
+says **what was decided, why, where it lives in the code, and its status**, so
+decisions made in meetings, Slack threads or pairing sessions are not lost in
+chat history.
 
-This file exists so decisions made in meetings, Slack threads, or pairing
-sessions don't get lost in code comments and chat history. Add an entry
-**before** or **at the same time as** the implementation lands.
+**How to read it.** The **register** below lists every rule in effect, one line
+each, grouped by topic, with a link to its entry. The **open questions** table
+follows. The full entries come after, in date order. An entry marked ⚠️ is in
+conflict with another entry; the conflicts are being resolved on
+[the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) and each entry says which number.
 
-Status legend:
-- **Decided** — agreed and implemented.
-- **In effect** — agreed and live in prod.
-- **Open** — under discussion; placeholder for future decision.
+**Status legend.** **Open**: under discussion. **Decided**: agreed, not yet live
+in production. **In effect**: live in production. **Superseded**: replaced by a
+later entry, kept for history.
+
+**How to add an entry.** In the same session the decision is made: (1) add a
+line to the register under its topic; (2) append an entry at the end of the
+chronology with the template at the bottom of this file; (3) if it replaces an
+earlier rule, mark that entry *Superseded* with a pointer and remove its
+register line. Project references only, no client legal names or personal
+data: this repository is public.
+
+## Register: rules in effect
+
+### Pricing and margins
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| ~2026-03 | IVA comes from `countries.tax_rate` (GT 12 %, SV 13 %, HN 15 %), never from the estimate. | In effect | [entry](#e-iva-source) |
+| ~2026-03 | Public offer page shows base term ±12 months × {0 %, 10 %} down payment. | In effect | [entry](#e-offer-matrix) |
+| ~2026-04 | Down payment: explicit amount → request percentage → legacy estimate percentage; stored per quote. | In effect | [entry](#e-down-payment-chain) |
+| 2026-05-08 | Retail = phase cost ÷ (1 − margin) for every phase, whatever the direction. | In effect | [entry](#e-retail-gross-up) |
+| 2026-05-13 | Commission bonus by IRR tier: Bronze 0 %, Silver +25 %, Gold +50 % (config table). | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-tier-bonuses) |
+| 2026-05-13 | Each impact category = 1 point; points lower the target IRR (0.25 pp at 1 point, 2.00 pp at 6). | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-impact-discount) |
+| 2026-06-23 | Displayed monthly payment = median over paying months; the engine KPI and rep matrix use month 10. | In effect | [entry](#e-median-payment) |
+| 2026-07-10 | Default WACC 9 % everywhere (payload → config → constant). | In effect | [entry](#e-wacc-9) |
+| 2026-07-10 | Commission in retail = the commission type's total % on post-discount sin-IVA retail, regardless of attached roles. | In effect ⚠️ [#1](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-commission-total) |
+| 2026-07-13 | The tier term-solver is gone; `offer-generator` has one job. | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-solve-tiers-deleted) |
+| 2026-07-13 | Calculator manual mode runs the same engine as estimate mode. | In effect | [entry](#e-manual-mode) |
+| 2026-08-21 | Cartera Albedo: the installer quotes cost and we add margin. Cartera Socio: the installer quotes retail and we take a discount. | In effect | [entry](#e-cartera-add) |
+| 2026-09-04 | Stamp base facts and client commitments; derive aggregates live from one definition. | In effect | [entry](#e-stamping) |
+| 2026-09-15 | The calculadora may show an estimated sales margin: display-only, labelled estimado. | In effect | [entry](#e-margen-estimado) |
+| 2026-09-15 | Per-phase margin override lives in `project_phases.margin_override_percent` (Ian's build). | In effect | [entry](#e-margin-override) |
+| 2026-09-19 | Electricity price inflation per country: GT 5 %, SV 5 %, HN 6 % (`countries` column). | In effect | [entry](#e-electricity-inflation) |
+| 2026-09-24 | Cartera is on the estimate; provider terms are one versioned row; unsigned quotes float, signed ones freeze. | In effect | [entry](#e-cartera-on-estimate) |
+| 2026-10-01 | Albedo cartera: 12 % default margin (config) with per-phase override; Socio: the provider's discount. | In effect | [entry](#e-albedo-margin-12) |
+| 2026-10-09 | One terms row per provider (payout split + socio discount); no discount = 0 %; sales floor 5 % on the Albedo margin. | In effect | [entry](#e-provider-terms) |
+
+### Services: insurance, maintenance, legal
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| 2026-05-13 | Services may start later than the loan grace: insurance the month after grace, maintenance per estimate. | In effect ⚠️ [#4](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-grace) |
+| 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-service-bases) |
+| 2026-05-14 | Albedo marks up insurance and maintenance cost by 10 % by default. | In effect | [entry](#e-premium-10) |
+| 2026-05-14 | The cash-flow legal fee column is sin IVA. | In effect | [entry](#e-legal-fee-sin-iva) |
+| 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
+
+### Cash flows, schedules and adendas
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| ~2026-03 | Quotes are append-only snapshots; a signed variant is a child row. | In effect | [entry](#e-append-only-quotes) |
+| 2026-07-10 | Total contract value has con- and sin-IVA flavors and always includes maintenance. | In effect | [entry](#e-tcv-flavors) |
+| 2026-07-20 | An adenda freezes the old contract at the seam: rows up to the seam stay history, later rows are nullified. | In effect | [entry](#e-seam) |
+| 2026-07-24 | Current contract = latest non-deleted quote with status `signed` or `signed_and_addended`; status describes lifecycle only. | In effect | [entry](#e-status-semantics) |
+| 2026-08-20 | Annulling a signed contract is its own state (`annulled`), with seam semantics, admin-only RPC. | In effect | [entry](#e-annulment) |
+| 2026-08-27 | Native financed originals carry a payment-0 closing row (down payment, legal costs, opening balance). | In effect ⚠️ [#5](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-month-0-row) |
+| 2026-09-23 | The interest column is interest accrued that month, including grace months. | In effect | [entry](#e-interest-accrued) |
+| 2026-09-25 | A payment-0 row never carries interest; the enganche is all principal. | In effect | [entry](#e-no-interest-month-0) |
+| 2026-09-30 | `v_project_cash_flows` is the one cash-flows view (chain + month 0 at read time); the raw table stays frozen; #505 shelved. | In effect ⚠️ [#5](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-canonical-cash-flows) |
+
+### Dates and milestones
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| ~2026-02 | Honduras invoices are due on the 10th of the cash-flow month (for DPD). | In effect | [entry](#e-hn-due-date) |
+| 2026-04-13 | Production start = installation end, else install start + 1 month (never before signing), else signing + 2 months. | In effect | [entry](#e-production-start) |
+| 2026-07-27 | Pre-2026 projects are closed via milestone #14 at the meter-change date, else 2025-12-31. | In effect ⚠️ [#11](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-cierre-operativo) |
+| 2026-07-29 | Project date: the signing date from 2025-11-01 on, the first payment date before. | In effect | [entry](#e-project-date-cutover) |
+| 2026-08-25 | Project signing date = the original client contract's `signed_on`, never an adenda's. | In effect | [entry](#e-signing-date-original) |
+| 2026-08-26 | One `project_date` rule on every surface: override → signing date (from 2025-11-01) → first payment date. | In effect | [entry](#e-project-date-one-rule) |
+| 2026-10-02 | Signing date = the client contract on the root quote only; the quote column is a synced mirror. | In effect | [entry](#e-signing-date-contract-only) |
+| 2026-10-12 | Maintenance calendar = Cambio de Medidor date + 12 months per year (projects seeded since 2026-10-12). | In effect | [entry](#e-maintenance-anchor) |
+
+### Impact and reporting
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| ~2026-04 | Impact flags: NULL means 'Not Sure'; rural and impoverished are derived, never edited by hand. | In effect | [entry](#e-impact-not-sure) |
+| ~2026-04 | Impoverished area = the site's municipality is in the poorest 20 % (`municipalities.in_poorest_20_percent`). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-impoverished) |
+| 2026-04-08 | Grid emission factors: GT 0.630, SV 0.410, HN 0.520 tCO2/MWh (`countries.grid_factor`). | In effect | [entry](#e-co2-factors) |
+| 2026-04-14 | Honduras poverty flag: UNDP IDH 2009, bottom 20 % by HDI (59 of 298 municipalities). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-hn-poverty) |
+| 2026-04-14 | El Salvador poverty flag: FISDL 2004, the 52 poorest municipalities, on the old 262-municipality structure. | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-sv-poverty) |
+| 2026-05-23 | Impact reporting uses a fixed 30-year useful life. | In effect | [entry](#e-useful-life-30) |
+| 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
+| 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
+
+### Data conventions and integrations
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| ~2026-02 | Albedo operates in Guatemala, Honduras and El Salvador only. | In effect | [entry](#e-countries) |
+| ~2026-02 | HN/SV accounting names are DBAs; Solar Base holds the legal entity; reconcile both ways. | In effect | [entry](#e-hn-sv-dba) |
+| ~2026-03 | QuickBase provider join key = Record ID#2 (field 9). The QB API is revoked; `qb_raw` is the archive. | In effect | [entry](#e-qb-provider-key) |
+| ~2026-03 | Several providers across phases is normal; warnings are informational. | In effect | [entry](#e-multi-provider) |
+| 2026-07-10 | Installed kW = Σ panels × watts from the estimate's equipment; no other source. | In effect | [entry](#e-capacity-equipment) |
+| 2026-07-22 | Any water pump in the equipment makes the system type Bombeo Solar - Offgrid. | In effect | [entry](#e-bombeo-any-pump) |
+| 2026-07-28 | Canonical public views define every business concept; dbt reports, keeps history and tests; the flow is one-way. | In effect | [entry](#e-layering) |
+| 2026-08-11 | QB 'Pagaré' deals (promissory notes) are not imported. | In effect | [entry](#e-pagare) |
+| 2026-09-04 | No GT tax fallback (loud NULL); representative estimate = signed > approved > newest; the watts formula has one home. | In effect | [entry](#e-loud-null) |
+| 2026-09-25 | Each country has one NA department and municipality for "no real location", sorted last. | In effect | [entry](#e-na-placeholders) |
+| 2026-10-16 | Multi-unit residential clients are sector 3 (commercial), not 10. | In effect | [entry](#e-sector-3) |
+
+### Project-specific rulings
+
+| Date | Rule | Status | Entry |
+|---|---|---|---|
+| 2026-05-14 | Maintenance rate comes from the DB lookup, not the Golden Copy (0.15 % vs 0.20 % in the ESQUISOLAR case). | In effect | [entry](#e-maintenance-rate-correction) |
+| 2026-08-25 | 1499-01: negotiated payoff adenda, flat Q200,000 in August then four Q152,500 cuotas to Dec 2026. | In effect | [entry](#e-1499-01) |
+| 2026-09-01 | 810-07: six-month interest-free holiday Mar–Aug 2026; the original schedule resumes Sep 2026. | In effect | [entry](#e-810-07) |
+| 2026-09-29 | 1037-01: one extra interest-free grace month; the whole schedule slides to Dec 2026 – Nov 2031. | In effect | [entry](#e-1037-01) |
+
+## Open questions
+
+| Since | Question | Status | Entry |
+|---|---|---|---|
+| 2026-05-13 | Adjustable maintenance guarantee period per quote. | Open ⚠️ [#12](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-guarantee) |
+| 2026-05-14 | Is commission part of the retail the client pays? | Open ⚠️ [#1](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-commission-in-retail-open) |
+| 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
+| ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Open ⚠️ [#2](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-mixed-commission) |
+| ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
+| ≤2026-05 | Insurance base: installation cost or financed retail? | Open ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-insurance-base) |
+| ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
+| ≤2026-05 | Validate that provider payouts sum to 1.0. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-payout-sum) |
+| ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-maint-inflation) |
+| ≤2026-05 | Canonical home of the impact indicators (clients vs projects vs sites) and the reporting cut-over. | Open | [entry](#e-open-impact-home) |
+| ≤2026-05 | An "Otros" client gender category for organisations. | Open | [entry](#e-open-otros) |
+| ≤2026-05 | How ADA reports handle retroactive CO2 changes (version vs freeze). | Open | [entry](#e-open-co2-retro) |
+
+The twelve ⚠️ conflicts (two entries that disagree, or an open item later decided) are listed with a recommendation on [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596); rulings get applied here.
 
 ---
 
-# Earlier decisions (pre-2026-05)
+## Entries, in date order
 
-Backfilled May 14 from memory, CLAUDE.md, CALCULATIONS.md, meeting docs, migration headers, and the existing inconsistencies catalogue. Dates are approximate; cross-references point at the canonical documentation.
+Dates marked ~ are approximate (backfilled 2026-05-14 from memory, CLAUDE.md, CALCULATIONS.md, meeting docs and migration headers).
 
-## 2026-04-14 · Honduras poverty data seeded (UNDP IDH 2009, bottom 20%)
+<a id="e-countries"></a>
+### ~2026-02 · Operating countries
 
-`municipalities.in_poorest_20_percent` for Honduras populated from UNDP Honduras IDH (Índice de Desarrollo Humano) at municipal level — bottom 20% by HDI = poorest 20%. 59 of 298 municipalities flagged. Source year 2009 (most recent publicly downloadable structured dataset; 2022 update exists but is only behind an interactive web magazine).
+Albedo operates in **Guatemala, Honduras, and El Salvador only**. Not Colombia (despite historical references in some code). Memory: `project_operating_countries.md`.
 
-**Why this source.** UNDP 2022 update is inaccessible programmatically. 2009 HDI is the only public structured municipal-level dataset for Honduras. HDI is an inverse poverty proxy — low HDI = high poverty.
+**Status.** In effect.
 
-**Where.** Migration `2026-04-14-seed-hn-sv-poverty-data.sql`. Full provenance in `2026-04-14-seed-hn-sv-poverty-data-SOURCES.md`.
+<a id="e-hn-due-date"></a>
+### ~2026-02 · HN invoice due date rule
 
-**Open follow-up.** Refresh when UNDP publishes a structured 2022 dataset.
+For Honduras invoices, the due date is the 10th of the cash-flow month. Used for DPD (days past due) calculations in HN loan-tape reporting. Memory: `project_hn_invoice_due_date_rule.md`.
 
-## 2026-04-14 · El Salvador poverty data seeded (FISDL 2004, top 20% by rate)
+**Status.** In effect.
 
-`municipalities.in_poorest_20_percent` for El Salvador populated from FISDL/FLACSO Mapa de Pobreza 2004. Top 52 municipalities by poverty rate (≥64.7%) flagged. Coverage 260/263 (3 unmatched left NULL).
+<a id="e-hn-sv-dba"></a>
+### ~2026-02 · HN/SV accounting customer = DBA, not legal entity
 
-**Why this source.** FISDL is the canonical Salvadoran government poverty classification (used for Comunidades Solidarias targeting). Newer World Bank 2022 study exists as paper but not as structured download. El Salvador restructured to 44 municipalities in May 2024; our DB and the source data both use the old 262 structure — if projects start using the new structure, a remapping is needed.
+HN and SV accounting customers are stored as DBA names (e.g. "Plaza Nexus"), whereas Supabase holds the legal entity. Cross-check gap lists from both sides when reconciling. Memory: `project_hn_dba_vs_legal_name.md`.
 
-**Where.** Same migration as above. SV provenance in the `_SOURCES.md`.
+**Status.** In effect.
 
-## 2026-04-08 · ADA endorsed GPS-based rural with two-layer fallback
+<a id="e-iva-source"></a>
+### ~2026-03 · IVA tax rate source
+
+Tax rate comes from `countries.tax_rate` (GT 12%, SV 13%, HN 15%), **not** from `estimates.solar_tax_rate`. The estimate column is legacy. Memory: `feedback_iva_tax_rate.md`.
+
+**Status.** In effect.
+
+<a id="e-qb-provider-key"></a>
+### ~2026-03 · QB provider key uses Record ID#2 (field 9)
+
+The QuickBase providers table uses field 9 (Record ID#2) as the Supabase foreign key, not the default Record ID# (field 3). Affects QB-import joins. Memory: `project_qb_provider_key.md`.
+
+**Status.** In effect (archive only).
+
+<a id="e-append-only-quotes"></a>
+### ~2026-03 · Append-only quote model
+
+Each `quotes` row is a snapshot — never updated post-create. Signed variants get appended as a child row (`is_base=false`, `base_quote_id=<base>`). `quote_offers.quote_id` is UNIQUE per offer. This convention is what enables the client-offer flow to keep a stable token URL even if the variant matrix later changes.
+
+**Status.** In effect.
+
+<a id="e-offer-matrix"></a>
+### ~2026-03 · Client offer matrix format
+
+Public offer page (`/offer/<token>`) shows: base term ±12 months × {0%, 10%} down payment matrix. Sent to clients via WhatsApp/email. Memory: `project_client_offer_page.md`.
+
+**Status.** In effect.
+
+<a id="e-tier-solving"></a>
+### ~2026-03 · Quote tier solving (Gold/Silver/Bronze)
+
+> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+For each tier, goal-seek the loan term that achieves the target IRR when monthly payment is fixed at the client's monthly solar savings. Target IRRs (Gold 16%, Silver 14%, Bronze 12%) shift down per the impact-discount entry below. Memory: `project_quote_tier_solving.md`.
+
+**Status.** Superseded by 2026-07-13 (`solve_tiers` deleted). Tier labels, bonuses and the impact discount still exist: conflict #7.
+
+<a id="e-signed-only"></a>
+### ~2026-03 · Signed-only data for analytics
+
+> **Superseded by 2026-07-24 (quote status semantics).**
+
+Treat `quotes.status = 'signed'` rows as the canonical/real data. Unsigned/pending rows are test/exploration data. DBT mart models filter to signed. Memory: `project_test_vs_real_data.md`.
+
+**Status.** Superseded by 2026-07-24: the current contract is the latest quote with status `signed` OR `signed_and_addended`.
+
+<a id="e-multi-provider"></a>
+### ~2026-03 · Multiple providers across phases is normal
+
+Phases on a single project can use different providers. Treat warnings about "multiple providers" as informational, not errors. Memory: `project_multi_provider.md`.
+
+**Status.** In effect.
+
+<a id="e-impact-not-sure"></a>
+### 2026-04 · Impact category cleanup (NULL → "Not Sure")
+
+Bulk cleaned the 6 impact category manual fields on `projects`:
+- NULLs converted to "Not Sure" so the impact reports treat them as known-unknown rather than missing.
+- Fixed one project with the value `'Si '` (trailing space, Spanish) — normalized to `'Yes'`.
+- Blocked editing of `rural_area` and `impoverished_area` in the operations form (now derived).
+- Fixed a bug where the other 4 categories couldn't be edited.
+
+**Status.** In effect.
+
+<a id="e-impoverished"></a>
+### ~2026-04 · Impoverished area derived from municipality (GT only)
+
+> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+ADA's impoverished_area definition uses `municipalities.in_poorest_20_percent` for Guatemala. The 20% threshold was chosen by Alex in coordination with ADA. The five other impact categories were still on `projects.*` until 2026-05 (see entry below). Canonical doc: `dbt/main/CALCULATIONS.md` § 6.
+
+**Status.** In effect.
+
+<a id="e-down-payment-chain"></a>
+### ~2026-04 · Down payment priority chain (quote-generator)
+
+When resolving a per-quote down payment, the edge function uses this priority order:
+1. `down_payment_amount_sin_iva` — explicit amount in the request.
+2. `down_payment_percentage` — request payload × retail.
+3. `estimates.down_payment_1_percentage` — legacy QB-import fallback.
+
+Per-quote down payment is stored in `quotes.generation_parameters` (JSONB). The `estimates.down_payment_1_percentage` column is **legacy only** — do not use as source of truth for a specific quote. Canonical doc: `CLAUDE.md` § "Quote Generator — Down Payment Priority".
+
+**Status.** In effect.
+
+<a id="e-cartera-2026-04"></a>
+### ~2026-04 · Cartera convention — ⚠️ PAIRING SUPERSEDED 2026-08-21
+
+> **Superseded. The pairing written here was inverted; see 2026-08-21, then 2026-09-24 and 2026-10-09 for where cartera lives now.**
+
+`projects.cartera` distinguishes whether a deal was sourced by Albedo or by a partner. "Albedo" = deal sourced internally; "Socio" = sourced by the partner installer. Affects retail-price computation.
+
+**The margin-type pairing originally recorded here (Subtract → Albedo, Add → Socio) was WRONG — it is the inverse.** See the 2026-08-21 entry "Cartera Albedo = margin type Add" for the corrected convention and the QuickBase evidence. Memory: `project_cartera_field.md`.
+
+**Status.** Superseded by 2026-08-21 (the pairing) and 2026-09-24 (cartera lives on the estimate).
+
+<a id="e-ada-gps-rural"></a>
+### 2026-04-08 · ADA endorsed GPS-based rural with two-layer fallback
 
 ADA's Smiti formally endorsed Alex's proposal to switch rural classification from the administrative proxy (cabecera = urbano, resto = rural) to GPS-based using GHS-SMOD. ADA recommended a two-layer approach (GPS primary + administrative fallback) and asked for a portfolio assessment before full migration.
 
@@ -47,7 +277,10 @@ ADA's Smiti formally endorsed Alex's proposal to switch rural classification fro
 
 **Where.** Meeting summary: `docs/reunión-ada-8-abril-2026-resumen.md`. Full meeting doc: Google Doc `1XuqfcmLhwy7-5XjrnmPQ2B0eymwn2jmf_fMPiPzaAcU`. Implementation rule documented under the 2026-05-14 rural entry.
 
-## 2026-04-08 · CO2 emission factors
+**Status.** Decided (history). The live rule is the 2026-07-09 entry; the two-layer fallback ADA suggested was removed there.
+
+<a id="e-co2-factors"></a>
+### 2026-04-08 · CO2 emission factors
 
 Per-country emission factors used for impact reporting:
 
@@ -59,130 +292,93 @@ Per-country emission factors used for impact reporting:
 
 **Open follow-up.** Validate these with ADA + check vida útil / degradation assumptions.
 
-## 2026-04 · Impact category cleanup (NULL → "Not Sure")
+**Status.** In effect (values live in `countries.grid_factor`). Open: validate with ADA; the Valuing Impact factors may replace them.
 
-Bulk cleaned the 6 impact category manual fields on `projects`:
-- NULLs converted to "Not Sure" so the impact reports treat them as known-unknown rather than missing.
-- Fixed one project with the value `'Si '` (trailing space, Spanish) — normalized to `'Yes'`.
-- Blocked editing of `rural_area` and `impoverished_area` in the operations form (now derived).
-- Fixed a bug where the other 4 categories couldn't be edited.
+<a id="e-production-start"></a>
+### 2026-04-13 — Production starts at installation, not at signing (logged 2026-07-29)
 
-## ~2026-04 · Impoverished area derived from municipality (GT only)
+**Decision** (Jake, from the ADA 8-abril-2026 prep). Impact "to date" metrics
+count production from when the system actually started generating, not from
+the contract signing date. Resolved by a three-branch waterfall, in order:
 
-ADA's impoverished_area definition uses `municipalities.in_poorest_20_percent` for Guatemala. The 20% threshold was chosen by Alex in coordination with ADA. The five other impact categories were still on `projects.*` until 2026-05 (see entry below). Canonical doc: `dbt/main/CALCULATIONS.md` § 6.
+1. `actual_installation_end_date` — the real commissioning date.
+2. `GREATEST(actual_installation_start_date + 1 month, project_date)` — assume
+   one month from start of installation to commissioning, but **never claim
+   production started before signing**.
+3. `project_date + 2 months` — last resort.
 
-## ~2026-04 · Down payment priority chain (quote-generator)
+Both constants are empirical, from the April analysis: the observed average
+gap between signing and installation was **~62 days (2 months)**, and one
+month is the assumed start→commissioning lag.
 
-When resolving a per-quote down payment, the edge function uses this priority order:
-1. `down_payment_amount_sin_iva` — explicit amount in the request.
-2. `down_payment_percentage` — request payload × retail.
-3. `estimates.down_payment_1_percentage` — legacy QB-import fallback.
+**Why.** The previous behaviour assumed production began on the signing date,
+which overstates accumulated production and accumulated savings for every
+project that took weeks or months to install — directly inflating the ADA and
+ATTA impact numbers. The `GREATEST` clamp in branch 2 exists because the
+install dates are dirty: **15 of the 50 projects currently on that branch**
+have an install date more than a month before signing, including a handful
+decades off. Without the clamp those would claim production years before the
+contract existed.
 
-Per-quote down payment is stored in `quotes.generation_parameters` (JSONB). The `estimates.down_payment_1_percentage` column is **legacy only** — do not use as source of truth for a specific quote. Canonical doc: `CLAUDE.md` § "Quote Generator — Down Payment Priority".
+The `CASE` wrapper around branch 2 is load-bearing, not style: Postgres
+`GREATEST()` ignores NULLs, so without it a NULL install start would return
+`project_date` and swallow branch 3 rather than falling through to it.
 
-## ~2026-04 · Cartera convention — ⚠️ PAIRING SUPERSEDED 2026-08-21
+**Why it was logged late.** The rule shipped in dbt commit `7b1ee9c`
+(2026-04-13) documented only as a code comment plus talking point #9 in
+`docs/reunión-ada-8-abril-2026.md`. It surfaced during the 2026-07-29
+extraction and is recorded here because it moves funder-facing numbers.
 
-`projects.cartera` distinguishes whether a deal was sourced by Albedo or by a partner. "Albedo" = deal sourced internally; "Socio" = sourced by the partner installer. Affects retail-price computation.
+**Current branch distribution** (281 signed original quotes, measured
+2026-07-29): branch 1 **205** · branch 2 **50** (15 of them clamped) ·
+branch 3 **26**. Note this has shifted a lot since the rule was designed —
+the April doc had `actual_installation_end_date` on only 21/269 (8%), so
+branch 2 was expected to carry ~90% of projects. Today branch 1 carries 73%,
+because the Feb 2026 CSV data-entry pass filled in the completion dates.
 
-**The margin-type pairing originally recorded here (Subtract → Albedo, Add → Socio) was WRONG — it is the inverse.** See the 2026-08-21 entry "Cartera Albedo = margin type Add" for the corrected convention and the QuickBase evidence. Memory: `project_cartera_field.md`.
+**Where.** `dbt/main/models/models_on_static_tables/intermediate/int_production_start_dates.sql`
+— the single definition since 2026-07-29 (`23788c6`). It was previously
+copy-pasted character-for-character into both `int_project_monthly_solar_savings`
+and `mart_impact_projects_summary`; both now `ref()` it. Install dates come
+from `source('canonical', 'v_project_governed_dates')`, which reads
+`project_milestones` first — see the 2026-07-29 entry on governed dates.
 
-## ~2026-03 · IVA tax rate source
+Open question worth revisiting: branch 2's one-month assumption was tuned when
+it covered 90% of projects and now covers 18%, so its weight in the reported
+totals is much smaller than when it was chosen.
 
-Tax rate comes from `countries.tax_rate` (GT 12%, SV 13%, HN 15%), **not** from `estimates.solar_tax_rate`. The estimate column is legacy. Memory: `feedback_iva_tax_rate.md`.
+**Status.** In effect.
 
-## ~2026-03 · QB provider key uses Record ID#2 (field 9)
+<a id="e-hn-poverty"></a>
+### 2026-04-14 · Honduras poverty data seeded (UNDP IDH 2009, bottom 20%)
 
-The QuickBase providers table uses field 9 (Record ID#2) as the Supabase foreign key, not the default Record ID# (field 3). Affects QB-import joins. Memory: `project_qb_provider_key.md`.
+> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
-## ~2026-03 · Append-only quote model
+`municipalities.in_poorest_20_percent` for Honduras populated from UNDP Honduras IDH (Índice de Desarrollo Humano) at municipal level — bottom 20% by HDI = poorest 20%. 59 of 298 municipalities flagged. Source year 2009 (most recent publicly downloadable structured dataset; 2022 update exists but is only behind an interactive web magazine).
 
-Each `quotes` row is a snapshot — never updated post-create. Signed variants get appended as a child row (`is_base=false`, `base_quote_id=<base>`). `quote_offers.quote_id` is UNIQUE per offer. This convention is what enables the client-offer flow to keep a stable token URL even if the variant matrix later changes.
+**Why this source.** UNDP 2022 update is inaccessible programmatically. 2009 HDI is the only public structured municipal-level dataset for Honduras. HDI is an inverse poverty proxy — low HDI = high poverty.
 
-## ~2026-03 · Client offer matrix format
+**Where.** Migration `2026-04-14-seed-hn-sv-poverty-data.sql`. Full provenance in `2026-04-14-seed-hn-sv-poverty-data-SOURCES.md`.
 
-Public offer page (`/offer/<token>`) shows: base term ±12 months × {0%, 10%} down payment matrix. Sent to clients via WhatsApp/email. Memory: `project_client_offer_page.md`.
+**Open follow-up.** Refresh when UNDP publishes a structured 2022 dataset.
 
-## ~2026-03 · Quote tier solving (Gold/Silver/Bronze)
+**Status.** In effect. Refresh when UNDP publishes a structured 2022 dataset.
 
-For each tier, goal-seek the loan term that achieves the target IRR when monthly payment is fixed at the client's monthly solar savings. Target IRRs (Gold 16%, Silver 14%, Bronze 12%) shift down per the impact-discount entry below. Memory: `project_quote_tier_solving.md`.
+<a id="e-sv-poverty"></a>
+### 2026-04-14 · El Salvador poverty data seeded (FISDL 2004, top 20% by rate)
 
-## ~2026-03 · Signed-only data for analytics
+> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
-Treat `quotes.status = 'signed'` rows as the canonical/real data. Unsigned/pending rows are test/exploration data. DBT mart models filter to signed. Memory: `project_test_vs_real_data.md`.
+`municipalities.in_poorest_20_percent` for El Salvador populated from FISDL/FLACSO Mapa de Pobreza 2004. Top 52 municipalities by poverty rate (≥64.7%) flagged. Coverage 260/263 (3 unmatched left NULL).
 
-## ~2026-03 · Multiple providers across phases is normal
+**Why this source.** FISDL is the canonical Salvadoran government poverty classification (used for Comunidades Solidarias targeting). Newer World Bank 2022 study exists as paper but not as structured download. El Salvador restructured to 44 municipalities in May 2024; our DB and the source data both use the old 262 structure — if projects start using the new structure, a remapping is needed.
 
-Phases on a single project can use different providers. Treat warnings about "multiple providers" as informational, not errors. Memory: `project_multi_provider.md`.
+**Where.** Same migration as above. SV provenance in the `_SOURCES.md`.
 
-## ~2026-02 · Operating countries
+**Status.** In effect. Remap if projects start using the 2024 44-municipality structure.
 
-Albedo operates in **Guatemala, Honduras, and El Salvador only**. Not Colombia (despite historical references in some code). Memory: `project_operating_countries.md`.
-
-## ~2026-02 · HN invoice due date rule
-
-For Honduras invoices, the due date is the 10th of the cash-flow month. Used for DPD (days past due) calculations in HN loan-tape reporting. Memory: `project_hn_invoice_due_date_rule.md`.
-
-## ~2026-02 · HN/SV accounting customer = DBA, not legal entity
-
-HN and SV accounting customers are stored as DBA names (e.g. "Plaza Nexus"), whereas Supabase holds the legal entity. Cross-check gap lists from both sides when reconciling. Memory: `project_hn_dba_vs_legal_name.md`.
-
----
-
-# Open business decisions (no resolution yet)
-
-These are calc/data conventions that need a business decision but haven't gotten one. Each links to the technical analysis in `4-known-inconsistencies.md`.
-
-## Open · Commission on mixed Add/Subtract phase projects
-
-For projects mixing "Add" and "Subtract" margin-type providers, commission is added to the aggregate retail unconditionally — double-counting commission on the "Subtract" phases (which have it baked in already). Per `4-known-inconsistencies.md` § 1.3. Only impacts projects with both margin types in the same quote. Need a business decision on the right treatment.
-
-## Open · Off-by-one in service payment spreading denominator
-
-Insurance/maintenance total cost is divided by `term - gracePeriod + 1` but applied across `term - gracePeriod` months — a ~1.6% systematic under-collection. Code comment says "Match R code... to allow for discounts". Need confirmation: intentional client discount or legacy bug? Per `4-known-inconsistencies.md` § 1.5.
-
-## Open · Insurance base: installation cost or financed retail?
-
-Insurance cost is computed as `insuranceRate × installation_cost_sin_iva`. If the insurance is meant to cover physical asset replacement, the installation cost is correct. If it's meant to protect Albedo's receivable (the financed retail price, ~15-25% higher), there's structural under-insurance. Need clarification from the business on what the insurance covers. Per `4-known-inconsistencies.md` § 3.2.
-
-## Open · Exchange rate timing risk
-
-Currency conversion uses a single FX snapshot at quote time. Provider payouts span 3 periods, client payments span 5+ years — the snapshot doesn't reflect realized exchange movements. Is this an accepted business risk, or should we build periodic re-quoting / sensitivity analysis? Per `4-known-inconsistencies.md` § 3.3.
-
-## Open · Provider payout schedule validation (sum ≠ 1.0)
-
-`provider_payment_schedules.period_{1,2,3}_payout` aren't validated to sum to 1.0. A data-entry error would silently distort installation totals (and every downstream calc). No business decision needed — just add the constraint. Per `4-known-inconsistencies.md` § 3.5.
-
-## Open · Maintenance inflation baseline (NII vs integration flow)
-
-The NII table (manual mode) and the integration flow count maintenance inflation years from different baselines. Same parameters, different results. Per `4-known-inconsistencies.md` § 2.3. Either pick one or document why they differ.
-
-## Open · Impact-indicator canonical home (clients vs projects vs sites)
-
-The May 14 work moved schema and form capture to `clients.*` but the broader move is **provisional, not yet team-aligned**. Detailed list of sub-decisions in the May 14 entry above:
-1. educational_institution / non_profit: clients or sites?
-2. When do impact reports cut over from `projects.*` to `clients.*`?
-3. Backfill strategy + handling of 3+ clients with conflicting per-project values.
-4. Form authority — is rep-entered data the source of truth or does ops review?
-5. When do we deprecate `projects.*` impact columns?
-6. Reconciling existing inconsistencies before backfill.
-7. Sales-rep communication about the new form fields.
-
-**Stakeholders**: Sales lead, ops, Stephanie (impact reporting), Ian, ADA contacts.
-**Until resolved**: new fields capture data but impact reports unchanged.
-
-## Open · "Otros" category for non-gendered clients
-
-Stephanie proposed adding an "Otros" client gender category for sociedades / organizations without a leadership gender. Per Apr 8 ADA meeting. Confirm with Stephanie where the manual classification comes from (Excel? QB?) before implementing.
-
-## Open · CO2 retroactive change handling in ADA reports
-
-When QB → Supabase migration changes CO2 cleanups, ADA's Q3/Q4 reports show different historical numbers. Need an alignment on whether to: (a) color-code/version flagged retroactive changes, or (b) freeze historical numbers and surface only forward changes. Per Apr 8 ADA meeting.
-
----
-
-# 2026-05 decisions
-
-## 2026-05-08 · Subtract retail gross-up
+<a id="e-retail-gross-up"></a>
+### 2026-05-08 · Subtract retail gross-up
 
 **Decision.** Retail = `phase_cost / (1 − margin)` for **both** "Subtract" and
 "Add" margin types. Previously only "Add" was grossed up, under-pricing
@@ -195,11 +391,13 @@ code returned `phase_cost` directly for Subtract — wrong.
 **Where.** `_shared/quote-helpers.ts::calculateRetailPriceComponents`.
 Commit `3cb0bef`. Deployed to prod 2026-05-14.
 
+
 **Status.** In effect.
 
----
+<a id="e-tier-bonuses"></a>
+### 2026-05-13 · Commission tier bonuses
 
-## 2026-05-13 · Commission tier bonuses
+> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Default commission bonus by IRR tier: **Silver +25%, Gold
 +50%, Bronze 0%** (baseline). Stored in `quote_generator_configs` so they
@@ -213,11 +411,13 @@ can be tuned without code changes. Effective commission multiplier =
 adds three columns. Frontend `DefaultQuotesPageV2.tsx` loads them on mount
 and uses them in the Commission Breakdown panel.
 
-**Status.** In effect (2026-05-14).
 
----
+**Status.** In effect.
 
-## 2026-05-13 · Maintenance grace period feature
+<a id="e-maintenance-grace"></a>
+### 2026-05-13 · Maintenance grace period feature
+
+> ⚠️ **Conflict #4** (insurance start: grace + 1 (05-13) vs engine default month 4): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Insurance/maintenance payments can start later than the loan
 grace period ends. Controlled by a new param `maintenance_grace_period`
@@ -234,14 +434,16 @@ overall convention is:
 **Where.** `_shared/quote-integration-flow.ts::serviciosTable` accepts
 `maintenanceGracePeriod` param. `quote-generator` passes from request body.
 
-**Status.** In effect; param is on quote-generator only — quote-solver and
 irr-calculator inherit it through the shared serviciosTable. Storage of
 the per-estimate value is **open** (could go on the estimate row or be
 derived from contract data).
 
----
+**Status.** In effect; per-estimate storage of the value still open.
 
-## 2026-05-13 · Maintenance guarantee period adjustability
+<a id="e-maintenance-guarantee"></a>
+### 2026-05-13 · Maintenance guarantee period adjustability
+
+> ⚠️ **Conflict #12** (never implemented; still wanted?): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Allow the maintenance "guarantee period" (window during which
 Albedo covers maintenance) to be adjusted per quote. Tracked as a separate
@@ -249,11 +451,13 @@ concept from the grace period.
 
 **Where.** Not yet implemented. Tracked under Task #6.
 
-**Status.** Open (implementation pending).
 
----
+**Status.** Open (never implemented).
 
-## 2026-05-13 · Impact discount formula
+<a id="e-impact-discount"></a>
+### 2026-05-13 · Impact discount formula
+
+> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Each impact category a project qualifies for contributes one
 "impact point". Total points reduce the target IRR uniformly across all
@@ -281,11 +485,15 @@ locked `tierIrr` in `DefaultQuotesPageV2.tsx`. `irrTier` / `irrColor` /
 `irrBgClass` / `irrLabel` accept an `impactDiscount` argument that shifts
 the classification thresholds.
 
+
 **Status.** In effect.
 
----
+<a id="e-commission-in-retail-open"></a>
+### 2026-05-14 · Commission added to retail (open)
 
-## 2026-05-14 · Commission added to retail (open)
+> **Decided by 2026-07-10 (commission is priced into retail). Kept until conflict #1 formally closes it.**
+
+> ⚠️ **Conflict #1** (commission in retail: open entry vs 07-10 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Open question.** SolarBase computes
 `final_retail = retail_grossed_up + commission_total`. The Golden Copy
@@ -299,11 +507,13 @@ locking this in.
 **Where.** `_shared/quote-helpers.ts::calculateProjectRetailWithCommission`
 line ~482.
 
-**Status.** Open. Pending Jake/Alex sign-off.
 
----
+**Status.** Open in form only: 2026-07-10 decided it. Conflict #1.
 
-## 2026-05-14 · Service bases (insurance vs maintenance)
+<a id="e-service-bases"></a>
+### 2026-05-14 · Service bases (insurance vs maintenance)
+
+> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Insurance and maintenance rates apply to different bases:
 
@@ -320,11 +530,11 @@ optional params: `insuranceBaseAmount` and `maintBaseAmount`.
 `quote-generator` passes `retail × (1 + taxRate)` for insurance and
 defaults maintenance to `installation_cost`.
 
-**Status.** In effect; convention to be confirmed Friday May 15.
 
----
+**Status.** In effect; the May 15 confirmation was never recorded: conflict #3.
 
-## 2026-05-14 · Insurance/maintenance premium markup default 10%
+<a id="e-premium-10"></a>
+### 2026-05-14 · Insurance/maintenance premium markup default 10%
 
 **Decision.** Albedo applies a 10% markup on top of the underlying
 insurance and maintenance cost (both, same default).
@@ -337,11 +547,11 @@ previously defaulted to 1.8% for insurance — a stale value.
 should move into `quote_generator_configs` (alongside the commission tier
 bonuses) so they're adjustable per country/provider.
 
-**Status.** In effect. Migration to config table is **open**.
 
----
+**Status.** In effect. Moving the defaults into the config table is still open.
 
-## 2026-05-14 · Legal fee column is sin-IVA in the cashflow
+<a id="e-legal-fee-sin-iva"></a>
+### 2026-05-14 · Legal fee column is sin-IVA in the cashflow
 
 **Decision.** The `legal_costs` column in the per-month cashflow table
 reports **sin-IVA** legal fee. `calculateLegalFee` returns the con-IVA
@@ -354,11 +564,11 @@ odd one out, showing Q 1,175 (con-IVA) when GC expects Q 1,049 (sin-IVA).
 **Where.** `quote-generator/index.ts` line ~199: `legalFee =
 legalFeeConIva / (1 + taxRate)` before passing to serviciosTable.
 
+
 **Status.** In effect.
 
----
-
-## 2026-05-14 · Impact indicators move from projects to canonical homes — **PROVISIONAL, needs team alignment**
+<a id="e-impact-indicators-home"></a>
+### 2026-05-14 · Impact indicators move from projects to canonical homes — **PROVISIONAL, needs team alignment**
 
 **Provisional decision** (Jake May 14, NOT yet stakeholder-confirmed). Long-term, the six impact indicators move from `projects.*` to their semantic owners:
 
@@ -373,14 +583,14 @@ legalFeeConIva / (1 + taxRate)` before passing to serviciosTable.
 
 **Why.** Each indicator is structurally an attribute of its owning entity. women_led/youth_led describe who the customer **is** (the client), not the specific project. Rural/impoverished describe **where** the install is (the site's location). The current state on `projects` produces real bugs — see Apr 8 ADA meeting prep: "3 clients have projects with **distinct** values of `women_led`, which is impossible if it's a property of leadership. The '9-client gap' in the women's count comes from this inconsistency."
 
-### What's implemented today (live, May 14-15)
+#### What's implemented today (live, May 14-15)
 
 - Migration `add_impact_indicators_to_clients` added `women_led`, `youth_led`, `educational_institution`, `non_profit` columns to `clients` (nullable, no backfill).
 - Quote wizard step 1 (`QuoteWizardStep1Client.tsx`) captures values into those columns.
 - Impact-discount helper (`src/utils/impactDiscount.ts`) resolves via the canonical source first, falling back to `projects.*` when the new column is null.
 - **Impact reports continue reading `projects.*` exclusively** — no behavior change in reporting yet.
 
-### What's NOT yet decided (needs broader team / stakeholder coordination)
+#### What's NOT yet decided (needs broader team / stakeholder coordination)
 
 This is a real data-architecture change with cross-functional consequences. Each of these needs explicit alignment before the migration is "done":
 
@@ -421,16 +631,16 @@ This is a real data-architecture change with cross-functional consequences. Each
    - The wizard now asks reps to fill in impact indicators on the client. Reps need to understand: (a) this is the canonical source going forward, (b) "Not Sure" is acceptable but reduces impact discount, (c) values they enter may be reviewed.
    - **Stakeholder**: Sales training, sales lead.
 
-### Where (code, today)
+#### Where (code, today)
 
 - Migration: `add_impact_indicators_to_clients` (applied to prod 2026-05-14).
 - Frontend: `QuoteWizardStep1Client.tsx`, `src/schemas/clientSchema.ts`, `src/utils/impactDiscount.ts`, `src/pages/DefaultQuotesPageV2.tsx`.
 
-**Status.** Schema + form + quote-flow lookup live in code as of 2026-05-15. The broader decision (canonical home, reporting cut-over, backfill) is **OPEN — pending team coordination**. Until that lands, the new fields capture data but don't change downstream reporting.
 
----
+**Status.** Open: schema and form live since 2026-05-15; the cut-over, backfill and deprecation are tracked as infra issue #436.
 
-## 2026-05-14 · Rural definition: GHS-SMOD 11/12 with manual fallback
+<a id="e-rural-smod-fallback"></a>
+### 2026-05-14 · Rural definition: GHS-SMOD 11/12 with manual fallback
 
 > **Amended 2026-07-09**: the manual fallback is retired and the backfill gap below is closed — rural is GPS-only, fully classified, and auto-maintained. See the [2026-07-09 entry](#2026-07-09--rural-is-gps-only--manual-fallback-removed-smod-backfilled-and-automated). The SMOD 11/12 rule itself is unchanged.
 
@@ -470,11 +680,13 @@ classification (cabecera departamental = urbano) was too coarse.
 populated `smod_code`. The remaining 178 sites fall back to the manual
 field. Backfill is needed; tracked separately.
 
-**Status.** In effect.
 
----
+**Status.** Superseded by 2026-07-09 (manual fallback removed). The SMOD 11/12 boundary is unchanged.
 
-## 2026-05-14 · ESQUISOLAR partner margin (data correction)
+<a id="e-esquisolar-margin"></a>
+### 2026-05-14 · ESQUISOLAR partner margin (data correction)
+
+> ⚠️ **Conflict #10** (provider margins no longer exist): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** ESQUISOLAR's margin is **3%** (per the `providers` table),
 not 5% (used in some Golden Copy explorations).
@@ -483,11 +695,24 @@ not 5% (used in some Golden Copy explorations).
 spreadsheet to explore alternative pricing. Production data has 3% and
 that's the value to use.
 
-**Status.** Data correct; no code change.
 
----
+**Status.** Superseded by 2026-10-01 (provider margins no longer exist); pending conflict #10.
 
-## 2026-05-23 · Project useful life fixed at 30 years for impact reporting
+<a id="e-maintenance-rate-correction"></a>
+### 2026-05-14 · Maintenance rate (data correction)
+
+**Decision.** Maintenance rate for this provider/region pulls from the DB
+lookup (`getMaintenanceRate`). Current value 0.15% for the ESQUISOLAR
+case; Golden Copy was using 0.20% (likely rounding).
+
+**Why.** The DB rate is the source of truth (it's per-provider/region).
+Golden Copy was using a generic 0.20% for exploration.
+
+
+**Status.** Data correction; historical.
+
+<a id="e-useful-life-30"></a>
+### 2026-05-23 · Project useful life fixed at 30 years for impact reporting
 
 **Decision.** All impact calculations in `mart_impact_projects_summary` use a
 fixed **30-year project useful life**. Previously the horizon was derived from
@@ -519,63 +744,58 @@ a deliberate change in reporting policy, not a calculation bug — past
 deliveries reflect the prior policy and aren't directly comparable to current
 output without restating.
 
+
 **Status.** In effect.
 
----
+<a id="e-median-payment"></a>
+### 2026-06-23 · Displayed monthly payment = median of the paying months; the engine KPI stays month 10
 
-## 2026-05-14 · Maintenance rate (data correction)
+**Decision.** Every surface that shows one monthly payment for a quote (offer
+sheet headline and matrix, the per-year plan, the project page's DD panel)
+shows the **median** of `total_payment_con_iva` over the variant's cash-flow
+rows with `income_total > 0`. Fallback chain, mirrored everywhere: manual
+override on the approved cell → median → the engine's `Monthly.Payment` KPI
+(skeleton QB imports only). The engine KPI and `goalSeekAprByMonthlyPayment`
+still use **month 10**, and the rep matrix shows that number.
 
-**Decision.** Maintenance rate for this provider/region pulls from the DB
-lookup (`getMaintenanceRate`). Current value 0.15% for the ESQUISOLAR
-case; Golden Copy was using 0.20% (likely rounding).
+**Why.** Insurance and maintenance change the cuota over the term, so one
+month is a poor headline; the median is what the client will most often pay.
+Switching the engine KPI too would mean rewriting the goal-seek from its
+analytic shortcut to a true bisection; we fixed what clients and reviewers
+see and left the rep-facing math alone until that rewrite is worth it.
 
-**Why.** The DB rate is the source of truth (it's per-provider/region).
-Golden Copy was using a generic 0.20% for exploration.
+**Where.** `ClientOfferPage.getMonthlyPayment` / `buildYearlyPlan`,
+`ActiveProjectDetails` (aligned 2026-06-23); engine
+`quote-integration-flow.ts` (`monthVal(10, …)`), `QuoteOfferMatrix.extractMonthlyPayment`.
 
-**Status.** Data correct; no code change.
+**Open.** If the engine KPI ever changes, the goal-seek and the rep matrix
+change with it in the same PR.
 
----
 
-## 2026-07-13 — solve_tiers deleted; quote-solver renamed offer-generator
+**Status.** In effect.
 
-**Decision.** The `solve_tiers` mode (original Gold/Silver/Bronze flow: fix
-payment at the client's monthly savings, goal-seek the TERM per target IRR
-16/14/12) is deleted — 23 runs ever, all March 2026, zero callers in code
-since the offer-flow redesign replaced it with `generate_offer`. With one
-job left, the function is renamed **offer-generator**.
+<a id="e-rural-gps-only"></a>
+### 2026-07-09 · Rural is GPS-only — manual fallback removed; SMOD backfilled and automated
 
-**Transition.** Old `quote-solver` deployment stays live until browser
-sessions cycle out (todo: delete ~2026-07-20 after confirming zero traffic).
-Frontend hits the new name as of staging deploy 2026-07-13.
+**Decision** (Jake, 2026-07-03: "we should always be using the GPS data"; implemented 2026-07-03 → 2026-07-07). Rural classification is **exclusively** GHS-SMOD-derived: `sites.smod_code IN (11, 12)` → rural, any other code → not rural, no coordinates → **Data Pending**. The manual-fallback clause of the [2026-05-14 rural definition](#2026-05-14--rural-definition-ghs-smod-1112-with-manual-fallback) is retired — `projects.rural_area` is no longer consulted anywhere. The SMOD 11/12 boundary itself is unchanged.
 
-**Status.** In effect. Deploy tag `deploy/offer-generator/20260713T182125Z-262d278`.
+**Why.** The fallback existed only because 64% of sites lacked coordinates. That gap is closed: the 2026-06-26 field export supplied coordinates for the whole signed portfolio, GHS-SMOD **E2020 R2023A** codes were backfilled (epoch validated 92% against the original sample; E2025/E2030 scored worse), and classification is now **automatic** — `trg_sites_set_smod_code` + the `public.ghs_smod_grid` lookup table stamp `smod_code` whenever site coordinates are saved, so the gap cannot silently reopen. Keeping the fallback after that would have meant two sources disagreeing (manual said 12% rural; GPS says 38%) with the mix depending on data coverage — exactly the ambiguity funders flagged.
 
-## 2026-07-13 — Manual mode stays, but runs THE engine
+**Effect on published numbers.** Portfolio rural went from "14% (soft, 143 of 277 unclassified)" to **38% fully classified (104 Yes / 173 No, 0 pending)**; high-social-impact moved 53% → 69%. Same methodology as before, applied to 100% of the portfolio instead of 48% — flagged proactively in the June 30 investor redelivery.
 
-**Decision.** The quote-generator's manual mode (calculator inputs with no
-estimate in the system) is kept — it may become useful — but it must produce
-the same numbers as every other surface. It now maps its inputs onto the
-shared forward-calc pipeline; the parallel engine from the original R port
-(`generateNiiTable`/`getKpis` + private amortization forms) is deleted.
+**Where.**
+  - dbt: `mart_impact_projects_summary.sql` (rural_area CASE; manual field "intentionally ignored"), consumed by all `mart_investors_*`, ADA, ATTA.
+  - Frontend: `ImpactPage.tsx` (fallback removed 2026-07-07).
+  - DB: `trg_sites_set_smod_code`, `compute_smod_code()`, `ghs_smod_grid` — docs at `albedo-automations-infra/database/triggers/sites-smod-code.md`; loader `database/scripts/load-ghs-smod-grid.py`.
+  - Epoch upgrades are a deliberate, CHANGELOG'd decision (numbers move) — see the trigger doc.
 
-**Why.** The old manual engine had drifted: Subtract-margin costs weren't
-grossed up, different amortization form, insurance started at grace+1.
-Forensics showed it was never used in anger — 56 runs ever, all dev tests
-(Jake/Ian/Danniel), last on 2026-02-21 — so no client number ever came from
-it, but keeping a divergent engine invites the next drift bug.
+**Remaining process gap.** Automation fires only when coordinates exist; WHEN GPS is captured for new projects (at quote? at install? required from socios?) is still the open item from the 2026-05-14 meeting. `projects.rural_area` is now a dead field pending the `_legacy` rename (see the provisional "canonical homes" entry above).
 
-**Behavior changes for future manual runs**: Subtract margins gross up like
-everywhere else; insurance start month defaults to 4 (configurable) instead
-of grace+1; amortization matches the pipeline. Explicit `annual_rate` still
-bypasses the APR floor (old behavior preserved).
 
-**Proof.** Equivalence test on 2645-01-01's real inputs: manual mode vs
-estimate mode → all 10 KPIs and every numeric cell of all 61 cashflow months
-identical. Deploy tag `deploy/quote-generator/20260713T173900Z-d02b743`.
+**Status.** In effect.
 
-**Status.** In effect. Closes duplication inventory v2 item 6.
-
-## 2026-07-10 — Installed capacity: equipment sum is the ONLY source
+<a id="e-capacity-equipment"></a>
+### 2026-07-10 — Installed capacity: equipment sum is the ONLY source
 
 **Decision.** Installed capacity (kW) = Σ (panel amount ×
 `equipments.potential_watts`) from the estimate's equipment list. No other
@@ -607,11 +827,11 @@ empty kW for new-engine quotes). Migrations
 exactly 2× or ½× — smells like per-phase CSV rows or duplicated equipment
 lines); any confirmed real corrections get fixed in the equipment list.
 
-**Status.** In effect (deployed 2026-07-10).
 
----
+**Status.** In effect. Ops review of the capacity discrepancies is on Loose Ends.
 
-## 2026-07-10 — Default WACC is 9% everywhere
+<a id="e-wacc-9"></a>
+### 2026-07-10 — Default WACC is 9% everywhere
 
 **Decision.** When no WACC is supplied, every pricing surface uses **9%**
 (0.09). One resolution chain, shared by quote-solver, quote-generator, and
@@ -638,13 +858,15 @@ explicitly, and no estimate row carries a stored `down_payment_1_percentage`
 > 0, so the historic divergence had little-to-no live blast radius — the fix
 is prophylactic alignment, not a data repair.
 
-**Status.** In effect (deployed 2026-07-10). Post-deploy smoke test:
 irr-calculator `forward_with_rate` and quote-generator at the same
 estimate/term/rate return identical IRR (8.39) and payment (2,205.47).
 
----
+**Status.** In effect.
 
-## 2026-07-10 — Commission priced into retail = the commission type's TOTAL
+<a id="e-commission-total"></a>
+### 2026-07-10 — Commission priced into retail = the commission type's TOTAL
+
+> ⚠️ **Conflict #1** (commission in retail: open entry vs 07-10 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** The commission included in the client's retail price is
 `commission_types.commission_percentage` (the row's total), applied to the
@@ -658,7 +880,7 @@ including the tier multiplier on the earnings side) — never the price.
 **Why.** The engine previously summed per-role percentages for roles present
 on the estimate, which made the price depend on data-entry completeness —
 identical deals priced at 3% or 4% depending on whether someone attached the
-director row (surfaced by the 2599-01 Juan Sánchez discrepancy, issue #339).
+director row (surfaced by the 2599-01 discrepancy, issue #339).
 A separate unversioned engine build also briefly applied the total ÷ 1.12;
 that treatment is explicitly rejected — the percentage applies to sin-IVA
 retail. Quotes generated before 2026-07-10 keep their as-shared prices (no
@@ -669,31 +891,11 @@ deliberately left as the client saw them.
 `deriveCommissionPercentages` (comment links back here). Deploy tags
 `deploy/*/20260709T16*` mark when it went live.
 
-**Status.** Decided (Jake) / In effect.
-
----
-
-## 2026-07-09 · Rural is GPS-only — manual fallback removed; SMOD backfilled and automated
-
-**Decision** (Jake, 2026-07-03: "we should always be using the GPS data"; implemented 2026-07-03 → 2026-07-07). Rural classification is **exclusively** GHS-SMOD-derived: `sites.smod_code IN (11, 12)` → rural, any other code → not rural, no coordinates → **Data Pending**. The manual-fallback clause of the [2026-05-14 rural definition](#2026-05-14--rural-definition-ghs-smod-1112-with-manual-fallback) is retired — `projects.rural_area` is no longer consulted anywhere. The SMOD 11/12 boundary itself is unchanged.
-
-**Why.** The fallback existed only because 64% of sites lacked coordinates. That gap is closed: the 2026-06-26 field export supplied coordinates for the whole signed portfolio, GHS-SMOD **E2020 R2023A** codes were backfilled (epoch validated 92% against the original sample; E2025/E2030 scored worse), and classification is now **automatic** — `trg_sites_set_smod_code` + the `public.ghs_smod_grid` lookup table stamp `smod_code` whenever site coordinates are saved, so the gap cannot silently reopen. Keeping the fallback after that would have meant two sources disagreeing (manual said 12% rural; GPS says 38%) with the mix depending on data coverage — exactly the ambiguity funders flagged.
-
-**Effect on published numbers.** Portfolio rural went from "14% (soft, 143 of 277 unclassified)" to **38% fully classified (104 Yes / 173 No, 0 pending)**; high-social-impact moved 53% → 69%. Same methodology as before, applied to 100% of the portfolio instead of 48% — flagged proactively in the June 30 investor redelivery.
-
-**Where.**
-  - dbt: `mart_impact_projects_summary.sql` (rural_area CASE; manual field "intentionally ignored"), consumed by all `mart_investors_*`, ADA, ATTA.
-  - Frontend: `ImpactPage.tsx` (fallback removed 2026-07-07).
-  - DB: `trg_sites_set_smod_code`, `compute_smod_code()`, `ghs_smod_grid` — docs at `albedo-automations-infra/database/triggers/sites-smod-code.md`; loader `database/scripts/load-ghs-smod-grid.py`.
-  - Epoch upgrades are a deliberate, CHANGELOG'd decision (numbers move) — see the trigger doc.
-
-**Remaining process gap.** Automation fires only when coordinates exist; WHEN GPS is captured for new projects (at quote? at install? required from socios?) is still the open item from the 2026-05-14 meeting. `projects.rural_area` is now a dead field pending the `_legacy` rename (see the provisional "canonical homes" entry above).
 
 **Status.** In effect.
 
----
-
-## 2026-07-10 — Total contract value: con & sin IVA flavors, maintenance always included
+<a id="e-tcv-flavors"></a>
+### 2026-07-10 — Total contract value: con & sin IVA flavors, maintenance always included
 
 **Decision.** `total_contract_value` exists in two flavors — sin IVA and con
 IVA — and BOTH always include maintenance payments when the schedule has
@@ -713,11 +915,56 @@ dbt `int_projects_mega_view` (already conforming, sin-IVA flavor),
 contract-generator snapshot (already conforming). See
 `architecture/business-logic-map.md` item D.
 
-**Status.** Decided (Jake) / In effect.
 
----
+**Status.** In effect.
 
-## 2026-07-20 — Addendum supersession uses SEAM semantics
+<a id="e-solve-tiers-deleted"></a>
+### 2026-07-13 — solve_tiers deleted; quote-solver renamed offer-generator
+
+> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+**Decision.** The `solve_tiers` mode (original Gold/Silver/Bronze flow: fix
+payment at the client's monthly savings, goal-seek the TERM per target IRR
+16/14/12) is deleted — 23 runs ever, all March 2026, zero callers in code
+since the offer-flow redesign replaced it with `generate_offer`. With one
+job left, the function is renamed **offer-generator**.
+
+**Transition.** Old `quote-solver` deployment stays live until browser
+sessions cycle out (todo: delete ~2026-07-20 after confirming zero traffic).
+Frontend hits the new name as of staging deploy 2026-07-13.
+
+
+**Status.** In effect.
+
+<a id="e-manual-mode"></a>
+### 2026-07-13 — Manual mode stays, but runs THE engine
+
+**Decision.** The quote-generator's manual mode (calculator inputs with no
+estimate in the system) is kept — it may become useful — but it must produce
+the same numbers as every other surface. It now maps its inputs onto the
+shared forward-calc pipeline; the parallel engine from the original R port
+(`generateNiiTable`/`getKpis` + private amortization forms) is deleted.
+
+**Why.** The old manual engine had drifted: Subtract-margin costs weren't
+grossed up, different amortization form, insurance started at grace+1.
+Forensics showed it was never used in anger — 56 runs ever, all dev tests
+(Jake/Ian/Danniel), last on 2026-02-21 — so no client number ever came from
+it, but keeping a divergent engine invites the next drift bug.
+
+**Behavior changes for future manual runs**: Subtract margins gross up like
+everywhere else; insurance start month defaults to 4 (configurable) instead
+of grace+1; amortization matches the pipeline. Explicit `annual_rate` still
+bypasses the APR floor (old behavior preserved).
+
+**Proof.** Equivalence test on 2645-01-01's real inputs: manual mode vs
+estimate mode → all 10 KPIs and every numeric cell of all 61 cashflow months
+identical. Deploy tag `deploy/quote-generator/20260713T173900Z-d02b743`.
+
+
+**Status.** In effect.
+
+<a id="e-seam"></a>
+### 2026-07-20 — Addendum supersession uses SEAM semantics
 
 **Decision.** When an addendum is signed, the old contract is frozen **at the
 seam** (= the addendum's signing date). The old quote's cash-flow rows are
@@ -750,11 +997,15 @@ sign hook + `QuoteOfferMatrix.addendumTarget` (infra PR #369). The invariant
 to test: per project, the active (non-nullified) flows across the chain form
 one timeline — no month covered by two quotes, no gap at the seam.
 
-**Status.** Decided (Jake) / In effect.
 
----
+**Status.** In effect.
 
-## 2026-07-21 — 810-07 addendum: QB rows verbatim, grace 5→12 (pure deferral)
+<a id="e-810-07-july"></a>
+### 2026-07-21 — 810-07 addendum: QB rows verbatim, grace 5→12 (pure deferral)
+
+> **This version was never signed; the adenda actually signed is the 2026-09-01 entry.**
+
+> ⚠️ **Conflict #6** (two 810-07 adendas; this one was never signed): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** The 810-07 addendum restates the original QB contract's payment
 breakdown **exactly** — 48 paying months of Q3,470.14 lease (first row
@@ -784,35 +1035,11 @@ Cash flows materialize from this variant at sign time; supersession of quote
 2025-10-01 (keeps the paid legal fee active, nullifies the forgiven
 Mar–Jul 2026 rows).
 
-**Status.** Decided (Jake, 2026-07-21) / In effect — pending signature.
 
----
+**Status.** Superseded by 2026-09-01 (this version was never signed); pending conflict #6.
 
-## 2026-07-22 (bis) — Bombeo Solar - Offgrid: cualquier bomba basta
-
-**Decision.** Supersedes the same-day entry below. An estimate classifies as
-**`Bombeo Solar - Offgrid`** whenever it contains one or more `Bomba de agua`
-(equipment type 7), **unconditionally** — panels, baterías, medidores,
-calentadores, anything else present does not matter. The pump branch remains
-first in the CASE, ahead of the battery test.
-
-**Why.** Gerson's ruling, July 22nd 2026: having a bomba is what makes it a
-bombeo project — the rest of the equipment mix is irrelevant to the
-classification. This replaces Jake's earlier same-day "pump must be sole
-load" rule (below), under which a pump system with batteries stayed plain
-Offgrid.
-
-**Where.** `v_estimate_calcs.system_type` (single canonical definition).
-Migration
-`albedo-automations-infra/database/migrations/2026-07-22-v-estimate-calcs-bombeo-any-pump.sql`;
-CHANGELOG entry same date. Still forward-looking: zero pump equipment in
-catalog or estimates at ruling time.
-
-**Status.** Decided (Gerson, 2026-07-22) / In effect.
-
----
-
-## 2026-07-22 — Bombeo Solar - Offgrid: cuarto tipo de sistema, bomba como carga única — SUPERSEDED (same day, see entry above)
+<a id="e-bombeo-sole-load"></a>
+### 2026-07-22 — Bombeo Solar - Offgrid: cuarto tipo de sistema, bomba como carga única — SUPERSEDED (same day, see entry above)
 
 **Decision.** A fourth `system_type` exists alongside Ongrid/Híbrida/Offgrid:
 **`Bombeo Solar - Offgrid`**, for solar water-pumping projects. An estimate
@@ -838,12 +1065,36 @@ CHANGELOG entry same date. Forward-looking: zero pump equipment existed in
 catalog or estimates at decision time; verified no existing estimate
 reclassified.
 
-**Status.** Superseded same day by Gerson's any-pump rule (entry above); never
 in effect on real data (no pump estimates existed).
 
----
+**Status.** Superseded the same day by Gerson's any-pump rule (next entry).
 
-## 2026-07-24 — Quote status semantics: QuickBase overwrite convention retired
+<a id="e-bombeo-any-pump"></a>
+### 2026-07-22 (bis) — Bombeo Solar - Offgrid: cualquier bomba basta
+
+**Decision.** Supersedes the same-day entry below. An estimate classifies as
+**`Bombeo Solar - Offgrid`** whenever it contains one or more `Bomba de agua`
+(equipment type 7), **unconditionally** — panels, baterías, medidores,
+calentadores, anything else present does not matter. The pump branch remains
+first in the CASE, ahead of the battery test.
+
+**Why.** Gerson's ruling, July 22nd 2026: having a bomba is what makes it a
+bombeo project — the rest of the equipment mix is irrelevant to the
+classification. This replaces Jake's earlier same-day "pump must be sole
+load" rule (below), under which a pump system with batteries stayed plain
+Offgrid.
+
+**Where.** `v_estimate_calcs.system_type` (single canonical definition).
+Migration
+`albedo-automations-infra/database/migrations/2026-07-22-v-estimate-calcs-bombeo-any-pump.sql`;
+CHANGELOG entry same date. Still forward-looking: zero pump equipment in
+catalog or estimates at ruling time.
+
+
+**Status.** In effect.
+
+<a id="e-status-semantics"></a>
+### 2026-07-24 — Quote status semantics: QuickBase overwrite convention retired
 
 **Decision** (Jake). "Current quote" is a **derived** property, never a status
 convention: the current contract for a project is the latest non-deleted quote
@@ -869,11 +1120,11 @@ modeling shape and what the next reader will expect.
 `v_active_projects` / `v_project_installed_kw`. dbt migration tracked as the
 "repoint staging at canonical views" cleanup (this entry is its Phase 0).
 
-**Status.** Decided (Jake, 2026-07-24) / dbt migration in progress.
 
----
+**Status.** In effect (dbt repointed; Phase 3 scoping of `int_original_quotes` still open).
 
-## 2026-07-24 — Funder reports: origination columns read the ORIGINAL quote, everything else the CURRENT contract
+<a id="e-origination-vs-current"></a>
+### 2026-07-24 — Funder reports: origination columns read the ORIGINAL quote, everything else the CURRENT contract
 
 **Decision** (Jake). In funder-facing marts, columns that describe
 **origination** (monto prestado / original principal, contract signing date,
@@ -892,11 +1143,11 @@ origination fields frozen, servicing fields current.
 only during the cleanup's Phase 3). Consumers: `mart_debita_*`,
 `mart_finance_*`, `mart_investors_*`.
 
-**Status.** Decided (Jake, 2026-07-24) / implementation pending (Phase 3).
 
----
+**Status.** Decided; dbt Phase 3 (scoping `int_original_quotes`) still pending.
 
-## 2026-07-27 — Insurance coverage is DERIVED: ends 30 days after the last financing payment
+<a id="e-insurance-coverage"></a>
+### 2026-07-27 — Insurance coverage is DERIVED: ends 30 days after the last financing payment
 
 **Decision** (Jake, from Fernanda's Release 1 Proyectos request 2026-07-22).
 Insurance vigencia in the projects layer is derived from financing state, not
@@ -918,12 +1169,14 @@ rule is now in one place, in the view.
 read the columns; the local `computeInsuranceEndDate()` duplicates were
 removed. Filterable as "Vigencia Seguro" on the ops projects page.
 
-**Status.** Implemented and live 2026-07-27 (279 projects: 64 No aplica /
 201 Vigente / 14 Vencido).
 
----
+**Status.** In effect.
 
-## 2026-07-27 — Cierre operativo for pre-2026 projects = milestone #14; 'Instalado' override retired
+<a id="e-cierre-operativo"></a>
+### 2026-07-27 — Cierre operativo for pre-2026 projects = milestone #14; 'Instalado' override retired
+
+> ⚠️ **Conflict #11** (1080-02 has no meter-change date at all today): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision (Jake, with Fernanda's rule from the 2026-07-22 Release 1 meeting).**
 Pre-2026 projects get a real fecha de cierre operativo instead of a display
@@ -948,12 +1201,12 @@ three `computeEstado` TS mirrors (quotes-app, solar_base_frontend, supabase
 **Data note.** 1080-02 has meter_change_date 2027-07-25 (future — typo); it
 took the fallback. Correct the meter date, then update its milestone.
 
-**Status.** Implemented and live 2026-07-27 (estado distribution: 206 O&M
 Activo / 33 Medidor Bidireccional Instalado / 18 sin actividad / 22 others).
 
----
+**Status.** In effect.
 
-## 2026-07-28 — Layering: canonical views are the semantic layer; dbt is reporting, history and tests
+<a id="e-layering"></a>
+### 2026-07-28 — Layering: canonical views are the semantic layer; dbt is reporting, history and tests
 
 **Decision (Jake).** Reaffirms and sharpens the 2026-06-30 architecture. There
 is **one** definition of every business concept, it lives in a canonical
@@ -1008,15 +1261,15 @@ migration + CHANGELOG per change). dbt `canonical` source: `dbt/main/models/
 sources.yml`. Prior entries: 2026-06-30 (architecture agreed), 2026-07-24
 (status semantics + origination-vs-current rulings).
 
-**Status.** Direction agreed 2026-07-28. Phases 0–2 of the dbt cleanup are
 live (canonical repoint verified no-op on prod). Outstanding: two app reads of
 `app.mv_*` still to retire (`mv_monthly_cash_flows_v1`,
 `mv_impact_project_summary_v1`), Phase 3 (original-contract scoping), Phase 4
 (housekeeping + source tests).
 
----
+**Status.** In effect. Since 2026-10-13 view migrations live in the `supabase` repo; view sources stay in infra `database/views/` until the docs move.
 
-## 2026-07-29 — project_date cutover is 2025-11-01, not 2025-12-01
+<a id="e-project-date-cutover"></a>
+### 2026-07-29 — project_date cutover is 2025-11-01, not 2025-12-01
 
 **Decision** (Jake, 2026-07-29). The signing-date cutover in
 `int_original_quotes` is **November 1, 2025**. Quotes with
@@ -1053,68 +1306,32 @@ report needs restating and the five projects stay in FY2025.
 (both `CASE` expressions, unchanged). The misleading comment was replaced
 2026-07-29 and now links back to this entry.
 
-**Status.** Decided and in effect. Closes the date half of the open Phase 3
 question on `int_original_quotes`; scoping that model to origination-only
 columns is still outstanding.
 
----
+**Status.** In effect.
 
-## 2026-04-13 — Production starts at installation, not at signing (logged 2026-07-29)
+<a id="e-pagare"></a>
+### 2026-08-11 · "Pagaré" deals stay out of Solar Base
 
-**Decision** (Jake, from the ADA 8-abril-2026 prep). Impact "to date" metrics
-count production from when the system actually started generating, not from
-the contract signing date. Resolved by a three-branch waterfall, in order:
+**Decision.** (Jake.) QuickBase quotes whose status is **Pagaré** (a
+promissory note, not a lease: 768-01 and 888-01, both November 2025) are
+deliberately not imported. Sweeps of `qb_raw` for signed-but-missing deals
+filter on `Firmado` / `Firmado y adendado` only, and the continuity import
+cohort omits them.
 
-1. `actual_installation_end_date` — the real commissioning date.
-2. `GREATEST(actual_installation_start_date + 1 month, project_date)` — assume
-   one month from start of installation to commissioning, but **never claim
-   production started before signing**.
-3. `project_date + 2 months` — last resort.
+**Why.** A pagaré is a different instrument with no installment schedule to
+materialize; importing it as a lease would put wrong cash flows in every
+report.
 
-Both constants are empirical, from the April analysis: the observed average
-gap between signing and installation was **~62 days (2 months)**, and one
-month is the assumed start→commissioning lag.
+**Where.** `scripts/qb-continuity-import.ts` (infra) and the signed-deals
+gap queries from 2026-08-11.
 
-**Why.** The previous behaviour assumed production began on the signing date,
-which overstates accumulated production and accumulated savings for every
-project that took weeks or months to install — directly inflating the ADA and
-ATTA impact numbers. The `GREATEST` clamp in branch 2 exists because the
-install dates are dirty: **15 of the 50 projects currently on that branch**
-have an install date more than a month before signing, including a handful
-decades off. Without the clamp those would claim production years before the
-contract existed.
 
-The `CASE` wrapper around branch 2 is load-bearing, not style: Postgres
-`GREATEST()` ignores NULLs, so without it a NULL install start would return
-`project_date` and swallow branch 3 rather than falling through to it.
+**Status.** In effect.
 
-**Why it was logged late.** The rule shipped in dbt commit `7b1ee9c`
-(2026-04-13) documented only as a code comment plus talking point #9 in
-`docs/reunión-ada-8-abril-2026.md`. It surfaced during the 2026-07-29
-extraction and is recorded here because it moves funder-facing numbers.
-
-**Current branch distribution** (281 signed original quotes, measured
-2026-07-29): branch 1 **205** · branch 2 **50** (15 of them clamped) ·
-branch 3 **26**. Note this has shifted a lot since the rule was designed —
-the April doc had `actual_installation_end_date` on only 21/269 (8%), so
-branch 2 was expected to carry ~90% of projects. Today branch 1 carries 73%,
-because the Feb 2026 CSV data-entry pass filled in the completion dates.
-
-**Where.** `dbt/main/models/models_on_static_tables/intermediate/int_production_start_dates.sql`
-— the single definition since 2026-07-29 (`23788c6`). It was previously
-copy-pasted character-for-character into both `int_project_monthly_solar_savings`
-and `mart_impact_projects_summary`; both now `ref()` it. Install dates come
-from `source('canonical', 'v_project_governed_dates')`, which reads
-`project_milestones` first — see the 2026-07-29 entry on governed dates.
-
-**Status.** In effect since 2026-04-13; consolidated to one model 2026-07-29.
-Open question worth revisiting: branch 2's one-month assumption was tuned when
-it covered 90% of projects and now covers 18%, so its weight in the reported
-totals is much smaller than when it was chosen.
-
----
-
-## 2026-08-20 — Annulment: voiding a SIGNED contract is its own state
+<a id="e-annulment"></a>
+### 2026-08-20 — Annulment: voiding a SIGNED contract is its own state
 
 **Decision.** Four rulings, taken together:
 
@@ -1164,13 +1381,12 @@ land first), `v_cash_flows_all_states.is_active`, and
 `ActiveProjectDetails` / `AnnulProjectModal` on the frontend.
 Supersedes nothing; extends the 2026-07-20 seam ruling to a second seam.
 
-**Status.** Decided (Jake) / Implemented, verified locally, not yet deployed.
 
----
+**Status.** In effect (live in prod).
 
-## 2026-08-21 — Cartera Albedo = margin type "Add" (labels were inverted)
+<a id="e-cartera-add"></a>
+### 2026-08-21 — Cartera Albedo = margin type "Add" (labels were inverted)
 
-**Status: In effect** (data migration ran 2026-08-23; UI label fix pending).
 
 **Decision.** The canonical pairing is **cartera Albedo = `quote_margin_type
 'Add'`**, cartera Socio = `'Subtract'`. Every internal surface that encoded the
@@ -1202,7 +1418,10 @@ one has signed exposure and needs its retail pinned first). Import-script fix in
 commit. Related: known-inconsistency §1.3 (mixed-phase commission) is unchanged by this;
 issue #222 (imported Subtract phase_cost) is a separate defect.
 
-## 2026-08-25 · Project signing date = ORIGINAL contract date, even for addendums (all surfaces)
+**Status.** In effect for the mapping. Storage superseded: cartera lives on the estimate (2026-09-24) and the provider column was dropped (2026-10-09), so the pending label fix and provider flips are moot.
+
+<a id="e-signing-date-original"></a>
+### 2026-08-25 · Project signing date = ORIGINAL contract date, even for addendums (all surfaces)
 
 **Decision.** The project-level signing date — on EVERY surface (operations
 page, proyectos firmados, dbt project-level marts, reports), not just ops
@@ -1243,34 +1462,73 @@ falls back to their frozen legacy date instead, same shape as
 truth: `contract-generator/src/controllers.ts` (`updateContract`, final-sign
 path).
 
-**Status.** In effect (views live in prod 2026-08-25; audited 300 signed
 quotes, 0 copy disagreements, 0 blanks after). Follow-up: repoint direct
 readers of `quotes.contract_signing_date` (dbt `mart_debita_snapshots`,
 `int_original_quotes`; generator fallback), then rename the column
 `*_legacy`.
 
-## 2026-08-27 · Month-0 row ratified as the schedule convention
+**Status.** In effect. The legacy quote-column fallback was removed by 2026-10-02.
 
-**Decision (Jake, 2026-08-27).** The payment_number = 0 closing row — down
-payment, legal costs, opening balance, dated at closing — is the standing
-convention for native financed originals. The engine already writes it
-(offer cashflow month 0 -> sign-time materialization); contado and addendum
-schedules correctly have none. Ian owns the accounting treatment of the
-closing row.
+<a id="e-1499-01"></a>
+### 2026-08-25 · 1499-01 payoff restructure: manual addendum, two August rows, totals win
 
-**Consequences.**
-1. QB-continuity imports should synthesize the month-0 row AT IMPORT TIME
-   (normalize at the source), shrinking the analytics normalizer's pool to
-   the frozen legacy set.
-2. The analytics normalizer (dbt int_monthly_cash_flows_month_0_adjustment,
-   rewritten assumption-free 2026-08-27) covers the 25 legacy projects that
-   will never be re-imported.
+**Decision.** 1499-01 (five-plus invoices in arrears) gets a negotiated payoff
+adenda ending Dec 2026, built by hand because the schedule is not
+engine-producible. Final figures, after Finanzas' corrections of 2026-08-28:
 
-**Where.** Engine: quote-forward-calc.ts month-0 cell + sign-time
-materialization (already live). Census + rewrite: dbt repo
-AUDIT-2026-08.md, Phase 2.
+- **Arrears stay on the old contract's still-active rows.** The Q88,087.10
+  vencido is a collection target against the existing Zoho invoices (1900,
+  2996), not a new cash-flow row.
+- **The old Aug-1 cuota is nullified** (row seam backdated to 2026-07-31; the
+  quote keeps the legal signing date 2026-08-08) and replaced by an extra
+  August payment on Aug 1 of **99,922.23 sin IVA** (seguro 735.00 + principal
+  99,187.23; Q111,912.90 con IVA). August therefore collects a flat
+  **Q200,000.00** = 88,087.10 vencido + 111,912.90.
+- **Sep–Dec 2026:** four cuotas of 135,425.71 + seguro 735.00 =
+  **Q152,500.00 con IVA** each, with declining interest 2,192.42 / 1,647.66 /
+  1,100.68 / 551.46 (recovered from the penny-exact principal cells; the
+  sheet's interest column is display-rounded). Book 635,397.85 → 0.00 in
+  December; interest income 5,492.22; write-down vs the Jul-2026 book
+  (699,300.66) = 63,902.81.
+- Where the negotiation sheet's component splits disagree with its own
+  totals (its IVA math mixes 12 %-of-gross with 12/112), the **negotiated
+  totals win** and components are rebased.
+- The adenda rows number 17–21 after 16 active old rows, matching the sheet.
+  `double_billed_month` was refined to permit deliberate seam-month extras
+  (infra `database/addendum-supersession.md`).
 
-## 2026-08-26 · project_date: one rule everywhere (cutover applies to all surfaces)
+**Amendment trail.** 2026-08-25 first cut (extra payment modeled as an
+enganche, flat interest 3,053) and a same-day amendment (normal cuota,
+principal 99,922.23); 2026-08-28 Finanzas revision (81,513.82, superseded
+within the day); 2026-08-28 final with declining interest (above); same day,
+the old Aug-1 cuota nullified. Each step was its own migration.
+
+**Why.** The schedule is not engine-producible (flat fixed interest,
+zero-interest enganche month, 4-month tail), so it follows the legacy
+hand-crafted-chain pattern (541-02) — but with full FK linkage and the
+standard `supersede_addendum_chain` RPC so the health view, APD tabs, and
+contract dedupe all keep working. Keeping the arrears on the old rows avoids
+voiding/re-issuing the Zoho invoices that already exist (1900, 2996).
+Alternative considered and rejected: writing the Vencido row into the new
+schedule with a backdated seam — cleaner sheet-match, but double-invoices
+Mar/Apr and detaches the Feb partial payment from its row.
+
+**Known residual.** Old active rows carry Q41,234.84 more scheduled-unpaid
+than the negotiated arrears figure (sheet credits the Feb 15,000 against
+Mar–Jul and skips one month vs. the DB's ledger; the Dec-2025 row has a
+paid amount with NULL date). After the client pays Q88,087.10, that residual
+still shows overdue until Finanzas reconciles or writes it off.
+
+**Where.** Migrations `2026-08-25-1499-01-addendum-restructure.sql`,
+`2026-08-28-1499-01-revised-addendum-values.sql`,
+`2026-08-28-1499-01-final-negotiated-values.sql`,
+`2026-08-28-1499-01-nullify-old-august-cuota.sql`; CHANGELOG entries same
+dates. Source sheet: Drive `1WqM6qzd9ww1VJmRDIYK6NwC_LetsdFBi` cols E–J.
+
+**Status.** In effect (applied 2026-08-25, final values 2026-08-28). Residual Q41,234.84 scheduled-unpaid above the negotiated arrears, pending Finanzas (Loose Ends).
+
+<a id="e-project-date-one-rule"></a>
+### 2026-08-26 · project_date: one rule everywhere (cutover applies to all surfaces)
 
 **Decision (Jake).** There is ONE `project_date` (Fecha de Proyecto) rule for
 every surface — display pages, ops, dbt marts, investor/Debita reporting:
@@ -1301,83 +1559,38 @@ in-transaction verify 0/292 disagreements vs `int_original_quotes`). dbt keeps
 its re-implementation and pins it with a canonical parity test (dbt repo,
 `tests_on_static_tables/canonical_parity/`).
 
-## 2026-08-25 · 1499-01 payoff restructure: manual addendum, two August rows, totals win
+**Status.** In effect.
 
-**Decision.** 1499-01 (Gasolinera / Distribuidora Mapher, 5+ invoices in
-arrears) gets a negotiated payoff addendum ending Dec 2026: arrears stay on
-the still-active old rows (the "Vencido" Q88,087.10 is a collection target
-against existing invoices, not a new cash-flow row), an extra August
-principal payment of 99,922.24 sin IVA (modeled as enganche:
-`down_payment` column, `monthly_payment = 0`, so the old Aug-1 row and the
-extra row coexist without tripping `double_billed_month`), then Sep–Dec at
-exactly **Q152,500.00 con IVA** each. Where the negotiation sheet's
-component splits disagree with its own totals (its IVA math mixes 12%-of-
-gross with 12/112), the **negotiated totals win** and components are rebased
-(principal 132,372.71 + flat interest 3,053.00 + seguro 735.00). Book
-restates 694,493.02 → 629,413.08 at the seam: write-down 65,079.94 plus all
-future scheduled interest — accepted as part of the deal. (Amended same
-day: the extra payment is a NORMAL cuota, not an enganche —
-monthly_payment = principal = **99,922.23**, invoicing Q111,912.90 so
-August collects a flat Q200,000.00; the sheet's 99,922.24 principal cell
-was mis-rounded against its own top-down total, and the book restates to
-629,413.07. `double_billed_month` refined to permit deliberate seam-month
-extras — see infra `database/addendum-supersession.md`.)
+<a id="e-month-0-row"></a>
+### 2026-08-27 · Month-0 row ratified as the schedule convention
 
-(Amended 2026-08-28, corrected Finanzas figures, edited in place on the
-same quote: extra-August = **81,513.82** sin IVA (Q91,295.48) — the earlier
-figure double-counted the old contract's still-active Aug-1 cuota; the flat
-Q200,000.00 August = 88,087.10 vencido + 20,617.42 old cuota + 91,295.48
-extra. Sep–Dec re-split: seguro 823.20, cuota 135,337.51, interest flat
-3,053, principal 132,284.51; totals stay Q152,500.00. Book restates to
-610,651.86. Migration
-`2026-08-28-1499-01-revised-addendum-values.sql`.)
+> ⚠️ **Conflict #5** (month 0 at import time (08-27) vs read-time derivation (09-30)): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
-(FINAL, 2026-08-28 later same day — definitive Finanzas sheet with
-interest: extra-August base 99,922.23 = seguro 735 + principal 99,187.23
-(Q111,912.90); Sep–Dec cuota 135,425.71 + seguro 735 (Q152,500.00) with
-DECLINING interest 2,192.42 / 1,647.66 / 1,100.68 / 551.46 (exact values
-recovered from the penny-exact principal cells; the sheet's interest
-column is display-rounded). Book 635,397.85 → 0.00 Dec; write-down
-59,095.17; interest income 5,492.22. The "flat Q200,000 August" reading is
-superseded: August collects 88,087.10 + 20,617.42 + 111,912.90 =
-Q220,617.42. Migration `2026-08-28-1499-01-final-negotiated-values.sql`.)
+**Decision (Jake, 2026-08-27).** The payment_number = 0 closing row — down
+payment, legal costs, opening balance, dated at closing — is the standing
+convention for native financed originals. The engine already writes it
+(offer cashflow month 0 -> sign-time materialization); contado and addendum
+schedules correctly have none. Ian owns the accounting treatment of the
+closing row.
 
-(Same day, completing the intent: the OLD Aug-1 cuota is nullified — row
-seam backdated to 2026-07-31, quote stamp keeps the legal signing date
-2026-08-08 — and the extra payment moves to Aug 1. August therefore
-collects a flat Q200,000.00 = 88,087.10 vencido + 111,912.90 extra, and
-the addendum rows number 17–21 after 16 active old rows, matching the
-sheet. Write-down vs the Jul-2026 book 699,300.66 = 63,902.81. Migration
-`2026-08-28-1499-01-nullify-old-august-cuota.sql`.)
+**Consequences.**
+1. QB-continuity imports should synthesize the month-0 row AT IMPORT TIME
+   (normalize at the source), shrinking the analytics normalizer's pool to
+   the frozen legacy set.
+2. The analytics normalizer (dbt int_monthly_cash_flows_month_0_adjustment,
+   rewritten assumption-free 2026-08-27) covers the 25 legacy projects that
+   will never be re-imported.
 
-**Why.** The schedule is not engine-producible (flat fixed interest,
-zero-interest enganche month, 4-month tail), so it follows the legacy
-hand-crafted-chain pattern (541-02) — but with full FK linkage and the
-standard `supersede_addendum_chain` RPC so the health view, APD tabs, and
-contract dedupe all keep working. Keeping the arrears on the old rows avoids
-voiding/re-issuing the Zoho invoices that already exist (1900, 2996).
-Alternative considered and rejected: writing the Vencido row into the new
-schedule with a backdated seam — cleaner sheet-match, but double-invoices
-Mar/Apr and detaches the Feb partial payment from its row.
+**Where.** Engine: quote-forward-calc.ts month-0 cell + sign-time
+materialization (already live). Census + rewrite: dbt repo
+AUDIT-2026-08.md, Phase 2.
 
-**Known residual.** Old active rows carry Q41,234.84 more scheduled-unpaid
-than the negotiated arrears figure (sheet credits the Feb 15,000 against
-Mar–Jul and skips one month vs. the DB's ledger; the Dec-2025 row has a
-paid amount with NULL date). After the client pays Q88,087.10, that residual
-still shows overdue until Finanzas reconciles or writes it off.
+**Status.** In effect. Consequence 1 (synthesize month 0 at import time) is contested by 2026-09-30: conflict #5.
 
-**Where.** Migration
-`database/migrations/2026-08-25-1499-01-addendum-restructure.sql`
-(self-verifying; seam/date constants edited at run time). CHANGELOG entry
-same date. Source sheet: Drive `1WqM6qzd9ww1VJmRDIYK6NwC_LetsdFBi` cols E–J.
+<a id="e-810-07"></a>
+### 2026-09-01 · 810-07 adenda: six-month interest-free payment holiday
 
-**Status.** Decided (migration drafted; runs after the adenda is physically
-signed).
-
-## 2026-09-01 · 810-07 adenda: six-month interest-free payment holiday
-
-**Decision.** 810-07 (El Macheton/Sepela, in arrears since its first real
-cuota) gets an adenda signed 2026-08-17: Mar–Aug 2026 become a payment
+**Decision.** 810-07 (in arrears since its first real cuota) gets an adenda signed 2026-08-17: Mar–Aug 2026 become a payment
 holiday with the balance FROZEN at 115,691.68 (no interest accrual during
 the holiday), and the original 48-cuota schedule resumes Sep 2026
 cent-for-cent identical, ending Aug 2030 (6 months later than the original
@@ -1397,9 +1610,11 @@ attempt's addendum linkage (quotes 20, 1000488) was cleared in the same
 migration. Zoho credit notes for the four posted Mar–Jun invoices are
 Finanzas' follow-up.
 
-**Status.** In effect (applied to prod 2026-09-01; chain health clean).
 
-## 2026-09-04 · Equipment-derived views: loud NULL over GT default; representative estimate = signed > approved > recent; watts formula gets one home
+**Status.** In effect (applied 2026-09-01). The four Mar–Jun invoices were settled by credit or voided in Zoho by 2026-10-16.
+
+<a id="e-loud-null"></a>
+### 2026-09-04 · Equipment-derived views: loud NULL over GT default; representative estimate = signed > approved > recent; watts formula gets one home
 
 **Decision.** Three rulings from the governance walkthrough (Jake):
 (1) `v_estimate_calcs` no longer falls back to 0.12 when an estimate's
@@ -1422,10 +1637,12 @@ twice with different matching rules (id vs slug), identical only by luck.
 `2026-09-04-estimate-calcs-slug-match-and-installed-kw-one-home.sql`;
 CHANGELOG same date; AUDIT-2026-08.md (dbt repo) Phase-2 section.
 
-**Status.** In effect (applied to prod 2026-09-04; verify block confirms
 0 NULL tax rates and installed_kw ≡ calc layer).
 
-## 2026-09-04 · Stamping doctrine: freeze base facts and client-facing commitments; derive aggregates live
+**Status.** In effect.
+
+<a id="e-stamping"></a>
+### 2026-09-04 · Stamping doctrine: freeze base facts and client-facing commitments; derive aggregates live
 
 **Decision.** (Jake) Write-time stamping applies to *base-level, client-facing
 values* — the rate, the retail price, the per-month cash-flow rows the client
@@ -1448,43 +1665,13 @@ the offer-JSON parsing in that view should eventually move to a calc-layer
 view (one format-parsing home, e.g. v_offer_cell_flows) — NOT to stamped
 totals, per this ruling.
 
-**Status.** Decided (doctrine; applied to the rollup rework in effect).
-
-## 2026-09-15 · "Margen de venta (estimado)" — a ruled exception to no-frontend-calculation
-
-**Decision.** (Jake) The calculadora header may show an *estimated* sales
-margin computed in the browser — retail con IVA ÷ costo socio con IVA − 1 —
-from Ian's PR #482. The no-business-calculation-in-the-frontend rule stands;
-this is allowed because it is a display-only ratio of two engine outputs,
-never stored or sent, labelled "estimado" with a tooltip that says what it
-approximates and why it differs from the engine's per-phase, sin-IVA,
-pre-discount margin. Any future exception needs the same: a comment naming the
-rule and the ruling, and "estimado" in the label.
-
-**Where.** `DefaultQuotesPageV2.tsx` header block (comment names this entry).
 
 **Status.** In effect.
 
-## 2026-09-15 · Per-phase margin override — Ian's implementation is the one (column `margin_override_percent`)
+<a id="e-custom-margin-09-14"></a>
+### 2026-09-14 · Per-phase custom margin supersedes the provider margin (and rescues NULL-margin providers)
 
-**Decision.** (Jake) The 2026-09-14 entry below duplicated a feature Ian had
-already built (infra PR #482 / supabase PR #26, 2026-09-11). Nobody had used the
-new column (holidays), so the column is renamed to Ian's
-`project_phases.margin_override_percent` and his form, plumbing and engine read
-are the ones in the codebase. Everything else in the 09-14 entry still holds:
-phase grain, fraction storage, percent entry, engine resolves
-`phase.margin_override_percent ?? provider.standard_wholesale_margin`, direction
-from the provider, NULL-margin providers rescued by an override.
-
-**One behavioural difference.** Ian's input is shown only for Albedo-cartera
-(Add) projects; the 09-14 input showed for every phase.
-
-**Where.** Rename: infra `2026-09-15-rename-custom-wholesale-margin-to-margin-override-percent.sql`.
-Engine: supabase main (quote-helpers). Form: `ProjectPhasesManager` `MarginOverrideInput`.
-
-**Status.** In effect.
-
-## 2026-09-14 · Per-phase custom margin supersedes the provider margin (and rescues NULL-margin providers)
+> **Superseded by 2026-09-15 (column) and 2026-10-01 (margin resolution).**
 
 **Decision.** (Jake + team) The wholesale-margin override lives on
 `project_phases.custom_wholesale_margin` (phase grain, fraction storage,
@@ -1505,9 +1692,74 @@ page: infra `2026-09-14-offer-sheet-phases-custom-margin.sql`. Form:
 ProjectPhasesManager per-row input. Verified: byte-identical prod A/B with
 all overrides NULL; exact-formula positive cycle on 1050-13-01.
 
+
+**Status.** Superseded: the column was renamed on 2026-09-15 and the provider-margin fallback removed on 2026-10-01.
+
+<a id="e-margen-estimado"></a>
+### 2026-09-15 · "Margen de venta (estimado)" — a ruled exception to no-frontend-calculation
+
+**Decision.** (Jake) The calculadora header may show an *estimated* sales
+margin computed in the browser — retail con IVA ÷ costo socio con IVA − 1 —
+from Ian's PR #482. The no-business-calculation-in-the-frontend rule stands;
+this is allowed because it is a display-only ratio of two engine outputs,
+never stored or sent, labelled "estimado" with a tooltip that says what it
+approximates and why it differs from the engine's per-phase, sin-IVA,
+pre-discount margin. Any future exception needs the same: a comment naming the
+rule and the ruling, and "estimado" in the label.
+
+**Where.** `DefaultQuotesPageV2.tsx` header block (comment names this entry).
+
+
 **Status.** In effect.
 
-## 2026-09-23 · Cash-flow interest column = interest *accrued*, not interest paid
+<a id="e-margin-override"></a>
+### 2026-09-15 · Per-phase margin override — Ian's implementation is the one (column `margin_override_percent`)
+
+**Decision.** (Jake) The 2026-09-14 entry below duplicated a feature Ian had
+already built (infra PR #482 / supabase PR #26, 2026-09-11). Nobody had used the
+new column (holidays), so the column is renamed to Ian's
+`project_phases.margin_override_percent` and his form, plumbing and engine read
+are the ones in the codebase. Everything else in the 09-14 entry still holds:
+phase grain, fraction storage, percent entry, engine resolves
+`phase.margin_override_percent ?? provider.standard_wholesale_margin`, direction
+from the provider, NULL-margin providers rescued by an override.
+
+**One behavioural difference.** Ian's input is shown only for Albedo-cartera
+(Add) projects; the 09-14 input showed for every phase.
+
+**Where.** Rename: infra `2026-09-15-rename-custom-wholesale-margin-to-margin-override-percent.sql`.
+Engine: supabase main (quote-helpers). Form: `ProjectPhasesManager` `MarginOverrideInput`.
+
+
+**Status.** In effect.
+
+<a id="e-electricity-inflation"></a>
+### 2026-09-19 · Electricity price inflation is a country constant: 5 % GT, 5 % SV, 6 % HN since 2026-09-22
+
+**Decision.** The yearly inflation of the client's electricity price, used in
+every savings projection (offer page, impact reports), lives as a column on `countries`
+(`electricity_price_escalation_rate`, a fraction, next to `tax_rate` and
+`grid_factor`), with change tracking. One value per country, no per-project
+override. Loaded 2026-09-22 at Alex's request: Guatemala 0.05, El Salvador
+0.05, Honduras 0.06 (previously 0.03 everywhere). The Valuing Impact
+model's savings file is a 3 % snapshot: regenerate it for VI at 3 % only.
+
+**Why.** Jake rejected a separate key-value constants table as overkill for
+one value; a real constants table comes when the Valuing Impact parameters
+(about 40) move into Solar Base. Changing the rate restates every savings
+figure from the next rebuild (30-year gross savings rose about 45 % on the
+Jun-30 cut), so the value is tracked and never defaulted.
+
+**Where.** Infra migrations 2026-09-19 (column + audit trigger) and the
+`get_public_offer_data` RPC; dbt `int_estimate_electricity_escalation` with
+`POWER(1 + rate, year)` in both savings models and a test that every signed
+estimate resolves a rate; frontend `utils/taxRate.ts` (baked fallback map,
+kept equal to the table).
+
+**Status.** In effect; the three values are live in production.
+
+<a id="e-interest-accrued"></a>
+### 2026-09-23 · Cash-flow interest column = interest *accrued*, not interest paid
 
 **Decision.** (Jake) In materialized cash flows (`monthly_cash_flows.interest_payment_project_currency`),
 the interest column states the interest that **accrued** that month — including
@@ -1532,9 +1784,11 @@ back to `cf.interest` for older offer JSONs). Backfill of the ~14 post-July
 signings: pending Jake's Zoho damage check (issue #446 thread has the related
 month-0 questions for Ian).
 
-**Status.** In effect for new signings; backfill pending.
 
-## 2026-09-24 · Cartera is a property of the estimate; provider commercial terms are one versioned row; unsigned quotes float, signed quotes freeze
+**Status.** In effect; the 36-row backfill ran 2026-09-23.
+
+<a id="e-cartera-on-estimate"></a>
+### 2026-09-24 · Cartera is a property of the estimate; provider commercial terms are one versioned row; unsigned quotes float, signed quotes freeze
 
 **Decision.** (Jake, with Ian's per-phase override as the given)
 
@@ -1605,12 +1859,14 @@ QuoteWizardStep3Estimate / `resolveSocioSolarName`. Dedupe + variant deletion:
 a later DATA migration that proves recomputed retail is unchanged for every
 unsigned estimate before deleting a row.
 
-**Status.** In effect. Step 1 applied 2026-09-24; steps 2–4 (engine, frontend,
 dedupe) applied 2026-10-05 — see the 2026-10-01 entry.
 Supersedes the pairing notes in the 2026-08-21 entry only in *where* cartera
 is stored — the `Add` = Albedo mapping is unchanged and is what the stamp uses.
 
-## 2026-09-25 · No interest at month 0 — the enganche is entirely principal
+**Status.** In effect. The two-margins-per-provider part (item 2) is superseded by 2026-10-01.
+
+<a id="e-no-interest-month-0"></a>
+### 2026-09-25 · No interest at month 0 — the enganche is entirely principal
 
 **Decision.** (Jake) A payment-0 row never shows interest: no time has passed
 at signing. The enganche counts entirely as principal. Where the QB migration
@@ -1630,9 +1886,11 @@ is exactly the capitalization identity (saldo₁ = saldo₀ + interest₁).
 (v5 of `app.mv_monthly_cash_flows_v1`; presentation only, table untouched).
 The month-0 table backfill (#505) must materialize this same shape.
 
-**Status.** In effect (view layer). Guides the #505 backfill.
 
-## 2026-09-25 · "NA" department + municipality placeholders, always last in dropdowns
+**Status.** In effect.
+
+<a id="e-na-placeholders"></a>
+### 2026-09-25 · "NA" department + municipality placeholders, always last in dropdowns
 
 **Decision.** Every country has exactly one department named `NA`, and that
 department has exactly one municipality named `NA`. They are the only sanctioned
@@ -1656,12 +1914,14 @@ NULL poverty/rural flags, so impact metrics treat them as unknown, not "no".
 `getMunicipalities` and the KPI calculator's direct reads; mirrored in
 `solar_base_frontend`. CHANGELOG entry 2026-09-25.
 
-**Status.** In effect (prod rows since 2026-09-25; ordering on infra staging
 commit 74f29573).
 
-## 2026-09-29 · 1037-01 adenda: one extra interest-free grace month, first cuota moves to December
+**Status.** In effect.
 
-**Decision.** 1037-01 (Texaco San Miguel / Corporación DZ, S.A.) gets Adenda
+<a id="e-1037-01"></a>
+### 2026-09-29 · 1037-01 adenda: one extra interest-free grace month, first cuota moves to December
+
+**Decision.** 1037-01 gets Adenda
 No. 1: November 2026 becomes a fourth grace month, **interest-free**, and the
 whole 60-cuota schedule of Q2,734.27 + Q114.60 seguro slides one month later —
 Dec 2026 – Nov 2031 instead of Nov 2026 – Oct 2031 — cent-for-cent identical,
@@ -1677,20 +1937,23 @@ original contract's totals. So the extra month does **not** capitalize the way
 the original Aug–Oct grace months did: Albedo absorbs Q1,688.03 of interest
 (≈Q4,383 compounded to maturity) rather than repricing the cuota or extending
 the term. Same shape as the 810-07 holiday (2026-09-01 entry) — a shift, not a
-restructure of amounts. Source: adenda document "ADENDUM CONTRATO Texaco San
-Miguel 1037-01" (Drive `1EfZXR4caV98G-dOJlltG1lRS9yT-9a43`), dated 2026-09-29.
+restructure of amounts. Source: the signed adenda document (Drive `1EfZXR4caV98G-dOJlltG1lRS9yT-9a43`), dated 2026-09-29.
 
 **Where.** Migration `2026-09-29-1037-01-addendum-extra-grace-month.sql`
 (1499-01 / 810-07 manual-restructure playbook: hand-written rows generated from
 the live flows, full FK linkage, row seam 2026-10-31 vs quote stamp 2026-09-29,
 Model B contracts row with the consolidated 64-row timeline).
 
-**Status.** In effect (applied to prod 2026-09-29 — quote 54, contract 622;
 chain health clean). The consolidated `v_cash_flows` timeline for project 888
 reproduces the adenda's 64-line plan exactly: Q178,404.71 cuota solar +
 Q6,876.00 seguro, sin IVA.
 
-## 2026-09-30 · One canonical cash-flows view; the month-0 table backfill is shelved
+**Status.** In effect (applied 2026-09-29). Finanzas still to confirm the absorbed Q1,688 (Loose Ends).
+
+<a id="e-canonical-cash-flows"></a>
+### 2026-09-30 · One canonical cash-flows view; the month-0 table backfill is shelved
+
+> ⚠️ **Conflict #5** (month 0 at import time (08-27) vs read-time derivation (09-30)): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** (Jake) Day-to-day consumers (the app, ad-hoc SQL, future calc
 views) read ONE canonical view, `public.v_project_cash_flows`: chain-consolidated
@@ -1712,9 +1975,11 @@ anchors — the derived row-0 date comes FROM v_project_signing), dbt analytics.
 `app.mv_monthly_cash_flows_v1` is now a byte-identical shim over it), dbt#9
 (model mirrors the shim), infra #528 (repoint app + drop shim), #505 (shelved).
 
+
 **Status.** In effect.
 
-## 2026-10-01 · Albedo margin is one going-forward default (12 %), not a provider attribute; socio discount stays per provider
+<a id="e-albedo-margin-12"></a>
+### 2026-10-01 · Albedo margin is one going-forward default (12 %), not a provider attribute; socio discount stays per provider
 
 **Decision.** (Javi, in a meeting with Jake 2026-10-01; recorded by Jake.)
 
@@ -1756,12 +2021,41 @@ is deprecated, not yet dropped (`v_partner_contract_context` depends on it).
 what has priced) or 5 % (QuickBase) — the migration keeps 3 %. Javi's margin
 sheet shrinks to one column: the socio discount per company.
 
-**Status.** In effect since 2026-10-05 (migrations 20261001120000 + 20261001130000
 applied 04:14 UTC; supabase PR #27 and infra PR #533 merged and deployed). The
 27 margin-variant provider rows are gone; full-table backups in
 `backups.*_2026_10_04_cartera`.
 
-## 2026-10-09 · One provider terms row per provider; a Socio deal cannot be priced without the provider's discount
+**Status.** In effect since 2026-10-05.
+
+<a id="e-signing-date-contract-only"></a>
+### 2026-10-02 · Signing date comes from the client contract only — no quote fallback
+
+**Decision.** A project's signing date is the `signed_on` of the client
+contract on its ORIGINAL (root) quote, and nothing else.
+`quotes.contract_signing_date` is no longer a fallback. It stays as a mirror
+kept in sync by `trg_sync_quote_signing_date`. Adenda keep their own
+contracts, but those never set the project's signing date. Tightens
+"Project signing date = ORIGINAL contract date" (2026-08-25).
+
+**Why.** Two sources for one date is how they drift. The fallback only ever
+fired for 7 projects, all adenda chains where the 2026-06-01 QuickBase import
+created a contract for the newest quote only.
+
+**Where.** `v_project_signing` (infra migration
+`2026-10-02-signing-date-contract-only.sql`, which first backfilled the 8
+missing client contracts with their quotes' existing dates, marked
+`data.backfill`). No displayed date changed.
+
+**Open.** Adenda dates to check against the signed PDFs: 981-01/02/03
+(adenda dated the same day as the original), 679-01 (original 2025-09-01,
+seam 2025-08-31, both adendas 2025-08-28), 577-03 (adenda exactly one year
+after the original).
+
+
+**Status.** In effect 2026-10-02.
+
+<a id="e-provider-terms"></a>
+### 2026-10-09 · One provider terms row per provider; a Socio deal cannot be priced without the provider's discount
 
 **Decision.** (Jake, 2026-10-02 and 2026-10-09; in effect since 2026-10-09 02:18 UTC.)
 
@@ -1805,32 +2099,10 @@ HubSpot read the terms row / the estimate's cartera. Infra CHANGELOG 2026-10-09.
 **Open.** Nothing on pricing. "Add provider is inactive" (#387) still needs
 Ian's one sentence.
 
-## 2026-10-02 · Signing date comes from the client contract only — no quote fallback
+**Status.** In effect since 2026-10-09.
 
-**Decision.** A project's signing date is the `signed_on` of the client
-contract on its ORIGINAL (root) quote, and nothing else.
-`quotes.contract_signing_date` is no longer a fallback. It stays as a mirror
-kept in sync by `trg_sync_quote_signing_date`. Adenda keep their own
-contracts, but those never set the project's signing date. Tightens
-"Project signing date = ORIGINAL contract date" (2026-08-25).
-
-**Why.** Two sources for one date is how they drift. The fallback only ever
-fired for 7 projects, all adenda chains where the 2026-06-01 QuickBase import
-created a contract for the newest quote only.
-
-**Where.** `v_project_signing` (infra migration
-`2026-10-02-signing-date-contract-only.sql`, which first backfilled the 8
-missing client contracts with their quotes' existing dates, marked
-`data.backfill`). No displayed date changed.
-
-**Open.** Adenda dates to check against the signed PDFs: 981-01/02/03
-(adenda dated the same day as the original), 679-01 (original 2025-09-01,
-seam 2025-08-31, both adendas 2025-08-28), 577-03 (adenda exactly one year
-after the original).
-
-**Status.** In effect 2026-10-02.
-
-## 2026-10-12 · Maintenance visits are anchored on the Cambio de Medidor date
+<a id="e-maintenance-anchor"></a>
+### 2026-10-12 · Maintenance visits are anchored on the Cambio de Medidor date
 
 **Decision.** (Jake, 2026-10-12, after talking to Javi.) When ops registers
 the **Cambio Medidor** milestone on the ops page, the app seeds the project's
@@ -1862,73 +2134,8 @@ Failures land in `signing_failures` (stage `seed_project_maintenances`).
 **Status.** In effect since 2026-10-12 (no project has reached Cambio
 Medidor since, so no rows seeded by this path yet as of 2026-10-16).
 
-## 2026-06-23 · Displayed monthly payment = median of the paying months; the engine KPI stays month 10
-
-**Decision.** Every surface that shows one monthly payment for a quote (offer
-sheet headline and matrix, the per-year plan, the project page's DD panel)
-shows the **median** of `total_payment_con_iva` over the variant's cash-flow
-rows with `income_total > 0`. Fallback chain, mirrored everywhere: manual
-override on the approved cell → median → the engine's `Monthly.Payment` KPI
-(skeleton QB imports only). The engine KPI and `goalSeekAprByMonthlyPayment`
-still use **month 10**, and the rep matrix shows that number.
-
-**Why.** Insurance and maintenance change the cuota over the term, so one
-month is a poor headline; the median is what the client will most often pay.
-Switching the engine KPI too would mean rewriting the goal-seek from its
-analytic shortcut to a true bisection; we fixed what clients and reviewers
-see and left the rep-facing math alone until that rewrite is worth it.
-
-**Where.** `ClientOfferPage.getMonthlyPayment` / `buildYearlyPlan`,
-`ActiveProjectDetails` (aligned 2026-06-23); engine
-`quote-integration-flow.ts` (`monthVal(10, …)`), `QuoteOfferMatrix.extractMonthlyPayment`.
-
-**Open.** If the engine KPI ever changes, the goal-seek and the rep matrix
-change with it in the same PR.
-
-**Status.** In effect.
-
-## 2026-08-11 · "Pagaré" deals stay out of Solar Base
-
-**Decision.** (Jake.) QuickBase quotes whose status is **Pagaré** (a
-promissory note, not a lease: 768-01 and 888-01, both November 2025) are
-deliberately not imported. Sweeps of `qb_raw` for signed-but-missing deals
-filter on `Firmado` / `Firmado y adendado` only, and the continuity import
-cohort omits them.
-
-**Why.** A pagaré is a different instrument with no installment schedule to
-materialize; importing it as a lease would put wrong cash flows in every
-report.
-
-**Where.** `scripts/qb-continuity-import.ts` (infra) and the signed-deals
-gap queries from 2026-08-11.
-
-**Status.** Decided.
-
-## 2026-09-19 · Electricity price inflation is a country constant: 5 % GT, 5 % SV, 6 % HN since 2026-09-22
-
-**Decision.** The yearly inflation of the client's electricity price, used in
-every savings projection (offer page, impact reports), lives as a column on `countries`
-(`electricity_price_escalation_rate`, a fraction, next to `tax_rate` and
-`grid_factor`), with change tracking. One value per country, no per-project
-override. Loaded 2026-09-22 at Alex's request: Guatemala 0.05, El Salvador
-0.05, Honduras 0.06 (previously 0.03 everywhere). The Valuing Impact
-model's savings file is a 3 % snapshot: regenerate it for VI at 3 % only.
-
-**Why.** Jake rejected a separate key-value constants table as overkill for
-one value; a real constants table comes when the Valuing Impact parameters
-(about 40) move into Solar Base. Changing the rate restates every savings
-figure from the next rebuild (30-year gross savings rose about 45 % on the
-Jun-30 cut), so the value is tracked and never defaulted.
-
-**Where.** Infra migrations 2026-09-19 (column + audit trigger) and the
-`get_public_offer_data` RPC; dbt `int_estimate_electricity_escalation` with
-`POWER(1 + rate, year)` in both savings models and a test that every signed
-estimate resolves a rate; frontend `utils/taxRate.ts` (baked fallback map,
-kept equal to the table).
-
-**Status.** In effect; the three values are live in production.
-
-## 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista, the commercial bucket), not 10 (Casa habitacional)
+<a id="e-sector-3"></a>
+### 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista, the commercial bucket), not 10 (Casa habitacional)
 
 **Decision.** (Convention in use since mid-2026; logged now.) When the client
 is an asociación de vecinos, condominio or asociación civil that owns or
@@ -1945,18 +2152,106 @@ written down for the form.
 **Where.** `projects.project_sector_id`; QB free-text sectors flow into
 `colloquial_name` only.
 
-**Status.** Decided.
 
-## How to add a new entry
+**Status.** In effect.
 
-1. Date the entry (`YYYY-MM-DD`).
-2. One-line title summarising the decision.
-3. **Decision** — the rule, in one short paragraph.
-4. **Why** — context + the alternatives considered.
-5. **Where** — file/line/migration name. Cross-reference both directions
-   (link to this entry from the code comment).
-6. **Status** — Decided / In effect / Open.
-7. If the decision changes an existing one, link to the previous entry.
+<a id="e-open-mixed-commission"></a>
+### Open · Commission on mixed Add/Subtract phase projects
 
-Prefer adding **before** the implementation lands — that way the PR
-description can just link here.
+> ⚠️ **Conflict #2** (mixed Add/Subtract commission is moot since cartera moved to the estimate): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+For projects mixing "Add" and "Subtract" margin-type providers, commission is added to the aggregate retail unconditionally — double-counting commission on the "Subtract" phases (which have it baked in already). Per `4-known-inconsistencies.md` § 1.3. Only impacts projects with both margin types in the same quote. Need a business decision on the right treatment.
+
+**Status.** Open.
+
+<a id="e-open-off-by-one"></a>
+### Open · Off-by-one in service payment spreading denominator
+
+Insurance/maintenance total cost is divided by `term - gracePeriod + 1` but applied across `term - gracePeriod` months — a ~1.6% systematic under-collection. Code comment says "Match R code... to allow for discounts". Need confirmation: intentional client discount or legacy bug? Per `4-known-inconsistencies.md` § 1.5.
+
+**Status.** Open.
+
+<a id="e-open-insurance-base"></a>
+### Open · Insurance base: installation cost or financed retail?
+
+> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+Insurance cost is computed as `insuranceRate × installation_cost_sin_iva`. If the insurance is meant to cover physical asset replacement, the installation cost is correct. If it's meant to protect Albedo's receivable (the financed retail price, ~15-25% higher), there's structural under-insurance. Need clarification from the business on what the insurance covers. Per `4-known-inconsistencies.md` § 3.2.
+
+**Status.** Open.
+
+<a id="e-open-fx-timing"></a>
+### Open · Exchange rate timing risk
+
+Currency conversion uses a single FX snapshot at quote time. Provider payouts span 3 periods, client payments span 5+ years — the snapshot doesn't reflect realized exchange movements. Is this an accepted business risk, or should we build periodic re-quoting / sensitivity analysis? Per `4-known-inconsistencies.md` § 3.3.
+
+**Status.** Open.
+
+<a id="e-open-payout-sum"></a>
+### Open · Provider payout schedule validation (sum ≠ 1.0)
+
+> ⚠️ **Conflict #9** (open item already resolved by a constraint / a deleted engine): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+`provider_payment_schedules.period_{1,2,3}_payout` aren't validated to sum to 1.0. A data-entry error would silently distort installation totals (and every downstream calc). No business decision needed — just add the constraint. Per `4-known-inconsistencies.md` § 3.5.
+
+**Status.** Open. A CHECK constraint now exists on `provider_terms` (`provider_terms_payout_sum_chk`): conflict #9 proposes closing.
+
+<a id="e-open-maint-inflation"></a>
+### Open · Maintenance inflation baseline (NII vs integration flow)
+
+> ⚠️ **Conflict #9** (open item already resolved by a constraint / a deleted engine): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+
+The NII table (manual mode) and the integration flow count maintenance inflation years from different baselines. Same parameters, different results. Per `4-known-inconsistencies.md` § 2.3. Either pick one or document why they differ.
+
+**Status.** Open. The NII engine was deleted on 2026-07-13: conflict #9 proposes closing.
+
+<a id="e-open-impact-home"></a>
+### Open · Impact-indicator canonical home (clients vs projects vs sites)
+
+The May 14 work moved schema and form capture to `clients.*` but the broader move is **provisional, not yet team-aligned**. Detailed list of sub-decisions in the May 14 entry above:
+1. educational_institution / non_profit: clients or sites?
+2. When do impact reports cut over from `projects.*` to `clients.*`?
+3. Backfill strategy + handling of 3+ clients with conflicting per-project values.
+4. Form authority — is rep-entered data the source of truth or does ops review?
+5. When do we deprecate `projects.*` impact columns?
+6. Reconciling existing inconsistencies before backfill.
+7. Sales-rep communication about the new form fields.
+
+**Stakeholders**: Sales lead, ops, Stephanie (impact reporting), Ian, ADA contacts.
+**Until resolved**: new fields capture data but impact reports unchanged.
+
+**Status.** Open. Tracked as infra issue #436.
+
+<a id="e-open-otros"></a>
+### Open · "Otros" category for non-gendered clients
+
+Stephanie proposed adding an "Otros" client gender category for sociedades / organizations without a leadership gender. Per Apr 8 ADA meeting. Confirm with Stephanie where the manual classification comes from (Excel? QB?) before implementing.
+
+**Status.** Open.
+
+<a id="e-open-co2-retro"></a>
+### Open · CO2 retroactive change handling in ADA reports
+
+When QB → Supabase migration changes CO2 cleanups, ADA's Q3/Q4 reports show different historical numbers. Need an alignment on whether to: (a) color-code/version flagged retroactive changes, or (b) freeze historical numbers and surface only forward changes. Per Apr 8 ADA meeting.
+
+**Status.** Open.
+
+---
+
+## Entry template
+
+```
+<a id="e-short-slug"></a>
+### YYYY-MM-DD · One-line title summarising the decision
+
+**Decision.** The rule, in at most three sentences. (Who decided, when.)
+
+**Why.** Context and the alternatives considered.
+
+**Where.** File, view, migration or PR. Link back here from the code comment.
+
+**Status.** Open / Decided / In effect / Superseded by <date>.
+```
+
+Then add the one-line register row. If the entry changes an earlier one, mark
+that entry Superseded, point both ways, and remove its register line.
