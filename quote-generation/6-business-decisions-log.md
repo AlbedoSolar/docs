@@ -131,7 +131,7 @@ data: this repository is public.
 | 2026-05-13 | Adjustable maintenance guarantee period per quote. | Open ⚠️ [#12](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-guarantee) |
 | 2026-05-14 | Is commission part of the retail the client pays? | Open ⚠️ [#1](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-commission-in-retail-open) |
 | 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
-| ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Open ⚠️ [#2](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-mixed-commission) |
+| ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Closed 2026-10-19 (moot) | [entry](#e-open-mixed-commission) |
 | ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
 | ≤2026-05 | Insurance base: installation cost or financed retail? | Open ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-insurance-base) |
 | ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
@@ -2158,11 +2158,11 @@ written down for the form.
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
 
-> ⚠️ **Conflict #2** (mixed Add/Subtract commission is moot since cartera moved to the estimate): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-19 (Jake): moot.** Since 2026-09-24 cartera lives on the estimate, so every phase of a quote prices in the same direction; and since 2026-09-15 commission is not part of the retail price at all.
 
 For projects mixing "Add" and "Subtract" margin-type providers, commission is added to the aggregate retail unconditionally — double-counting commission on the "Subtract" phases (which have it baked in already). Per `4-known-inconsistencies.md` § 1.3. Only impacts projects with both margin types in the same quote. Need a business decision on the right treatment.
 
-**Status.** Open.
+**Status.** Closed 2026-10-19: moot (see banner).
 
 <a id="e-open-off-by-one"></a>
 ### Open · Off-by-one in service payment spreading denominator
