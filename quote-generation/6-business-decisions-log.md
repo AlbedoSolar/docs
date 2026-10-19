@@ -54,7 +54,7 @@ data: this repository is public.
 | Date | Rule | Status | Entry |
 |---|---|---|---|
 | 2026-05-13 | Services may start later than the loan grace: insurance the month after grace, maintenance per estimate. | In effect ⚠️ [#4](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-grace) |
-| 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-service-bases) |
+| 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect | [entry](#e-service-bases) |
 | 2026-05-14 | Albedo marks up insurance and maintenance cost by 10 % by default. | In effect | [entry](#e-premium-10) |
 | 2026-05-14 | The cash-flow legal fee column is sin IVA. | In effect | [entry](#e-legal-fee-sin-iva) |
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
@@ -133,7 +133,7 @@ data: this repository is public.
 | 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
 | ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Closed 2026-10-19 (moot) | [entry](#e-open-mixed-commission) |
 | ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
-| ≤2026-05 | Insurance base: installation cost or financed retail? | Open ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-insurance-base) |
+| ≤2026-05 | Insurance base: installation cost or financed retail? | Closed 2026-10-19 (retail con IVA) | [entry](#e-open-insurance-base) |
 | ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
 | ≤2026-05 | Validate that provider payouts sum to 1.0. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-payout-sum) |
 | ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-maint-inflation) |
@@ -513,7 +513,6 @@ line ~482.
 <a id="e-service-bases"></a>
 ### 2026-05-14 · Service bases (insurance vs maintenance)
 
-> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Insurance and maintenance rates apply to different bases:
 
@@ -531,7 +530,7 @@ optional params: `insuranceBaseAmount` and `maintBaseAmount`.
 defaults maintenance to `installation_cost`.
 
 
-**Status.** In effect; the May 15 confirmation was never recorded: conflict #3.
+**Status.** In effect. Confirmed 2026-10-19 (Jake): the retail-con-IVA base is Ian's own implementation (supabase commit `b25ddcb`, 2026-06-05); the May 15 caveat is dropped.
 
 <a id="e-premium-10"></a>
 ### 2026-05-14 · Insurance/maintenance premium markup default 10%
@@ -2174,11 +2173,11 @@ Insurance/maintenance total cost is divided by `term - gracePeriod + 1` but appl
 <a id="e-open-insurance-base"></a>
 ### Open · Insurance base: installation cost or financed retail?
 
-> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-19 (Jake): the base is retail con IVA**, as the 2026-05-14 "Service bases" entry says and as Ian implemented on 2026-06-05.
 
 Insurance cost is computed as `insuranceRate × installation_cost_sin_iva`. If the insurance is meant to cover physical asset replacement, the installation cost is correct. If it's meant to protect Albedo's receivable (the financed retail price, ~15-25% higher), there's structural under-insurance. Need clarification from the business on what the insurance covers. Per `4-known-inconsistencies.md` § 3.2.
 
-**Status.** Open.
+**Status.** Closed 2026-10-19: retail con IVA (see banner).
 
 <a id="e-open-fx-timing"></a>
 ### Open · Exchange rate timing risk
