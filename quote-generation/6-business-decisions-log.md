@@ -33,17 +33,16 @@ data: this repository is public.
 | ~2026-03 | Public offer page shows base term ±12 months × {0 %, 10 %} down payment. | In effect | [entry](#e-offer-matrix) |
 | ~2026-04 | Down payment: explicit amount → request percentage → legacy estimate percentage; stored per quote. | In effect | [entry](#e-down-payment-chain) |
 | 2026-05-08 | Retail = phase cost ÷ (1 − margin) for every phase, whatever the direction. | In effect | [entry](#e-retail-gross-up) |
-| 2026-05-13 | Commission bonus by IRR tier: Bronze 0 %, Silver +25 %, Gold +50 % (config table). | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-tier-bonuses) |
-| 2026-05-13 | Each impact category = 1 point; points lower the target IRR (0.25 pp at 1 point, 2.00 pp at 6). | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-impact-discount) |
+| 2026-05-13 | Each impact category = 1 point; points lower the target IRR (0.25 pp at 1 point, 2.00 pp at 6); computed in the engine. | In effect | [entry](#e-impact-discount) |
 | 2026-06-23 | Displayed monthly payment = median over paying months; the engine KPI and rep matrix use month 10. | In effect | [entry](#e-median-payment) |
 | 2026-07-10 | Default WACC 9 % everywhere (payload → config → constant). | In effect | [entry](#e-wacc-9) |
-| 2026-07-10 | Commission in retail = the commission type's total % on post-discount sin-IVA retail, regardless of attached roles. | In effect ⚠️ [#1](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-commission-total) |
-| 2026-07-13 | The tier term-solver is gone; `offer-generator` has one job. | In effect ⚠️ [#7](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-solve-tiers-deleted) |
+| 2026-07-13 | The tier term-solver is gone; `offer-generator` has one job; tiers are an IRR label only. | In effect | [entry](#e-solve-tiers-deleted) |
 | 2026-07-13 | Calculator manual mode runs the same engine as estimate mode. | In effect | [entry](#e-manual-mode) |
 | 2026-08-21 | Cartera Albedo: the installer quotes cost and we add margin. Cartera Socio: the installer quotes retail and we take a discount. | In effect | [entry](#e-cartera-add) |
 | 2026-09-04 | Stamp base facts and client commitments; derive aggregates live from one definition. | In effect | [entry](#e-stamping) |
 | 2026-09-15 | The calculadora may show an estimated sales margin: display-only, labelled estimado. | In effect | [entry](#e-margen-estimado) |
 | 2026-09-15 | Per-phase margin override lives in `project_phases.margin_override_percent` (Ian's build). | In effect | [entry](#e-margin-override) |
+| 2026-09-15 | Commission is an Albedo cost, not part of the client's retail price, whatever the cartera. | In effect | [entry](#e-commission-is-cost) |
 | 2026-09-19 | Electricity price inflation per country: GT 5 %, SV 5 %, HN 6 % (`countries` column). | In effect | [entry](#e-electricity-inflation) |
 | 2026-09-24 | Cartera is on the estimate; provider terms are one versioned row; unsigned quotes float, signed ones freeze. | In effect | [entry](#e-cartera-on-estimate) |
 | 2026-10-01 | Albedo cartera: 12 % default margin (config) with per-phase override; Socio: the provider's discount. | In effect | [entry](#e-albedo-margin-12) |
@@ -53,11 +52,12 @@ data: this repository is public.
 
 | Date | Rule | Status | Entry |
 |---|---|---|---|
-| 2026-05-13 | Services may start later than the loan grace: insurance the month after grace, maintenance per estimate. | In effect ⚠️ [#4](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-grace) |
-| 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-service-bases) |
+| 2026-05-13 | Insurance starts after the grace period plus the estimate's offset (default 1 month); maintenance start is per estimate. | In effect | [entry](#e-maintenance-grace) |
+| 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect | [entry](#e-service-bases) |
 | 2026-05-14 | Albedo marks up insurance and maintenance cost by 10 % by default. | In effect | [entry](#e-premium-10) |
 | 2026-05-14 | The cash-flow legal fee column is sin IVA. | In effect | [entry](#e-legal-fee-sin-iva) |
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
+| 2026-09-15 | The legal fee is an Albedo cost (in `predebt_cost_sin_iva` and `expense_services`) as well as client income. | In effect | [entry](#e-legal-fee-is-cost) |
 
 ### Cash flows, schedules and adendas
 
@@ -68,10 +68,10 @@ data: this repository is public.
 | 2026-07-20 | An adenda freezes the old contract at the seam: rows up to the seam stay history, later rows are nullified. | In effect | [entry](#e-seam) |
 | 2026-07-24 | Current contract = latest non-deleted quote with status `signed` or `signed_and_addended`; status describes lifecycle only. | In effect | [entry](#e-status-semantics) |
 | 2026-08-20 | Annulling a signed contract is its own state (`annulled`), with seam semantics, admin-only RPC. | In effect | [entry](#e-annulment) |
-| 2026-08-27 | Native financed originals carry a payment-0 closing row (down payment, legal costs, opening balance). | In effect ⚠️ [#5](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-month-0-row) |
+| 2026-08-27 | Native financed originals carry a payment-0 closing row (down payment, legal costs, opening balance); new imports write it. | In effect | [entry](#e-month-0-row) |
 | 2026-09-23 | The interest column is interest accrued that month, including grace months. | In effect | [entry](#e-interest-accrued) |
 | 2026-09-25 | A payment-0 row never carries interest; the enganche is all principal. | In effect | [entry](#e-no-interest-month-0) |
-| 2026-09-30 | `v_project_cash_flows` is the one cash-flows view (chain + month 0 at read time); the raw table stays frozen; #505 shelved. | In effect ⚠️ [#5](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-canonical-cash-flows) |
+| 2026-09-30 | `v_project_cash_flows` is the one cash-flows view (chain + month 0 derived at read time where missing); the raw table stays frozen; #505 shelved. | In effect | [entry](#e-canonical-cash-flows) |
 
 ### Dates and milestones
 
@@ -129,11 +129,11 @@ data: this repository is public.
 | Since | Question | Status | Entry |
 |---|---|---|---|
 | 2026-05-13 | Adjustable maintenance guarantee period per quote. | Open ⚠️ [#12](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-guarantee) |
-| 2026-05-14 | Is commission part of the retail the client pays? | Open ⚠️ [#1](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-commission-in-retail-open) |
+| 2026-05-14 | Is commission part of the retail the client pays? | Closed 2026-10-20 (no, since 2026-09-15) | [entry](#e-commission-in-retail-open) |
 | 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
 | ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Open ⚠️ [#2](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-mixed-commission) |
 | ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
-| ≤2026-05 | Insurance base: installation cost or financed retail? | Open ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-insurance-base) |
+| ≤2026-05 | Insurance base: installation cost or financed retail? | Closed 2026-10-20 (retail con IVA) | [entry](#e-open-insurance-base) |
 | ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
 | ≤2026-05 | Validate that provider payouts sum to 1.0. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-payout-sum) |
 | ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-maint-inflation) |
@@ -201,11 +201,10 @@ Public offer page (`/offer/<token>`) shows: base term ±12 months × {0%, 10%} d
 <a id="e-tier-solving"></a>
 ### ~2026-03 · Quote tier solving (Gold/Silver/Bronze)
 
-> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 For each tier, goal-seek the loan term that achieves the target IRR when monthly payment is fixed at the client's monthly solar savings. Target IRRs (Gold 16%, Silver 14%, Bronze 12%) shift down per the impact-discount entry below. Memory: `project_quote_tier_solving.md`.
 
-**Status.** Superseded by 2026-07-13 (`solve_tiers` deleted). Tier labels, bonuses and the impact discount still exist: conflict #7.
+**Status.** Superseded by 2026-07-13 (`solve_tiers` deleted). The tier names survive only as the colour label on the IRR in the calculadora; the tier bonus was retired 2026-09-15; the impact discount lives in the engine.
 
 <a id="e-signed-only"></a>
 ### ~2026-03 · Signed-only data for analytics
@@ -397,7 +396,7 @@ Commit `3cb0bef`. Deployed to prod 2026-05-14.
 <a id="e-tier-bonuses"></a>
 ### 2026-05-13 · Commission tier bonuses
 
-> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Superseded 2026-09-15 (Ian, issue #454).** The tier bonus is retired: the config columns are 0 and the calculadora no longer multiplies by them.
 
 **Decision.** Default commission bonus by IRR tier: **Silver +25%, Gold
 +50%, Bronze 0%** (baseline). Stored in `quote_generator_configs` so they
@@ -412,12 +411,12 @@ adds three columns. Frontend `DefaultQuotesPageV2.tsx` loads them on mount
 and uses them in the Commission Breakdown panel.
 
 
-**Status.** In effect.
+**Status.** Superseded by 2026-09-15.
 
 <a id="e-maintenance-grace"></a>
 ### 2026-05-13 · Maintenance grace period feature
 
-> ⚠️ **Conflict #4** (insurance start: grace + 1 (05-13) vs engine default month 4): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Amended 2026-10-20 (Ian):** insurance starts after the grace period plus the estimate's "Meses después del período de gracia para iniciar seguro" (`insurance_start_month_after_grace_period`, default 1). The engine's constant month 4 applies only to a caller that sends nothing.
 
 **Decision.** Insurance/maintenance payments can start later than the loan
 grace period ends. Controlled by a new param `maintenance_grace_period`
@@ -438,7 +437,7 @@ irr-calculator inherit it through the shared serviciosTable. Storage of
 the per-estimate value is **open** (could go on the estimate row or be
 derived from contract data).
 
-**Status.** In effect; per-estimate storage of the value still open.
+**Status.** In effect; the per-estimate offset is `estimates.insurance_start_month_after_grace_period`.
 
 <a id="e-maintenance-guarantee"></a>
 ### 2026-05-13 · Maintenance guarantee period adjustability
@@ -457,7 +456,6 @@ concept from the grace period.
 <a id="e-impact-discount"></a>
 ### 2026-05-13 · Impact discount formula
 
-> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Each impact category a project qualifies for contributes one
 "impact point". Total points reduce the target IRR uniformly across all
@@ -486,14 +484,13 @@ locked `tierIrr` in `DefaultQuotesPageV2.tsx`. `irrTier` / `irrColor` /
 the classification thresholds.
 
 
-**Status.** In effect.
+**Status.** In effect. Since 2026-07 the discount is computed in the engine (`_shared/quote-impact.ts`: impact score → IRR adjustment and APR-floor discount) and returned as `impact_irr_adjustment`; the calculadora only displays it.
 
 <a id="e-commission-in-retail-open"></a>
 ### 2026-05-14 · Commission added to retail (open)
 
-> **Decided by 2026-07-10 (commission is priced into retail). Kept until conflict #1 formally closes it.**
 
-> ⚠️ **Conflict #1** (commission in retail: open entry vs 07-10 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-20: superseded by 2026-09-15.** Commission is a cost, not part of the price the client pays.
 
 **Open question.** SolarBase computes
 `final_retail = retail_grossed_up + commission_total`. The Golden Copy
@@ -508,12 +505,11 @@ locking this in.
 line ~482.
 
 
-**Status.** Open in form only: 2026-07-10 decided it. Conflict #1.
+**Status.** Superseded by 2026-09-15.
 
 <a id="e-service-bases"></a>
 ### 2026-05-14 · Service bases (insurance vs maintenance)
 
-> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** Insurance and maintenance rates apply to different bases:
 
@@ -531,7 +527,7 @@ optional params: `insuranceBaseAmount` and `maintBaseAmount`.
 defaults maintenance to `installation_cost`.
 
 
-**Status.** In effect; the May 15 confirmation was never recorded: conflict #3.
+**Status.** In effect. Confirmed 2026-10-20 (Ian, agreed with operations / Fernanda): insurance is calculated on retail con IVA; note that `first_insurance_cost_sin_iva = retail_con_iva × insurance_rate`.
 
 <a id="e-premium-10"></a>
 ### 2026-05-14 · Insurance/maintenance premium markup default 10%
@@ -866,7 +862,7 @@ estimate/term/rate return identical IRR (8.39) and payment (2,205.47).
 <a id="e-commission-total"></a>
 ### 2026-07-10 — Commission priced into retail = the commission type's TOTAL
 
-> ⚠️ **Conflict #1** (commission in retail: open entry vs 07-10 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Superseded by 2026-09-15 (Ian, issue #454; confirmed 2026-10-20).** Commission is an Albedo cost and is not part of the client's retail price, whatever the cartera.
 
 **Decision.** The commission included in the client's retail price is
 `commission_types.commission_percentage` (the row's total), applied to the
@@ -892,7 +888,7 @@ deliberately left as the client saw them.
 `deploy/*/20260709T16*` mark when it went live.
 
 
-**Status.** In effect.
+**Status.** Superseded by 2026-09-15.
 
 <a id="e-tcv-flavors"></a>
 ### 2026-07-10 — Total contract value: con & sin IVA flavors, maintenance always included
@@ -921,7 +917,6 @@ contract-generator snapshot (already conforming). See
 <a id="e-solve-tiers-deleted"></a>
 ### 2026-07-13 — solve_tiers deleted; quote-solver renamed offer-generator
 
-> ⚠️ **Conflict #7** (tier solver deleted but tier bonuses and impact discount still live): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** The `solve_tiers` mode (original Gold/Silver/Bronze flow: fix
 payment at the client's monthly savings, goal-seek the TERM per target IRR
@@ -1003,9 +998,8 @@ one timeline — no month covered by two quotes, no gap at the seam.
 <a id="e-810-07-july"></a>
 ### 2026-07-21 — 810-07 addendum: QB rows verbatim, grace 5→12 (pure deferral)
 
-> **This version was never signed; the adenda actually signed is the 2026-09-01 entry.**
+> **Superseded by 2026-09-01.** This version was never signed; the signed adenda is the six-month holiday (first payment September 2026, invoiced and paid; confirmed Ian 2026-10-20).
 
-> ⚠️ **Conflict #6** (two 810-07 adendas; this one was never signed): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** The 810-07 addendum restates the original QB contract's payment
 breakdown **exactly** — 48 paying months of Q3,470.14 lease (first row
@@ -1036,7 +1030,7 @@ Cash flows materialize from this variant at sign time; supersession of quote
 Mar–Jul 2026 rows).
 
 
-**Status.** Superseded by 2026-09-01 (this version was never signed); pending conflict #6.
+**Status.** Superseded by 2026-09-01 (never signed).
 
 <a id="e-bombeo-sole-load"></a>
 ### 2026-07-22 — Bombeo Solar - Offgrid: cuarto tipo de sistema, bomba como carga única — SUPERSEDED (same day, see entry above)
@@ -1564,7 +1558,6 @@ its re-implementation and pins it with a canonical parity test (dbt repo,
 <a id="e-month-0-row"></a>
 ### 2026-08-27 · Month-0 row ratified as the schedule convention
 
-> ⚠️ **Conflict #5** (month 0 at import time (08-27) vs read-time derivation (09-30)): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision (Jake, 2026-08-27).** The payment_number = 0 closing row — down
 payment, legal costs, opening balance, dated at closing — is the standing
@@ -1585,7 +1578,7 @@ closing row.
 materialization (already live). Census + rewrite: dbt repo
 AUDIT-2026-08.md, Phase 2.
 
-**Status.** In effect. Consequence 1 (synthesize month 0 at import time) is contested by 2026-09-30: conflict #5.
+**Status.** In effect. Consequence 1 means new continuity imports write the row; frozen legacy schedules get it derived at read time (2026-09-30). Wording settled 2026-10-20.
 
 <a id="e-810-07"></a>
 ### 2026-09-01 · 810-07 adenda: six-month interest-free payment holiday
@@ -1734,6 +1727,46 @@ Engine: supabase main (quote-helpers). Form: `ProjectPhasesManager` `MarginOverr
 **Status.** In effect.
 
 <a id="e-electricity-inflation"></a>
+<a id="e-commission-is-cost"></a>
+### 2026-09-15 · Commission is an Albedo cost, not part of the client's retail price
+
+**Decision.** (Ian, issue #454; confirmed to the log 2026-10-20.) The sales
+commission is no longer added to the retail price the client pays, for Albedo
+and Socio cartera alike. It is still computed (`commission_cost_schedule`) and
+counts as an Albedo cost in the cost ladder and the IRR. The tier bonus on
+commission is retired at the same time (config columns set to 0).
+
+**Why.** Ian's review against the Golden Copy: the commission is an expense of
+the deal, not something the client finances; pricing it in made identical
+deals price differently with data-entry completeness and inflated retail.
+Supersedes the 2026-07-10 ruling that priced the commission type's total into
+retail, and closes the 2026-05-14 open question.
+
+**Where.** `supabase/functions/_shared/quote-helpers.ts`
+`calculateProjectRetailWithCommission` (final retail = discounted base retail;
+the field name `final_retail_with_commission` is kept for stored payloads);
+migration `20260915130000_retail_price_changes_454.sql` (applied 2026-09-15).
+
+**Status.** In effect since 2026-09-15.
+
+<a id="e-legal-fee-is-cost"></a>
+### 2026-09-15 · The legal fee is an Albedo cost as well as client income
+
+**Decision.** (Ian, issue #333; confirmed to the log 2026-10-20.) The legal /
+admin fee charged at signing counts as an Albedo cost in the amortization
+table (`predebt_cost_sin_iva`, `expense_services`), in addition to being client
+income. The 2026-05-14 rule that the cash-flow column is sin IVA is unchanged.
+
+**Why.** The fee had been pulled out of the amortization earlier in 2026
+because it broke the IRR; with the fee fixed to the con-IVA tier table the
+cost side was put back so the deal's margin reflects what Albedo actually
+spends on legal work.
+
+**Where.** `supabase/functions/_shared/quote-integration-flow.ts`
+`getAmortizationTable` (same commit as the commission change).
+
+**Status.** In effect since 2026-09-15.
+
 ### 2026-09-19 · Electricity price inflation is a country constant: 5 % GT, 5 % SV, 6 % HN since 2026-09-22
 
 **Decision.** The yearly inflation of the client's electricity price, used in
@@ -1953,7 +1986,6 @@ Q6,876.00 seguro, sin IVA.
 <a id="e-canonical-cash-flows"></a>
 ### 2026-09-30 · One canonical cash-flows view; the month-0 table backfill is shelved
 
-> ⚠️ **Conflict #5** (month 0 at import time (08-27) vs read-time derivation (09-30)): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision.** (Jake) Day-to-day consumers (the app, ad-hoc SQL, future calc
 views) read ONE canonical view, `public.v_project_cash_flows`: chain-consolidated
@@ -2174,11 +2206,11 @@ Insurance/maintenance total cost is divided by `term - gracePeriod + 1` but appl
 <a id="e-open-insurance-base"></a>
 ### Open · Insurance base: installation cost or financed retail?
 
-> ⚠️ **Conflict #3** (insurance base: open item vs the 05-14 decision): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-20: retail con IVA**, as the 2026-05-14 "Service bases" entry says; confirmed by Ian with operations.
 
 Insurance cost is computed as `insuranceRate × installation_cost_sin_iva`. If the insurance is meant to cover physical asset replacement, the installation cost is correct. If it's meant to protect Albedo's receivable (the financed retail price, ~15-25% higher), there's structural under-insurance. Need clarification from the business on what the insurance covers. Per `4-known-inconsistencies.md` § 3.2.
 
-**Status.** Open.
+**Status.** Closed 2026-10-20: retail con IVA.
 
 <a id="e-open-fx-timing"></a>
 ### Open · Exchange rate timing risk
