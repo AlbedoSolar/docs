@@ -55,7 +55,7 @@ data: this repository is public.
 |---|---|---|---|
 | 2026-05-13 | Insurance starts after the grace period plus the estimate's offset (default 1 month); maintenance start is per estimate. | In effect | [entry](#e-maintenance-grace) |
 | 2026-05-14 | Insurance rate applies to retail con IVA; maintenance rate to installation cost sin IVA. | In effect | [entry](#e-service-bases) |
-| 2026-05-14 | Albedo marks up insurance and maintenance cost by 10 % by default. | In effect | [entry](#e-premium-10) |
+| 2026-05-14 | Albedo marks up insurance and maintenance cost by 30 % by default (amended 2026-10-20; was 10 %). | In effect | [entry](#e-premium-10) |
 | 2026-05-14 | The cash-flow legal fee column is sin IVA. | In effect | [entry](#e-legal-fee-sin-iva) |
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
 | 2026-09-15 | The legal fee is an Albedo cost (in `predebt_cost_sin_iva` and `expense_services`) as well as client income. | In effect | [entry](#e-legal-fee-is-cost) |
@@ -531,6 +531,8 @@ defaults maintenance to `installation_cost`.
 <a id="e-premium-10"></a>
 ### 2026-05-14 · Insurance/maintenance premium markup default 10%
 
+> **Amended 2026-10-20 (Jake, confirmed with Ian): the markup is 30 %.** `DEFAULT_INSURANCE_PREMIUM` and `DEFAULT_MAINTENANCE_PREMIUM` are 0.30 in `_shared/quote-constants.ts` (since at least 2026-05-28); every native quote stores `maintenance_premium = 0.3` and the client pays 1.30 × the service cost. The 10 % below was the Golden Copy figure and is history.
+
 **Decision.** Albedo applies a 10% markup on top of the underlying
 insurance and maintenance cost (both, same default).
 
@@ -543,7 +545,7 @@ should move into `quote_generator_configs` (alongside the commission tier
 bonuses) so they're adjustable per country/provider.
 
 
-**Status.** In effect. Moving the defaults into the config table is still open.
+**Status.** In effect at 30 % (amended 2026-10-20). The defaults live in `quote-constants.ts`; moving them into the config table is still open.
 
 <a id="e-legal-fee-sin-iva"></a>
 ### 2026-05-14 · Legal fee column is sin-IVA in the cashflow
