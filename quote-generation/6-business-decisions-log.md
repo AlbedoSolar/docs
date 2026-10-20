@@ -47,6 +47,7 @@ data: this repository is public.
 | 2026-09-24 | Cartera is on the estimate; provider terms are one versioned row; unsigned quotes float, signed ones freeze. | In effect | [entry](#e-cartera-on-estimate) |
 | 2026-10-01 | Albedo cartera: 12 % default margin (config) with per-phase override; Socio: the provider's discount. | In effect | [entry](#e-albedo-margin-12) |
 | 2026-10-09 | One terms row per provider (payout split + socio discount); no discount = 0 %; sales floor 5 % on the Albedo margin. | In effect | [entry](#e-provider-terms) |
+| 2026-10-20 | One quoter configuration for everyone: the single active `quote_generator_configs` row holds the defaults; no per-user or per-version configs. | In effect | [entry](#e-one-config) |
 
 ### Services: insurance, maintenance, legal
 
@@ -2184,6 +2185,28 @@ written down for the form.
 
 
 **Status.** In effect.
+
+<a id="e-one-config"></a>
+### 2026-10-20 · One quoter configuration for everyone
+
+**Decision.** (Jake.) The quoter has one set of defaults, the single active
+row of `quote_generator_configs`, read by every calc edge function. There are
+no named, versioned or per-user configurations: the three rows created in
+November 2025 collapse to one (`default`), the per-user override table is
+dropped, and the ten columns no code read are dropped with it.
+
+**Why.** The multi-config design was never used: every quote priced off the
+active row, the per-user lookup never matched (keyed by email while the app
+sends a numeric id), and the unread columns made the admin page a placebo
+("24-month free period" edited nothing). One engine, one quoter, same numbers
+for everyone; the editable defaults stay in the table so admins can change
+them without a deploy (the 2026-10-01 Albedo margin lives there).
+
+**Where.** Supabase migration `20261020200000_one_quote_generator_config.sql`;
+engine `getActiveConfig` (`_shared/quote-helpers.ts`); admin page
+`/quote-config-admin` (edits the one row). Infra CHANGELOG 2026-10-20.
+
+**Status.** In effect since 2026-10-20.
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
