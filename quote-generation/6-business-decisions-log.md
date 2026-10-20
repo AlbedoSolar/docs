@@ -92,7 +92,7 @@ data: this repository is public.
 |---|---|---|---|
 | ~2026-04 | Impact flags: NULL means 'Not Sure'; rural and impoverished are derived, never edited by hand. | In effect | [entry](#e-impact-not-sure) |
 | ~2026-04 | Impoverished area = the site's municipality is in the poorest 20 % (`municipalities.in_poorest_20_percent`). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-impoverished) |
-| 2026-04-08 | Grid emission factors: GT 0.630, SV 0.410, HN 0.520 tCO2/MWh (`countries.grid_factor`). | In effect | [entry](#e-co2-factors) |
+| 2026-10-20 | CO2 avoided follows the Valuing Impact method: gross grid factor incl. 22 % upstream (GT 0.804, HN 0.669, SV 0.543 tCO2/MWh), 0.5 %/yr decline after 2026, minus the panel lifecycle factor 0.0589, applied per month. | Decided | [entry](#e-co2-vi-method) |
 | 2026-04-14 | Honduras poverty flag: UNDP IDH 2009, bottom 20 % by HDI (59 of 298 municipalities). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-hn-poverty) |
 | 2026-04-14 | El Salvador poverty flag: FISDL 2004, the 52 poorest municipalities, on the old 262-municipality structure. | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-sv-poverty) |
 | 2026-05-23 | Impact reporting uses a fixed 30-year useful life. | In effect | [entry](#e-useful-life-30) |
@@ -292,7 +292,7 @@ Per-country emission factors used for impact reporting:
 
 **Open follow-up.** Validate these with ADA + check vida útil / degradation assumptions.
 
-**Status.** In effect (values live in `countries.grid_factor`). Open: validate with ADA; the Valuing Impact factors may replace them.
+**Status.** Superseded 2026-10-20 by [CO2 avoided follows the Valuing Impact method](#e-co2-vi-method).
 
 <a id="e-production-start"></a>
 ### 2026-04-13 — Production starts at installation, not at signing (logged 2026-07-29)
@@ -2232,7 +2232,57 @@ Stephanie proposed adding an "Otros" client gender category for sociedades / org
 <a id="e-open-co2-retro"></a>
 ### Open · CO2 retroactive change handling in ADA reports
 
-When QB → Supabase migration changes CO2 cleanups, ADA's Q3/Q4 reports show different historical numbers. Need an alignment on whether to: (a) color-code/version flagged retroactive changes, or (b) freeze historical numbers and surface only forward changes. Per Apr 8 ADA meeting.
+When QB → Supabase migration changes CO2 cleanups, ADA's Q3/Q4 reports show different historical numbers. Need an alignment on whether to: (a) color-code/version flagged retroactive changes, or (b) freeze hist<a id="e-co2-vi-method"></a>
+## 2026-10-20 · CO2 avoided follows the Valuing Impact method
+
+**Decision.** CO2 avoided is computed per month of modeled production as
+`kWh × (grid_factor / (1 + 0.005)^(years after 2026) − 0.0589)`, where
+`grid_factor` is the GROSS grid emission factor including 22 % upstream
+emissions (Guatemala 0.804, Honduras 0.669, El Salvador 0.543 t CO2/MWh),
+0.5 %/yr is a uniform grid decarbonization rate that starts in 2027, and
+0.0589 is the panel's own lifecycle emissions per kWh. The result is net
+avoided CO2. One set of numbers for our reports and for Valuing Impact's
+SROI model. Supersedes [2026-04-08 · CO2 emission factors](#e-co2-factors).
+
+**Why.** Alex adopted Valuing Impact's factors on 2026-09-18 ("better
+sourced than ours, and better than having two sets of numbers floating
+around") and on 2026-10-14 asked for the uniform 0.5 % decarbonization to be
+mirrored in our system. Sources: UNFCCC Harmonized IFI Default Grid Factors
+2021 v3.2 (combined margin, intermittent renewables) with the IEA 2024
+upstream uplift (18 % global; 22 % chosen as a mid-range for the Guatemalan
+fuel mix); ecoinvent v3.12 PV multi-Si scaled to Albedo's 1,473 kWh/kWp.
+The uniform 0.5 % replaced VI's earlier per-country scenario (GT 0.5 /
+HN 2.5 to 2038 / SV 0.5) in the 2026-10-09 review meeting. Alternatives
+considered: keep our own net factors (rejected: two sets of numbers); copy
+VI's 30-year average factor per contract year on undegraded kWh (rejected:
+our savings and the ADA accrued basis already run on degraded monthly
+production, and applying VI's averages to that production lands within
+0.25 % of the per-month rule).
+
+**Effect.** Lifetime CO2 for the 281 projects signed to 2026-06-30 moves
+from 161,914 t to 178,055 t. VI's model shows 206,324 t for the same
+projects; the gap is their undegraded kWh (−7.5 %), a virgin-material
+credit we don't model (−1.6 %) and ~5 % in their displacement figure that
+their own averages do not reproduce (raised with VI). Physical CO2 is not
+discounted. ATTA keeps its own prescribed factors.
+
+**Where.** `countries.grid_factor` (meaning changed), new
+`countries.solar_lifecycle_factor`, `countries.grid_decarbonization_rate`,
+`countries.grid_factor_base_year` — supabase migration
+`20261020150000_countries_grid_factor_vi_method.sql`
+(AlbedoSolar/supabase#55); dbt macro `co2_avoided_tons`,
+`int_estimate_electricity_escalation`, `int_project_monthly_solar_savings`,
+`mart_impact_projects_summary`, `mart_ada_quarterly`, `CALCULATIONS.md`
+§ "CO2 avoided", test `test_country_carbon_assumptions_in_band`
+(AlbedoSolar/dbt#19). Tracking: albedo-automations-infra#601.
+
+**Open.** Restate-vs-freeze for already-published ADA quarters stays
+[open](#e-open-co2-retro).
+
+**Status.** Decided 2026-10-20; in effect once the migration and the dbt PR
+are applied.
+
+orical numbers and surface only forward changes. Per Apr 8 ADA meeting.
 
 **Status.** Open.
 
