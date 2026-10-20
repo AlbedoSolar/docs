@@ -30,6 +30,9 @@
 - **DBT Views Reference**
   - [All Models & Views](dbt-views/README.md)
 
+- **DBT Tests Register**
+  - [All Tests](dbt-tests/README.md)
+
 - **Strategy**
   - [Technology & AI Roadmap 2026](strategy/technology-roadmap-2026.md)
   - [Plan Solarbase — SwissContact](strategy/plan-solarbase-swisscontact.md)
