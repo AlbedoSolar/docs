@@ -91,10 +91,10 @@ data: this repository is public.
 | Date | Rule | Status | Entry |
 |---|---|---|---|
 | ~2026-04 | Impact flags: NULL means 'Not Sure'; rural and impoverished are derived, never edited by hand. | In effect | [entry](#e-impact-not-sure) |
-| ~2026-04 | Impoverished area = the site's municipality is in the poorest 20 % (`municipalities.in_poorest_20_percent`). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-impoverished) |
+| ~2026-04 | Impoverished area = the site's municipality is in the poorest 20 % (`municipalities.in_poorest_20_percent`), in all three countries. | In effect | [entry](#e-impoverished) |
 | 2026-04-08 | Grid emission factors: GT 0.630, SV 0.410, HN 0.520 tCO2/MWh (`countries.grid_factor`). | In effect | [entry](#e-co2-factors) |
-| 2026-04-14 | Honduras poverty flag: UNDP IDH 2009, bottom 20 % by HDI (59 of 298 municipalities). | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-hn-poverty) |
-| 2026-04-14 | El Salvador poverty flag: FISDL 2004, the 52 poorest municipalities, on the old 262-municipality structure. | In effect ⚠️ [#8](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-sv-poverty) |
+| 2026-04-14 | Honduras poverty flag: UNDP IDH 2009, bottom 20 % by HDI (59 of 298 municipalities). | In effect | [entry](#e-hn-poverty) |
+| 2026-04-14 | El Salvador poverty flag: FISDL 2004, the 52 poorest municipalities, on the old 262-municipality structure. | In effect | [entry](#e-sv-poverty) |
 | 2026-05-23 | Impact reporting uses a fixed 30-year useful life. | In effect | [entry](#e-useful-life-30) |
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
@@ -135,8 +135,8 @@ data: this repository is public.
 | ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
 | ≤2026-05 | Insurance base: installation cost or financed retail? | Open ⚠️ [#3](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-insurance-base) |
 | ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
-| ≤2026-05 | Validate that provider payouts sum to 1.0. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-payout-sum) |
-| ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Open ⚠️ [#9](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-open-maint-inflation) |
+| ≤2026-05 | Validate that provider payouts sum to 1.0. | Closed 2026-10-20 (constraint exists) | [entry](#e-open-payout-sum) |
+| ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Closed 2026-10-20 (NII engine deleted) | [entry](#e-open-maint-inflation) |
 | ≤2026-05 | Canonical home of the impact indicators (clients vs projects vs sites) and the reporting cut-over. | Open | [entry](#e-open-impact-home) |
 | ≤2026-05 | An "Otros" client gender category for organisations. | Open | [entry](#e-open-otros) |
 | ≤2026-05 | How ADA reports handle retroactive CO2 changes (version vs freeze). | Open | [entry](#e-open-co2-retro) |
@@ -237,7 +237,7 @@ Bulk cleaned the 6 impact category manual fields on `projects`:
 <a id="e-impoverished"></a>
 ### ~2026-04 · Impoverished area derived from municipality (GT only)
 
-> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Amended 2026-10-20 (Jake): applies to all three countries.** Honduras and El Salvador flags were seeded on 2026-04-14 and the dbt rule has no country filter; "GT only" was true only before that seed.
 
 ADA's impoverished_area definition uses `municipalities.in_poorest_20_percent` for Guatemala. The 20% threshold was chosen by Alex in coordination with ADA. The five other impact categories were still on `projects.*` until 2026-05 (see entry below). Canonical doc: `dbt/main/CALCULATIONS.md` § 6.
 
@@ -352,7 +352,6 @@ totals is much smaller than when it was chosen.
 <a id="e-hn-poverty"></a>
 ### 2026-04-14 · Honduras poverty data seeded (UNDP IDH 2009, bottom 20%)
 
-> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 `municipalities.in_poorest_20_percent` for Honduras populated from UNDP Honduras IDH (Índice de Desarrollo Humano) at municipal level — bottom 20% by HDI = poorest 20%. 59 of 298 municipalities flagged. Source year 2009 (most recent publicly downloadable structured dataset; 2022 update exists but is only behind an interactive web magazine).
 
@@ -367,7 +366,6 @@ totals is much smaller than when it was chosen.
 <a id="e-sv-poverty"></a>
 ### 2026-04-14 · El Salvador poverty data seeded (FISDL 2004, top 20% by rate)
 
-> ⚠️ **Conflict #8** ("GT only" vs the HN/SV poverty seeds and a country-blind dbt rule): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 `municipalities.in_poorest_20_percent` for El Salvador populated from FISDL/FLACSO Mapa de Pobreza 2004. Top 52 municipalities by poverty rate (≥64.7%) flagged. Coverage 260/263 (3 unmatched left NULL).
 
@@ -579,7 +577,7 @@ legalFeeConIva / (1 + taxRate)` before passing to serviciosTable.
 | educational_institution | clients (open: could be sites) | manual field |
 | non_profit | clients (open: could be sites) | manual field |
 | rural_area | derived from `sites.smod_code` | see rural decision below |
-| impoverished_area | derived from `sites.municipality_id` → `municipalities.in_poorest_20_percent` (GT only) | already in effect |
+| impoverished_area | derived from `sites.municipality_id` → `municipalities.in_poorest_20_percent` (all three countries since the 2026-04-14 seeds) | already in effect |
 
 **Why.** Each indicator is structurally an attribute of its owning entity. women_led/youth_led describe who the customer **is** (the client), not the specific project. Rural/impoverished describe **where** the install is (the site's location). The current state on `projects` produces real bugs — see Apr 8 ADA meeting prep: "3 clients have projects with **distinct** values of `women_led`, which is impossible if it's a property of leadership. The '9-client gap' in the women's count comes from this inconsistency."
 
@@ -686,7 +684,7 @@ field. Backfill is needed; tracked separately.
 <a id="e-esquisolar-margin"></a>
 ### 2026-05-14 · ESQUISOLAR partner margin (data correction)
 
-> ⚠️ **Conflict #10** (provider margins no longer exist): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Superseded by 2026-10-01 / 2026-10-09 (confirmed Jake, 2026-10-20).** Provider margins no longer exist; ESQUISOLAR carries a 3 % Socio discount on its terms row and the 12 % config default applies on Albedo-cartera deals.
 
 **Decision.** ESQUISOLAR's margin is **3%** (per the `providers` table),
 not 5% (used in some Golden Copy explorations).
@@ -696,7 +694,7 @@ spreadsheet to explore alternative pricing. Production data has 3% and
 that's the value to use.
 
 
-**Status.** Superseded by 2026-10-01 (provider margins no longer exist); pending conflict #10.
+**Status.** Superseded by 2026-10-01 / 2026-10-09.
 
 <a id="e-maintenance-rate-correction"></a>
 ### 2026-05-14 · Maintenance rate (data correction)
@@ -2190,20 +2188,20 @@ Currency conversion uses a single FX snapshot at quote time. Provider payouts sp
 <a id="e-open-payout-sum"></a>
 ### Open · Provider payout schedule validation (sum ≠ 1.0)
 
-> ⚠️ **Conflict #9** (open item already resolved by a constraint / a deleted engine): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-20 (Jake): done.** `provider_terms_payout_sum_chk` enforces that the three payouts sum to 1.
 
 `provider_payment_schedules.period_{1,2,3}_payout` aren't validated to sum to 1.0. A data-entry error would silently distort installation totals (and every downstream calc). No business decision needed — just add the constraint. Per `4-known-inconsistencies.md` § 3.5.
 
-**Status.** Open. A CHECK constraint now exists on `provider_terms` (`provider_terms_payout_sum_chk`): conflict #9 proposes closing.
+**Status.** Closed 2026-10-20: the constraint exists.
 
 <a id="e-open-maint-inflation"></a>
 ### Open · Maintenance inflation baseline (NII vs integration flow)
 
-> ⚠️ **Conflict #9** (open item already resolved by a constraint / a deleted engine): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-20 (Jake): moot.** The NII engine was deleted on 2026-07-13; manual mode runs the shared engine, so there is one baseline.
 
 The NII table (manual mode) and the integration flow count maintenance inflation years from different baselines. Same parameters, different results. Per `4-known-inconsistencies.md` § 2.3. Either pick one or document why they differ.
 
-**Status.** Open. The NII engine was deleted on 2026-07-13: conflict #9 proposes closing.
+**Status.** Closed 2026-10-20: moot since 2026-07-13.
 
 <a id="e-open-impact-home"></a>
 ### Open · Impact-indicator canonical home (clients vs projects vs sites)
