@@ -12,6 +12,31 @@ follows. The full entries come after, in date order. An entry marked ⚠️ is i
 conflict with another entry; the conflicts are being resolved on
 [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) and each entry says which number.
 
+## What belongs here
+
+An entry is a **business rule**: a statement of how Albedo prices, schedules,
+classifies or reports something, that applies to every case meeting its
+condition, from a date, decided by a named person. The test: *if a new project
+showed up tomorrow, would this entry change what the system does with it?*
+
+- **Yes → here.** "Commission is a cost, not part of retail." "Insurance is
+  calculated on retail con IVA." "Two free years of maintenance by default."
+  Conventions the system relies on count too (seam semantics for adendas, the
+  signing-date source of truth, what "signed" means).
+- **No, it describes one contract, project or row → not here.** A negotiated
+  adenda for 1499-01, a payment holiday for one client, a margin corrected on
+  one provider: those are **records**, kept in the private infra repo at
+  `docs/contract-adjustments.md`. If the one-off produced a rule ("negotiated
+  totals win over the sheet's component splits"), the rule comes here and the
+  record stays there.
+- **No, it is wrong data** (a missing date, a dangling link, a count that does
+  not add up) → the Loose Ends issue (infra #587).
+- **No, it is how to do something** (run an import, recover a view) → the
+  owning repo's docs.
+
+Status and dates matter more than prose: an entry that no longer holds is
+marked *Superseded* with a pointer, never deleted.
+
 **Status legend.** **Open**: under discussion. **Decided**: agreed, not yet live
 in production. **In effect**: live in production. **Superseded**: replaced by a
 later entry, kept for history.
@@ -116,15 +141,6 @@ data: this repository is public.
 | 2026-09-04 | No GT tax fallback (loud NULL); representative estimate = signed > approved > newest; the watts formula has one home. | In effect | [entry](#e-loud-null) |
 | 2026-09-25 | Each country has one NA department and municipality for "no real location", sorted last. | In effect | [entry](#e-na-placeholders) |
 | 2026-10-16 | Multi-unit residential clients are sector 3 (commercial), not 10. | In effect | [entry](#e-sector-3) |
-
-### Project-specific rulings
-
-| Date | Rule | Status | Entry |
-|---|---|---|---|
-| 2026-05-14 | Maintenance rate comes from the DB lookup, not the Golden Copy (0.15 % vs 0.20 % in the ESQUISOLAR case). | In effect | [entry](#e-maintenance-rate-correction) |
-| 2026-08-25 | 1499-01: negotiated payoff adenda, flat Q200,000 in August then four Q152,500 cuotas to Dec 2026. | In effect | [entry](#e-1499-01) |
-| 2026-09-01 | 810-07: six-month interest-free holiday Mar–Aug 2026; the original schedule resumes Sep 2026. | In effect | [entry](#e-810-07) |
-| 2026-09-29 | 1037-01: one extra interest-free grace month; the whole schedule slides to Dec 2026 – Nov 2031. | In effect | [entry](#e-1037-01) |
 
 ## Open questions
 
@@ -681,34 +697,6 @@ field. Backfill is needed; tracked separately.
 
 **Status.** Superseded by 2026-07-09 (manual fallback removed). The SMOD 11/12 boundary is unchanged.
 
-<a id="e-esquisolar-margin"></a>
-### 2026-05-14 · ESQUISOLAR partner margin (data correction)
-
-> **Superseded by 2026-10-01 / 2026-10-09 (confirmed Jake, 2026-10-20).** Provider margins no longer exist; ESQUISOLAR carries a 3 % Socio discount on its terms row and the 12 % config default applies on Albedo-cartera deals.
-
-**Decision.** ESQUISOLAR's margin is **3%** (per the `providers` table),
-not 5% (used in some Golden Copy explorations).
-
-**Why.** The 5% value was Ian using a margin override in the Golden Copy
-spreadsheet to explore alternative pricing. Production data has 3% and
-that's the value to use.
-
-
-**Status.** Superseded by 2026-10-01 / 2026-10-09.
-
-<a id="e-maintenance-rate-correction"></a>
-### 2026-05-14 · Maintenance rate (data correction)
-
-**Decision.** Maintenance rate for this provider/region pulls from the DB
-lookup (`getMaintenanceRate`). Current value 0.15% for the ESQUISOLAR
-case; Golden Copy was using 0.20% (likely rounding).
-
-**Why.** The DB rate is the source of truth (it's per-provider/region).
-Golden Copy was using a generic 0.20% for exploration.
-
-
-**Status.** Data correction; historical.
-
 <a id="e-useful-life-30"></a>
 ### 2026-05-23 · Project useful life fixed at 30 years for impact reporting
 
@@ -996,43 +984,6 @@ one timeline — no month covered by two quotes, no gap at the seam.
 
 
 **Status.** In effect.
-
-<a id="e-810-07-july"></a>
-### 2026-07-21 — 810-07 addendum: QB rows verbatim, grace 5→12 (pure deferral)
-
-> **Superseded by 2026-09-01.** This version was never signed; the signed adenda is the six-month holiday (first payment September 2026, invoiced and paid; confirmed Ian 2026-10-20).
-
-
-**Decision.** The 810-07 addendum restates the original QB contract's payment
-breakdown **exactly** — 48 paying months of Q3,470.14 lease (first row
-3,470.13, QB's own rounding) + Q109.89 insurance, IVA 12% → Q4,009.63/month
-all-in, asset transfer Q1,067.83 in the final row — with the grace period
-extended from 5 to 12 months (paying window moves Mar 2026–Feb 2030 →
-Oct 2026–Sep 2030). The 7 extra grace months are a **pure deferral**: the
-balance freezes at Q115,691.68 (the original post-grace balance) with zero
-interest accrual — Albedo absorbs the year of financing, the client's total
-obligation is unchanged. The legal fee is excluded (paid Sep 2025 under the
-original contract).
-
-**Why.** The calc engine cannot reproduce another engine's rows (its own rate
-solve, insurance and rounding differ), so a re-generated offer at the same
-Q4,009.63 total produced a different internal breakdown and, at "plazo 53",
-only 41 paying months instead of 48. The client agreed to the *original
-numbers, later* — so the offer is hand-crafted from the imported original
-schedule (monthly_cash_flows of quote 33884), not engine-generated. The
-capitalizing alternative (engine offer at 12-month grace, higher payments)
-was considered and rejected in favor of matching the QB contract exactly.
-
-**Where.** Quote 20 (`810-07-04-03`) + quote_offer 1261 (single manual cell,
-`calc_engine_version = 'manual-addendum-restatement'`), created by
-`albedo-automations-infra/database/migrations/2026-07-21-810-07-addendum-restated-offer.sql`.
-Cash flows materialize from this variant at sign time; supersession of quote
-33884 then follows the seam ruling above with the seam re-stamped to
-2025-10-01 (keeps the paid legal fee active, nullifies the forgiven
-Mar–Jul 2026 rows).
-
-
-**Status.** Superseded by 2026-09-01 (never signed).
 
 <a id="e-bombeo-sole-load"></a>
 ### 2026-07-22 — Bombeo Solar - Offgrid: cuarto tipo de sistema, bomba como carga única — SUPERSEDED (same day, see entry above)
@@ -1464,64 +1415,6 @@ readers of `quotes.contract_signing_date` (dbt `mart_debita_snapshots`,
 
 **Status.** In effect. The legacy quote-column fallback was removed by 2026-10-02.
 
-<a id="e-1499-01"></a>
-### 2026-08-25 · 1499-01 payoff restructure: manual addendum, two August rows, totals win
-
-**Decision.** 1499-01 (five-plus invoices in arrears) gets a negotiated payoff
-adenda ending Dec 2026, built by hand because the schedule is not
-engine-producible. Final figures, after Finanzas' corrections of 2026-08-28:
-
-- **Arrears stay on the old contract's still-active rows.** The Q88,087.10
-  vencido is a collection target against the existing Zoho invoices (1900,
-  2996), not a new cash-flow row.
-- **The old Aug-1 cuota is nullified** (row seam backdated to 2026-07-31; the
-  quote keeps the legal signing date 2026-08-08) and replaced by an extra
-  August payment on Aug 1 of **99,922.23 sin IVA** (seguro 735.00 + principal
-  99,187.23; Q111,912.90 con IVA). August therefore collects a flat
-  **Q200,000.00** = 88,087.10 vencido + 111,912.90.
-- **Sep–Dec 2026:** four cuotas of 135,425.71 + seguro 735.00 =
-  **Q152,500.00 con IVA** each, with declining interest 2,192.42 / 1,647.66 /
-  1,100.68 / 551.46 (recovered from the penny-exact principal cells; the
-  sheet's interest column is display-rounded). Book 635,397.85 → 0.00 in
-  December; interest income 5,492.22; write-down vs the Jul-2026 book
-  (699,300.66) = 63,902.81.
-- Where the negotiation sheet's component splits disagree with its own
-  totals (its IVA math mixes 12 %-of-gross with 12/112), the **negotiated
-  totals win** and components are rebased.
-- The adenda rows number 17–21 after 16 active old rows, matching the sheet.
-  `double_billed_month` was refined to permit deliberate seam-month extras
-  (infra `database/addendum-supersession.md`).
-
-**Amendment trail.** 2026-08-25 first cut (extra payment modeled as an
-enganche, flat interest 3,053) and a same-day amendment (normal cuota,
-principal 99,922.23); 2026-08-28 Finanzas revision (81,513.82, superseded
-within the day); 2026-08-28 final with declining interest (above); same day,
-the old Aug-1 cuota nullified. Each step was its own migration.
-
-**Why.** The schedule is not engine-producible (flat fixed interest,
-zero-interest enganche month, 4-month tail), so it follows the legacy
-hand-crafted-chain pattern (541-02) — but with full FK linkage and the
-standard `supersede_addendum_chain` RPC so the health view, APD tabs, and
-contract dedupe all keep working. Keeping the arrears on the old rows avoids
-voiding/re-issuing the Zoho invoices that already exist (1900, 2996).
-Alternative considered and rejected: writing the Vencido row into the new
-schedule with a backdated seam — cleaner sheet-match, but double-invoices
-Mar/Apr and detaches the Feb partial payment from its row.
-
-**Known residual.** Old active rows carry Q41,234.84 more scheduled-unpaid
-than the negotiated arrears figure (sheet credits the Feb 15,000 against
-Mar–Jul and skips one month vs. the DB's ledger; the Dec-2025 row has a
-paid amount with NULL date). After the client pays Q88,087.10, that residual
-still shows overdue until Finanzas reconciles or writes it off.
-
-**Where.** Migrations `2026-08-25-1499-01-addendum-restructure.sql`,
-`2026-08-28-1499-01-revised-addendum-values.sql`,
-`2026-08-28-1499-01-final-negotiated-values.sql`,
-`2026-08-28-1499-01-nullify-old-august-cuota.sql`; CHANGELOG entries same
-dates. Source sheet: Drive `1WqM6qzd9ww1VJmRDIYK6NwC_LetsdFBi` cols E–J.
-
-**Status.** In effect (applied 2026-08-25, final values 2026-08-28). Residual Q41,234.84 scheduled-unpaid above the negotiated arrears, pending Finanzas (Loose Ends).
-
 <a id="e-project-date-one-rule"></a>
 ### 2026-08-26 · project_date: one rule everywhere (cutover applies to all surfaces)
 
@@ -1580,32 +1473,6 @@ materialization (already live). Census + rewrite: dbt repo
 AUDIT-2026-08.md, Phase 2.
 
 **Status.** In effect. Consequence 1 means new continuity imports write the row; frozen legacy schedules get it derived at read time (2026-09-30). Wording settled 2026-10-20.
-
-<a id="e-810-07"></a>
-### 2026-09-01 · 810-07 adenda: six-month interest-free payment holiday
-
-**Decision.** 810-07 (in arrears since its first real cuota) gets an adenda signed 2026-08-17: Mar–Aug 2026 become a payment
-holiday with the balance FROZEN at 115,691.68 (no interest accrual during
-the holiday), and the original 48-cuota schedule resumes Sep 2026
-cent-for-cent identical, ending Aug 2030 (6 months later than the original
-Feb 2030). Grace-period history (Oct 2025–Feb 2026) unchanged.
-
-**Why.** Client couldn't start paying in March as contracted; renegotiated
-as a shift rather than a restructure of amounts. Albedo forgoes holiday
-interest (~11.2k at the prior capitalization pace) and delays all cash
-flows 6 months. Source: Finanzas' "Soporte de Adendas Agosto 2026.xlsx",
-tab "Con Adenda 810-07" (the Sep-2026 interest cell equals the old
-Mar-2026 interest — proof the balance is frozen, not capitalizing).
-
-**Where.** Migration `2026-09-01-810-07-addendum-payment-holiday.sql`
-(1499-01 manual-restructure playbook: hand-written rows, FK linkage, row
-seam 2026-02-28 vs quote stamp 2026-08-17). The dead 2026-07-21 wizard
-attempt's addendum linkage (quotes 20, 1000488) was cleared in the same
-migration. Zoho credit notes for the four posted Mar–Jun invoices are
-Finanzas' follow-up.
-
-
-**Status.** In effect (applied 2026-09-01). The four Mar–Jun invoices were settled by credit or voided in Zoho by 2026-10-16.
 
 <a id="e-loud-null"></a>
 ### 2026-09-04 · Equipment-derived views: loud NULL over GT default; representative estimate = signed > approved > recent; watts formula gets one home
@@ -1951,38 +1818,6 @@ NULL poverty/rural flags, so impact metrics treat them as unknown, not "no".
 commit 74f29573).
 
 **Status.** In effect.
-
-<a id="e-1037-01"></a>
-### 2026-09-29 · 1037-01 adenda: one extra interest-free grace month, first cuota moves to December
-
-**Decision.** 1037-01 gets Adenda
-No. 1: November 2026 becomes a fourth grace month, **interest-free**, and the
-whole 60-cuota schedule of Q2,734.27 + Q114.60 seguro slides one month later —
-Dec 2026 – Nov 2031 instead of Nov 2026 – Oct 2031 — cent-for-cent identical,
-final row still folding in the Q1,113.66 opción de compra. The Aug-2026 head
-row (Q11,136.64 enganche + Q2,098.21 gastos legales) and the Sep/Oct grace
-months are untouched.
-
-**Why.** Sales negotiated an extra month of grace before the client's first
-payment (infra issue #517). Ian: "this addendum does not modify the amounts of
-the contract, but only the payment plan" — and the adenda's own table proves
-it, totalling Q178,404.71 cuota solar + Q6,876.00 seguro (sin IVA), exactly the
-original contract's totals. So the extra month does **not** capitalize the way
-the original Aug–Oct grace months did: Albedo absorbs Q1,688.03 of interest
-(≈Q4,383 compounded to maturity) rather than repricing the cuota or extending
-the term. Same shape as the 810-07 holiday (2026-09-01 entry) — a shift, not a
-restructure of amounts. Source: the signed adenda document (Drive `1EfZXR4caV98G-dOJlltG1lRS9yT-9a43`), dated 2026-09-29.
-
-**Where.** Migration `2026-09-29-1037-01-addendum-extra-grace-month.sql`
-(1499-01 / 810-07 manual-restructure playbook: hand-written rows generated from
-the live flows, full FK linkage, row seam 2026-10-31 vs quote stamp 2026-09-29,
-Model B contracts row with the consolidated 64-row timeline).
-
-chain health clean). The consolidated `v_cash_flows` timeline for project 888
-reproduces the adenda's 64-line plan exactly: Q178,404.71 cuota solar +
-Q6,876.00 seguro, sin IVA.
-
-**Status.** In effect (applied 2026-09-29). Finanzas still to confirm the absorbed Q1,688 (Loose Ends).
 
 <a id="e-canonical-cash-flows"></a>
 ### 2026-09-30 · One canonical cash-flows view; the month-0 table backfill is shelved
