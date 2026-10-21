@@ -59,6 +59,7 @@ data: this repository is public.
 | 2026-05-14 | The cash-flow legal fee column is sin IVA. | In effect | [entry](#e-legal-fee-sin-iva) |
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
 | 2026-09-15 | The legal fee is an Albedo cost (in `predebt_cost_sin_iva` and `expense_services`) as well as client income. | In effect | [entry](#e-legal-fee-is-cost) |
+| 2026-10-21 | Two free years of maintenance by default (charges start year 3); a rep may shorten it per deal on the estimate form. | In effect | [entry](#e-free-maintenance-years) |
 
 ### Cash flows, schedules and adendas
 
@@ -129,7 +130,7 @@ data: this repository is public.
 
 | Since | Question | Status | Entry |
 |---|---|---|---|
-| 2026-05-13 | Adjustable maintenance guarantee period per quote. | Open ⚠️ [#12](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-maintenance-guarantee) |
+| 2026-05-13 | Adjustable maintenance guarantee period per quote. | Closed 2026-10-21 (exists: the estimate dropdown; rule logged 2026-10-21) | [entry](#e-maintenance-guarantee) |
 | 2026-05-14 | Is commission part of the retail the client pays? | Closed 2026-10-20 (no, since 2026-09-15) | [entry](#e-commission-in-retail-open) |
 | 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
 | ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Closed 2026-10-19 (moot) | [entry](#e-open-mixed-commission) |
@@ -441,7 +442,7 @@ derived from contract data).
 <a id="e-maintenance-guarantee"></a>
 ### 2026-05-13 · Maintenance guarantee period adjustability
 
-> ⚠️ **Conflict #12** (never implemented; still wanted?): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
+> **Closed 2026-10-21 (Jake): done.** The per-quote adjustment exists as the estimate form's "Mantenimiento empieza a cobrarse en" dropdown; the standing rule is the 2026-10-21 entry.
 
 **Decision.** Allow the maintenance "guarantee period" (window during which
 Albedo covers maintenance) to be adjusted per quote. Tracked as a separate
@@ -450,7 +451,7 @@ concept from the grace period.
 **Where.** Not yet implemented. Tracked under Task #6.
 
 
-**Status.** Open (never implemented).
+**Status.** Closed 2026-10-21: implemented as the estimate dropdown; see 2026-10-21.
 
 <a id="e-impact-discount"></a>
 ### 2026-05-13 · Impact discount formula
@@ -2208,6 +2209,33 @@ engine `getActiveConfig` (`_shared/quote-helpers.ts`); admin page
 `/quote-config-admin` (edits the one row). Infra CHANGELOG 2026-10-20.
 
 **Status.** In effect since 2026-10-20.
+
+<a id="e-free-maintenance-years"></a>
+### 2026-10-21 · Two free years of maintenance by default; a rep may shorten it per deal
+
+**Decision.** (Jake, closing the May open item.) A financed client gets the
+first two annual maintenance visits at no charge: maintenance enters the
+schedule from month 36 (engine default, the estimate form's "Año 3
+(predeterminado)"). A rep may shorten the free window for a specific deal
+by choosing Año 1 or Año 2 on the estimate form; that is the only per-quote
+adjustment and it is deliberate. The client's maintenance payment is the
+visit costs with the 30 % markup spread flat over every cuota after grace,
+so the free years lower the monthly amount rather than removing it (by
+design). The visit calendar is dated from Cambio de Medidor regardless.
+
+**Why.** The May 2026 request for an adjustable guarantee period was met by
+the dropdown; nobody closed the item. The config column
+`maintenance_free_period_months` (24) was never read by the engine and was
+dropped on 2026-10-20, so the form is the one place the window is set.
+
+**Where.** Engine `resolveMaintenanceStartMonth` (`_shared/quote-helpers.ts`:
+request override → `estimates.maintenance_start_year × 12` → 36);
+`MaintenanceInsuranceSection` dropdown; visit costs mapped per contract year
+in `_shared/maintenance/seed.ts`. Measured 2026-10-20 on 230 projects: 128
+two free, 14 one free, 61 none (mostly legacy schedules), 24 never charged
+(Loose Ends).
+
+**Status.** In effect.
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
