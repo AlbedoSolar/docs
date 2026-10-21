@@ -80,7 +80,7 @@ data: this repository is public.
 |---|---|---|---|
 | ~2026-02 | Honduras invoices are due on the 10th of the cash-flow month (for DPD). | In effect | [entry](#e-hn-due-date) |
 | 2026-04-13 | Production start = installation end, else install start + 1 month (never before signing), else signing + 2 months. | In effect | [entry](#e-production-start) |
-| 2026-07-27 | Pre-2026 projects are closed via milestone #14 at the meter-change date, else 2025-12-31. | In effect ⚠️ [#11](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596) | [entry](#e-cierre-operativo) |
+| 2026-07-27 | Pre-2026 projects are closed via milestone #14 at the meter-change date, else 2025-12-31. | In effect | [entry](#e-cierre-operativo) |
 | 2026-07-29 | Project date: the signing date from 2025-11-01 on, the first payment date before. | In effect | [entry](#e-project-date-cutover) |
 | 2026-08-25 | Project signing date = the original client contract's `signed_on`, never an adenda's. | In effect | [entry](#e-signing-date-original) |
 | 2026-08-26 | One `project_date` rule on every surface: override → signing date (from 2025-11-01) → first payment date. | In effect | [entry](#e-project-date-one-rule) |
@@ -1171,7 +1171,6 @@ removed. Filterable as "Vigencia Seguro" on the ops projects page.
 <a id="e-cierre-operativo"></a>
 ### 2026-07-27 — Cierre operativo for pre-2026 projects = milestone #14; 'Instalado' override retired
 
-> ⚠️ **Conflict #11** (1080-02 has no meter-change date at all today): see [the conflicts issue](https://github.com/AlbedoSolar/albedo-automations-infra/issues/596).
 
 **Decision (Jake, with Fernanda's rule from the 2026-07-22 Release 1 meeting).**
 Pre-2026 projects get a real fecha de cierre operativo instead of a display
@@ -1193,8 +1192,8 @@ dates, 12 fallback). Override removed from `v_project_milestone_stage` and the
 three `computeEstado` TS mirrors (quotes-app, solar_base_frontend, supabase
 `_shared/governance`); `governance-milestones` edge function redeployed.
 
-**Data note.** 1080-02 has meter_change_date 2027-07-25 (future — typo); it
-took the fallback. Correct the meter date, then update its milestone.
+**Data note.** 1080-02 took the fallback because its meter-change date was a
+future-dated typo; the fix is tracked on Loose Ends (infra #587), not here.
 
 Activo / 33 Medidor Bidireccional Instalado / 18 sin actividad / 22 others).
 
