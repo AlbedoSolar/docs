@@ -141,6 +141,8 @@ data: this repository is public.
 | 2026-09-04 | No GT tax fallback (loud NULL); representative estimate = signed > approved > newest; the watts formula has one home. | In effect | [entry](#e-loud-null) |
 | 2026-09-25 | Each country has one NA department and municipality for "no real location", sorted last. | In effect | [entry](#e-na-placeholders) |
 | 2026-10-16 | Multi-unit residential clients are sector 3 (commercial), not 10. | In effect | [entry](#e-sector-3) |
+| 2026-10-21 | Quote status transitions have one home: service_role code (`approve-quote-variant`, `disapprove-quote-variant`, `set-quote-status`, the contract-generator, `annul_project()`), enforced by column grants on `quotes.status`. | Decided | [entry](#e-quote-status-one-home) |
+| 2026-10-21 | Database code computes nothing; it may refuse a write that breaks an invariant (RLS, grants, raising triggers) and may cascade only in an audit-only or ruled-and-documented trigger. | In effect | [entry](#e-db-compute-refuse-cascade) |
 
 ## Open questions
 
@@ -2069,6 +2071,80 @@ request override → `estimates.maintenance_start_year × 12` → 36);
 in `_shared/maintenance/seed.ts`. Measured 2026-10-20 on 230 projects: 128
 two free, 14 one free, 61 none (mostly legacy schedules), 24 never charged
 (Loose Ends).
+
+**Status.** In effect.
+
+<a id="e-quote-status-one-home"></a>
+### 2026-10-21 · Quote status transitions have one home: service_role code, enforced by column grants on `quotes.status`
+
+**Decision.** (Jake, 2026-10-21.) `quotes.status` is written only by
+service_role code: `approve-quote-variant` (into approved),
+`disapprove-quote-variant` (approval withdrawn by offer), `set-quote-status`
+(the remaining transitions: pending → rejected | cancelled; approved →
+rejected | cancelled | pending; rejected → pending | cancelled), the
+contract-generator Lambda (into signed) and `annul_project()` (into
+annulled). No browser session writes the column: the `authenticated` role
+loses INSERT and UPDATE on `quotes.status` through Postgres column-level
+grants (every other column stays writable), so the database refuses the
+write rather than trusting every screen to remember the rule. A new column
+on `quotes` must be granted to `authenticated` in the migration that adds
+it. Supersedes the project page's direct status write (the "Acciones"
+dropdown, which also offered "Aprobar"); no earlier entry covered it.
+Complements the 2026-07-24 entry on what `status` means.
+
+**Why.** Two paths wrote the same column. The function path enforces one
+approved quote per project, the signed-block and the addendum linkage,
+stamps `approved_at` / `approved_by`, copies the offer's solved rate onto
+the quote (contract-rate ruling 2026-08-26) and marks the offer. The
+dropdown path skipped all of it: a contado quote on project 1835-01 was
+"approved" there on 2026-10-15 and never reached the Finanzas Diligencia
+page. Since June 2026, 111 transitions into approved: 69 through the
+function, 42 direct (37 June/July imports and scripts, 5 from the
+dropdown). RLS cannot express "this column, not this row", so the grant is
+the enforcement and the functions are the only writers left.
+
+**Where.** supabase repo: edge function `set-quote-status` (rule and tests
+in `_shared/quote-status-transitions.ts`), migration
+`20261021180000_quotes_status_column_grant.sql` (AlbedoSolar/supabase#59);
+project page `ActiveProjectDetails.handleStatusChange`
+(AlbedoSolar/solar_base_frontend#50, mirror
+AlbedoSolar/albedo-automations-infra#606); infra
+`database/policies/signed-protection.md` → "Column grants" and the
+CHANGELOG 2026-10-21 entry (AlbedoSolar/albedo-automations-infra#607).
+
+**Status.** Decided 2026-10-21; in effect once the migration is applied
+(after the function and the frontend ship).
+
+<a id="e-db-compute-refuse-cascade"></a>
+### 2026-10-21 · Database code computes nothing; it may refuse, and may cascade only when audit-only or ruled and documented
+
+**Decision.** (Jake, 2026-10-21.) Three verbs decide what belongs in
+Postgres code. **Compute** — never: derived values live in views, edge
+functions or dbt (the four homes in `architecture/`), not in functions or
+triggers. **Refuse** — yes: the database may reject a write that would break
+an invariant, through RLS, column grants, constraints or a trigger that
+raises. **Cascade** — only when the cascade is audit-only (it records, it
+changes no business data) or when the rule it applies has been ruled and is
+documented in infra `database/triggers/`. Every new trigger justifies itself
+against this before it is written; "it is convenient" is not a
+justification. The cascade triggers that exist today are grandfathered and
+listed in infra `database/triggers/`: workflow-status promotion
+(`trg_quotes_promote_project_workflow`, `trg_estimates_promote_project_workflow`),
+maintenance seeding at Cambio de Medidor, and change tracking
+(`trg_track_changes_*`, the audit log).
+
+**Why.** Each trigger is a place where a write does more than it says; the
+cost shows up as a report that disagrees with a screen, or a backfill that
+fires side effects nobody intended. The repo rule "logic lives in code, not
+in Postgres" already names the allowed exceptions; this entry states the
+test behind them so the next trigger is argued the same way. The
+`quotes.status` ruling above is the refuse case: the grant says no, the
+code does the work.
+
+**Where.** Repo rules: supabase and infra `CLAUDE.md` ("Logic lives in code,
+not in Postgres"); infra `database/triggers/README.md` (trigger policy and
+the current list); this log for the grandfathered cascades
+(workflow-status promotion 2026-07-13, maintenance anchor 2026-10-12).
 
 **Status.** In effect.
 
