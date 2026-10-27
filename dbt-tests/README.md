@@ -48,6 +48,9 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_data_consistency_invariants](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_data_consistency_invariants.sql) | Hard invariants from the July 2026 data review: a signed quote carries a signing date (A1), retail > 0 (A4), at most one signed original quote per project (B3). | error | [entry](#t-data-consistency-invariants) |
 | [test_electricity_price_in_plausible_band](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_electricity_price_in_plausible_band.sql) | Signed projects whose electricity price, in USD, is outside 0.08–0.60 per kWh. | warn (flip to error once infra #491 is closed) | [entry](#t-electricity-price-in-plausible-band) |
 | [test_every_signed_estimate_has_escalation_rate](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_every_signed_estimate_has_escalation_rate.sql) | Every signed estimate with panels resolves an electricity price inflation rate inside the sane band. | error | [entry](#t-every-signed-estimate-has-escalation-rate) |
+| [test_country_carbon_assumptions_in_band](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql) | `countries` carries the four CO2 inputs (gross grid factor, panel lifecycle factor, decarbonization rate, base year) and each sits in a plausible band. | error | [entry](#t-country-carbon-assumptions-in-band) |
+| [test_rural_area_follows_gps](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql) | Every signed project's `rural_area` in the impact mart equals the GPS rule on the site's density code; the manual flag is never used. | error | [entry](#t-rural-area-follows-gps) |
+| [test_vi_base_matches_impact_mart](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql) | The Valuing Impact input table agrees row for row with the impact mart on rural, kW and net savings, and stays inside VI's vocabulary. | error | [entry](#t-vi-base-matches-impact-mart) |
 | [test_panel_degradation_in_range](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_panel_degradation_in_range.sql) | Solar panels have `annual_depreciation_percentage` in 0–0.02 and `first_year_production_loss_percentage` in 0–0.10 (fractions). | error | [entry](#t-panel-degradation-in-range) |
 | [test_signed_projects_have_sector](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_projects_have_sector.sql) | Every signed project has a `project_sector_id`. | error | [entry](#t-signed-projects-have-sector) |
 | [test_backup_tables_expired](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_backup_tables_expired.sql) | Lists safety-copy tables (`_backup_YYYYMMDD_*`, `*_backup_YYYYMMDD`, `*_snapshot_YYYYMMDD`) older than 30 days. | warn | [entry](#t-backup-tables-expired) |
@@ -104,6 +107,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_payments_cover_amount_paid](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql) | Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` (cash received) by more than 10 in the invoice's currency. | warn | [entry](#t-zoho-payments-cover-amount-paid) |
 | [test_zoho_invoice_settlement_adds_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoice_settlement_adds_up.sql) | For sync-sourced invoices whose detail was read: `total − balance` = cash received + credits applied + written off + tax withheld, within 1.00. A zero balance is not proof of cash. | warn | [entry](#t-zoho-invoice-settlement-adds-up) |
 | [test_zoho_credit_applications_add_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql) | The credit-note applications stored for an invoice (`zoho_credit_note_invoices`) add up to the credits Zoho reports on the invoice (`credits_applied`), within 0.10. | warn | [entry](#t-zoho-credit-applications-add-up) |
+| [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
+| [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
 
 ### Generic column tests (schema.yml)
 
@@ -345,6 +350,45 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows (2026-09-21). **Related.** Decisions log 2026-09-19.
 
 **Source.** [`main/tests/tests_on_static_tables/data_health/test_every_signed_estimate_has_escalation_rate.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_every_signed_estimate_has_escalation_rate.sql)
+
+<a id="t-country-carbon-assumptions-in-band"></a>
+### test_country_carbon_assumptions_in_band
+
+**Checks that.** The three operating countries carry all four CO2 inputs on `countries` — gross grid factor incl. upstream (0.30–1.20 t/MWh), panel lifecycle factor (0.02–0.12), decarbonization rate (0–3 %/yr), base year (2020–2035).
+
+**Why it exists.** Every CO2 figure Albedo publishes is kWh × these four numbers (Valuing Impact method, adopted 2026-10-20). One wrong or missing value moves every impact report at once; a percent typed into the rate field (0.5 instead of 0.005) is the 2026-09-18 panel-degradation incident again.
+
+**When it fails.** Check the `countries` row and the last migration that set it (`database_change_log`). The fix is the value, never the test.
+
+**Severity.** error. **Baseline.** 0 rows (2026-10-20). **Related.** Decisions log 2026-10-20 "CO2 avoided follows the Valuing Impact method".
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql)
+
+<a id="t-rural-area-follows-gps"></a>
+### test_rural_area_follows_gps
+
+**Checks that.** For every signed project, `rural_area` in the impact mart equals the GPS rule on the site's GHS-SMOD code: 11 or 12 = rural, any other code = urban, no coordinates = Not Sure. The manual flag on the project is never used.
+
+**Why it exists.** The rule has been in force since 2026-07-09, but a September 2026 export to Valuing Impact was built from the manual flag and showed 37 rural projects where the GPS rule gives 105. The marts were right; this test keeps them right, and the VI export is now a model downstream of them.
+
+**When it fails.** Someone changed the derivation in the impact mart. Restore the rule; do not edit project rows. A project with no coordinates stays Not Sure until ops captures them.
+
+**Severity.** error. **Baseline.** 0 rows (2026-10-26, 306 signed projects, 277 with coordinates). **Related.** Decisions log 2026-07-09; infra #616 (retire the manual flags).
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql)
+
+<a id="t-vi-base-matches-impact-mart"></a>
+### test_vi_base_matches_impact_mart
+
+**Checks that.** The Valuing Impact input table (`mart_vi_base_de_datos_impacto`) has the same projects as the impact mart, the same kW, net savings equal to lifetime savings minus total paid, and an Ámbito territorial that is Rural, Urbana or Pendiente and matches the GPS-derived field.
+
+**Why it exists.** That table is what Valuing Impact's societal-value model runs on. If it drifts from the impact mart, Albedo publishes two different portfolios. It replaces the hand-built export that caused the rural mismatch.
+
+**When it fails.** Fix the mapping in the model; never patch the exported file by hand.
+
+**Severity.** error. **Baseline.** 0 rows (2026-10-26). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact input table".
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql)
 
 <a id="t-panel-degradation-in-range"></a>
 ### test_panel_degradation_in_range
@@ -821,6 +865,31 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** warn. **Baseline.** 2026-10-21: 0 after the first full credit-note run.
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql)
+<a id="t-zoho-snapshot-is-current"></a>
+### test_zoho_snapshot_is_current
+
+**Checks that.** Every `public.zoho_invoices` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, due date, last payment date, cash received, credits applied, write-off) equal the table.
+
+**Why it exists.** The loan tape reads invoice state *as of a date* from this history (infra #541). The nightly runs `dbt snapshot --select snapshot_zoho_invoices` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to `zoho_invoices` in between.
+
+**When it fails.** `dbt snapshot --select snapshot_zoho_invoices` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log` (dbt `main/OPERATIONS.md`, "Zoho invoice history").
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-21, after the seed). **Related.** `test_zoho_sync_ran_last_night`.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql)
+
+<a id="t-zoho-snapshot-one-open-version-per-invoice"></a>
+### test_zoho_snapshot_one_open_version_per_invoice
+
+**Checks that.** No invoice has more than one open version, and no two versions of the same invoice overlap in time, in `snapshots.snapshot_zoho_invoices`.
+
+**Why it exists.** "State as of D" picks the version whose validity interval holds D; two open or overlapping versions make the answer ambiguous and double every as-of join. Happens if the seed is run twice, a hand-run `dbt snapshot` overlaps the nightly, or `zoho_invoice_number` stops being unique.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time, and find what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-21).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql)
 
 ---
 

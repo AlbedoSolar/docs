@@ -27,7 +27,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 
 | Table | INSERT | UPDATE | DELETE | Signed Protection |
 |---|---|---|---|---|
-| `quotes` | sales, admin | sales, finances, admin | sales, admin | Yes — quote with status `signed` or `signed_and_addended` is immutable |
+| `quotes` | sales, admin | sales, finances, admin | sales, admin | Yes — quote with status `signed` or `signed_and_addended` is immutable. `status` itself is not writable by any browser role once the 2026-10-21 column grant is applied: transitions go through `set-quote-status`, `approve-quote-variant`, `disapprove-quote-variant`, the contract flow and `annul_project()` (decisions log, 2026-10-21). |
 | `estimates` | sales, admin | sales, admin | sales, admin | Yes — estimate with any signed quote is immutable |
 | `estimate_equipment` | sales, admin | sales, admin | sales, admin | Yes — inherits from parent estimate |
 | `estimate_affiliates` | sales, admin | sales, admin | sales, admin | Yes — inherits from parent estimate |
