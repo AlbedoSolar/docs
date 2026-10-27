@@ -104,7 +104,9 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_payments_point_at_an_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_point_at_an_invoice.sql) | Every sync-written payment names an invoice that exists in `zoho_invoices` ("Saldo de inicio del cliente" excepted: it is the opening balance, not an invoice). | error | [entry](#t-zoho-payments-point-at-an-invoice) |
 | [test_zoho_project_links_agree](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_project_links_agree.sql) | The three copies of "which project does this invoice belong to" (`invoice_project_map`, `zoho_invoices`, `lease_payments`) agree for sync-written rows, and the invoice's project exists with the right reference. | error | [entry](#t-zoho-project-links-agree) |
 | [test_zoho_invoices_without_project](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoices_without_project.sql) | Lists invoices the sync read in full but could not link to a project (void excluded). | warn | [entry](#t-zoho-invoices-without-project) |
-| [test_zoho_payments_cover_amount_paid](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql) | Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` by more than 10 in the invoice's currency. | warn | [entry](#t-zoho-payments-cover-amount-paid) |
+| [test_zoho_payments_cover_amount_paid](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql) | Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` (cash received) by more than 10 in the invoice's currency. | warn | [entry](#t-zoho-payments-cover-amount-paid) |
+| [test_zoho_invoice_settlement_adds_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoice_settlement_adds_up.sql) | For sync-sourced invoices whose detail was read: `total − balance` = cash received + credits applied + written off + tax withheld, within 1.00. A zero balance is not proof of cash. | warn | [entry](#t-zoho-invoice-settlement-adds-up) |
+| [test_zoho_credit_applications_add_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql) | The credit-note applications stored for an invoice (`zoho_credit_note_invoices`) add up to the credits Zoho reports on the invoice (`credits_applied`), within 0.10. | warn | [entry](#t-zoho-credit-applications-add-up) |
 | [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
 | [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
 
@@ -830,7 +832,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 **Checks that.** Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` by more than 10 in the invoice's currency.
 
-**Why it exists.** A gap is not always a missing payment: credits and write-offs reduce what is owed without being payments, and the sync does not load those.
+**Why it exists.** A gap is not always a missing payment: `amount_paid` is cash only (credits and write-offs are their own columns since 2026-10-21; see `test_zoho_invoice_settlement_adds_up`), and a payment entered against the customer's opening balance never reaches the invoice.
 
 **When it fails.** Open the invoice in Zoho and read its payment history; if a payment is there and not here, re-run the sync and report it.
 
@@ -838,6 +840,31 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql)
 
+<a id="t-zoho-invoice-settlement-adds-up"></a>
+### test_zoho_invoice_settlement_adds_up
+
+**Checks that.** For sync-sourced, non-void invoices whose detail has been read (`amount_paid IS NOT NULL`): `total − balance` equals `amount_paid` (cash received) + `credits_applied` + `write_off_amount` + the tax the client withheld (`lease_payments.withholding_tax_amount`), within 1.00 in the invoice's currency.
+
+**Why it exists.** A credit note zeroes an invoice's balance in Zoho exactly like a payment does, with `payment_made = 0` (810-07's adenda holiday months, 2026). The loan tape must count that as a credit, not cash, and these four columns are the only way to tell. A row here means the detail read is stale or Zoho settled the invoice some way we do not store.
+
+**When it fails.** `UPDATE zoho_invoices SET lines_synced_at = NULL WHERE zoho_invoice_number = '…';` and wait for the next sync run (or run it by hand: infra `05-payments-sync-operations.md`). If it persists, the invoice's payment history in Zoho shows what settled it.
+
+**Severity.** warn; becomes error once it has been 0 for two weeks. **Baseline.** 2026-10-21: the 263 invoices queued for re-read by migration `20261020230000` clear over the first nights; expected 0 after that. **Related.** `v_project_payments.settled_by` (same arithmetic, per cuota).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoice_settlement_adds_up.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoice_settlement_adds_up.sql)
+
+<a id="t-zoho-credit-applications-add-up"></a>
+### test_zoho_credit_applications_add_up
+
+**Checks that.** For sync-sourced invoices with a detail read and any credit on either side: the sum of `zoho_credit_note_invoices.amount` for the invoice equals `zoho_invoices.credits_applied`, within 0.10.
+
+**Why it exists.** Two readings of one fact, from two Zoho endpoints (the invoice detail and the credit note detail). They disagree when one side was read and the other not yet, or when a credit note was applied without showing up in the modified-since list.
+
+**When it fails.** Re-run the sync (the credit stage queues the invoice for a re-read the same night). If the gap stays, open the credit note in Zoho and check which invoices it was applied to, then clear the invoice's `lines_synced_at`.
+
+**Severity.** warn. **Baseline.** 2026-10-21: 0 after the first full credit-note run.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql)
 <a id="t-zoho-snapshot-is-current"></a>
 ### test_zoho_snapshot_is_current
 
