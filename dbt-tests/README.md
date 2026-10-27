@@ -104,6 +104,7 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_payments_cover_amount_paid](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql) | Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` by more than 10 in the invoice's currency. | warn | [entry](#t-zoho-payments-cover-amount-paid) |
 | [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
 | [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
+| [test_zoho_snapshot_as_of_one_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_as_of_one_version_per_invoice.sql) | The "as of date D" read the Debita marts use returns exactly one version per invoice at every month-end, today and the tape's report date. | error | [entry](#t-zoho-snapshot-as-of-one-version-per-invoice) |
 
 ### Generic column tests (schema.yml)
 
@@ -821,6 +822,19 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows at creation (2026-10-21).
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql)
+
+<a id="t-zoho-snapshot-as-of-one-version-per-invoice"></a>
+### test_zoho_snapshot_as_of_one_version_per_invoice
+
+**Checks that.** Reading `snapshots.snapshot_zoho_invoices` "as of date D" the way the Debita marts do (the version open at the end of day D, UTC; macro `zoho_invoice_version_as_of`) returns exactly one version per invoice, for each of the last 24 month-ends, today, and the loan tape's `report_date`.
+
+**Why it exists.** Since 2026-10-27 the Debita loan tape (`mart_debita_loan_tape_v2`) and the monthly snapshots (`mart_debita_snapshots`) take invoice status and balance as of their report date from this history instead of the live table (infra #541). Two versions for one date would double that invoice in every mora total and cuota count. The general rule (no two versions overlap) is `test_zoho_snapshot_one_open_version_per_invoice`; this one checks the exact predicate the marts use, at the dates they use, so a change to the macro cannot slip through.
+
+**When it fails.** Each row is an invoice and a date with more than one version. If `test_zoho_snapshot_one_open_version_per_invoice` fails too, repair the history first (keep the version with the latest `dbt_valid_from`, close the others). If only this test fails, the macro's predicate is wrong and the loan tape must not be sent until it is fixed.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-27). **Related.** dbt `main/OPERATIONS.md`, "Zoho invoice history"; infra #541.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_as_of_one_version_per_invoice.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_as_of_one_version_per_invoice.sql)
 
 ---
 
