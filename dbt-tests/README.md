@@ -105,6 +105,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_project_links_agree](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_project_links_agree.sql) | The three copies of "which project does this invoice belong to" (`invoice_project_map`, `zoho_invoices`, `lease_payments`) agree for sync-written rows, and the invoice's project exists with the right reference. | error | [entry](#t-zoho-project-links-agree) |
 | [test_zoho_invoices_without_project](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_invoices_without_project.sql) | Lists invoices the sync read in full but could not link to a project (void excluded). | warn | [entry](#t-zoho-invoices-without-project) |
 | [test_zoho_payments_cover_amount_paid](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql) | Stored payments (applied, or applied + tax withheld) are not short of Zoho's `amount_paid` by more than 10 in the invoice's currency. | warn | [entry](#t-zoho-payments-cover-amount-paid) |
+| [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
+| [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
 
 ### Generic column tests (schema.yml)
 
@@ -835,6 +837,32 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** warn. **Baseline.** 2026-09-29: 2 invoices; 4 on 2026-10-16 (Loose Ends #587). **Related.** Infra docs `05-payments-sync-operations.md` (what amount_paid means).
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_cover_amount_paid.sql)
+
+<a id="t-zoho-snapshot-is-current"></a>
+### test_zoho_snapshot_is_current
+
+**Checks that.** Every `public.zoho_invoices` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, due date, last payment date, cash received, credits applied, write-off) equal the table.
+
+**Why it exists.** The loan tape reads invoice state *as of a date* from this history (infra #541). The nightly runs `dbt snapshot --select snapshot_zoho_invoices` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to `zoho_invoices` in between.
+
+**When it fails.** `dbt snapshot --select snapshot_zoho_invoices` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log` (dbt `main/OPERATIONS.md`, "Zoho invoice history").
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-21, after the seed). **Related.** `test_zoho_sync_ran_last_night`.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql)
+
+<a id="t-zoho-snapshot-one-open-version-per-invoice"></a>
+### test_zoho_snapshot_one_open_version_per_invoice
+
+**Checks that.** No invoice has more than one open version, and no two versions of the same invoice overlap in time, in `snapshots.snapshot_zoho_invoices`.
+
+**Why it exists.** "State as of D" picks the version whose validity interval holds D; two open or overlapping versions make the answer ambiguous and double every as-of join. Happens if the seed is run twice, a hand-run `dbt snapshot` overlaps the nightly, or `zoho_invoice_number` stops being unique.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time, and find what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-21).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql)
 
 ---
 
