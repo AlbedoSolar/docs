@@ -109,6 +109,10 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_credit_applications_add_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql) | The credit-note applications stored for an invoice (`zoho_credit_note_invoices`) add up to the credits Zoho reports on the invoice (`credits_applied`), within 0.10. | warn | [entry](#t-zoho-credit-applications-add-up) |
 | [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
 | [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
+| [test_zoho_payments_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_is_current.sql) | Every `lease_payments` row has exactly one open version in `snapshots.snapshot_lease_payments`, and that version's check columns (date, amounts, invoice, project and cash-flow links) equal the table. | error | [entry](#t-zoho-payments-snapshot-is-current) |
+| [test_zoho_payments_snapshot_one_open_version_per_payment](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_one_open_version_per_payment.sql) | No payment has two open versions or two overlapping versions in `snapshots.snapshot_lease_payments`. | error | [entry](#t-zoho-payments-snapshot-one-open-version-per-payment) |
+| [test_zoho_credit_notes_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_is_current.sql) | Every credit note and every credit-note application has exactly one open version in its snapshot, equal to the table on the check columns. | error | [entry](#t-zoho-credit-notes-snapshot-is-current) |
+| [test_zoho_credit_notes_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql) | No credit note or application has two open or overlapping versions in its snapshot. | error | [entry](#t-zoho-credit-notes-snapshot-one-open-version) |
 
 ### Generic column tests (schema.yml)
 
@@ -890,6 +894,56 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows at creation (2026-10-21).
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql)
+
+<a id="t-zoho-payments-snapshot-is-current"></a>
+### test_zoho_payments_snapshot_is_current
+
+**Checks that.** Every `public.lease_payments` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_lease_payments`, and that version's check columns (payment date, amount, amount applied, USD amount, FX rate, withholding, payment mode, invoice number, project link, cash-flow link) equal the table.
+
+**Why it exists.** The payment tape reads payments *as of a date* from this history (infra #541), the payment-side twin of the invoice snapshot. The nightly runs `dbt snapshot --select tag:zoho_history` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to `lease_payments` in between.
+
+**When it fails.** `dbt snapshot --select snapshot_lease_payments` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log` (dbt `main/OPERATIONS.md`, "Zoho history").
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-28, seeded the same day: 5,310 versions over 3,753 payments). **Related.** `test_zoho_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_is_current.sql)
+
+<a id="t-zoho-payments-snapshot-one-open-version-per-payment"></a>
+### test_zoho_payments_snapshot_one_open_version_per_payment
+
+**Checks that.** No payment has more than one open version, and no two versions of the same payment overlap in time, in `snapshots.snapshot_lease_payments`.
+
+**Why it exists.** "State as of D" picks one version per payment; two open or overlapping versions double every as-of sum. Happens if the seed is run twice or a hand-run `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time, and find what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-28).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_one_open_version_per_payment.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_one_open_version_per_payment.sql)
+
+<a id="t-zoho-credit-notes-snapshot-is-current"></a>
+### test_zoho_credit_notes_snapshot_is_current
+
+**Checks that.** Every row of `zoho_credit_notes` and of `zoho_credit_note_invoices` has exactly one open version in `snapshots.snapshot_zoho_credit_notes` / `snapshot_zoho_credit_note_invoices`, equal to the table on the check columns (credit note: status, date, total, balance, reference; application: amount, credited date).
+
+**Why it exists.** Credits explain a balance drop that was not cash (infra #541); the tape reads them as of a date. Same nightly step as the invoice and payment snapshots.
+
+**When it fails.** `dbt snapshot --select tag:zoho_history` (safe to repeat). Never `--full-refresh`.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-28; both tables empty until the sync's credit-notes stage, infra #602, deploys).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_is_current.sql)
+
+<a id="t-zoho-credit-notes-snapshot-one-open-version"></a>
+### test_zoho_credit_notes_snapshot_one_open_version
+
+**Checks that.** No credit note and no credit-note application has more than one open version or two overlapping versions in its snapshot.
+
+**Why it exists / when it fails.** As `test_zoho_payments_snapshot_one_open_version_per_payment`.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-10-28).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql)
 
 ---
 
