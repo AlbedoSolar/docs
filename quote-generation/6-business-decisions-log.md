@@ -124,6 +124,7 @@ data: this repository is public.
 | 2026-04-14 | El Salvador poverty flag: FISDL 2004, the 52 poorest municipalities, on the old 262-municipality structure. | In effect | [entry](#e-sv-poverty) |
 | 2026-05-23 | Impact reporting uses a fixed 30-year useful life. | In effect | [entry](#e-useful-life-30) |
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
+| 2026-10-28 | Impact indicators have one home (`v_project_impact_flags`): women-led, youth-led, educational and non-profit are the client's answers; rural from site GPS; poverty from the site municipality. Pricing, the app and reports all read it; a project without coordinates gets no rural point. | In effect | [entry](#e-impact-flags-one-home) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
 
 ### Data conventions and integrations
@@ -150,7 +151,6 @@ data: this repository is public.
 |---|---|---|---|
 | 2026-05-13 | Adjustable maintenance guarantee period per quote. | Closed 2026-10-21 (exists: the estimate dropdown; rule logged 2026-10-21) | [entry](#e-maintenance-guarantee) |
 | 2026-05-14 | Is commission part of the retail the client pays? | Closed 2026-10-20 (no, since 2026-09-15) | [entry](#e-commission-in-retail-open) |
-| 2026-05-14 | Impact indicators move from projects to clients / sites (provisional). | Open | [entry](#e-impact-indicators-home) |
 | ≤2026-05 | Commission on projects mixing Add and Subtract phases. | Closed 2026-10-19 (moot) | [entry](#e-open-mixed-commission) |
 | ≤2026-05 | Service payment spreading divides by `term − grace + 1` but applies over `term − grace` (~1.6 % under-collection): bug or intended? | Open | [entry](#e-open-off-by-one) |
 | ≤2026-05 | Insurance base: installation cost or financed retail? | Closed 2026-10-20 (retail con IVA) | [entry](#e-open-insurance-base) |
@@ -653,7 +653,7 @@ This is a real data-architecture change with cross-functional consequences. Each
 - Frontend: `QuoteWizardStep1Client.tsx`, `src/schemas/clientSchema.ts`, `src/utils/impactDiscount.ts`, `src/pages/DefaultQuotesPageV2.tsx`.
 
 
-**Status.** Open: schema and form live since 2026-05-15; the cut-over, backfill and deprecation are tracked as infra issue #436.
+**Status.** Superseded 2026-10-28 by [Impact indicators have one home](#e-impact-flags-one-home): educational and non-profit stay on the client, the cut-over and backfill are done, deprecation of the project columns is infra #616.
 
 <a id="e-rural-smod-fallback"></a>
 ### 2026-05-14 · Rural definition: GHS-SMOD 11/12 with manual fallback
@@ -2230,6 +2230,61 @@ When QB → Supabase migration changes CO2 cleanups, ADA's Q3/Q4 reports show di
 **Status.** Open.
 
 ---
+
+<a id="e-impact-flags-one-home"></a>
+## 2026-10-28 · Impact indicators have one home: client answers, site location
+
+**Decision.** The six impact indicators are resolved in one place, the
+database view `v_project_impact_flags`, and everything reads it: the quote
+engine's impact discount, the project and operations pages, and every
+report (impact summaries, ADA, ATTA, investor marts, Valuing Impact table).
+- Women-led, youth-led, educational institution and non-profit are
+  attributes of the **client**, answered Sí / No / Sin confirmar on the
+  client form. Educational and non-profit stay on the client rather than the
+  site: a school chain or an NGO is the same organisation at every site.
+- Rural comes from the site's GPS density code (11 or 12 = rural). A project
+  **without coordinates gets no rural point** in pricing and reads "not
+  sure" in reports until ops adds them.
+- Low-income area comes from the site's municipality (poorest 20 %).
+- The project's own flag columns are legacy. During the transition a client
+  with no answer falls back to the project value; the fallback and the
+  columns go when every signed client is answered.
+Supersedes [2026-05-14 · Impact indicators move from projects to canonical
+homes](#e-impact-indicators-home). Applies [2026-07-09 · Rural = GPS
+only](#e-rural-gps-only) to pricing and to the ADA/ATTA reports, which still
+fell back to the manual flag.
+
+**Why.** Three sources answered the same six questions. Pricing and the
+project forms used the manual project flags, reports used the manual flags
+for four indicators and GPS for rural, and the client form (since May) wrote
+to the client where nothing read it. 110 signed projects disagreed between
+the manual rural flag and GPS, and an export to Valuing Impact showed 37
+rural projects where the rule gives 105. Alternatives: educational and
+non-profit on the site (rejected: only four clients disagree across
+projects, all data-entry conflicts, not multi-site organisations); keep
+scoring rural from the manual flag when GPS is missing (rejected: rewards
+missing data and contradicts the July ruling).
+
+**Effect.** 189 clients received their answers from the agreement of their
+signed projects. Reports moved by about one point (youth-led 13 → 14 %,
+"any impact" 63 → 64 %; ADA unchanged). 35 of 359 open deals gain one or two
+impact points on their next quote, none lose any. Signed quotes are frozen.
+
+**Where.** supabase migration `20261028150000_impact_flags_canonical_home.sql`
+(supabase#68); quote engine `quote-helpers.ts` (supabase#71); dbt
+`int_project_impact_flags` and twelve report models (dbt#30, CALCULATIONS.md
+§ "Impact indicators"); frontend client forms, project page, Impact page
+(solar_base_frontend#60, infra mirror #628). Tests
+`test_impact_flags_match_canonical_view` and
+`test_signed_clients_have_impact_flags` (the work queue of unanswered
+clients). Deprecation: albedo-automations-infra#616.
+
+**Open.** Who edits the answers on the Impact page: clients are writable by
+sales and admin only, so operations can no longer edit them there. Widening
+that is a permission-matrix decision.
+
+**Status.** In effect 2026-10-28 for reports and the app's views; pricing
+once supabase#71 merges; forms once solar_base_frontend#60 merges.
 
 ## Entry template
 
