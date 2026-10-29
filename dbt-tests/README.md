@@ -61,8 +61,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | Test | Checks that | Severity | Entry |
 |---|---|---|---|
 | [test_eeffs_signed_projects_match_reports](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_signed_projects_match_reports.sql) | Every signed project is in the EEFFs report(s) it belongs to (Financiado → by_financed_project, non-GT also HN_ES_USD; Contado → by_paid_up_front_project), and nothing else is. | error | [entry](#t-eeffs-signed-projects-match-reports) |
-| [test_eeffs_amounts_match_sources](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_amounts_match_sources.sql) | Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). | error | [entry](#t-eeffs-amounts-match-sources) |
-| [test_eeffs_report_shape](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_report_shape.sql) | Exactly one row per (project, account), the 13 known accounts per project, no blank keys, no Guatemala rows in the HN/SV USD report. | error | [entry](#t-eeffs-report-shape) |
+| [test_eeffs_amounts_match_sources](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_amounts_match_sources.sql) | Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). Covers Ingresos por Mantenimiento, and Pago Total includes maintenance, since 2026-10-29. | error | [entry](#t-eeffs-amounts-match-sources) |
+| [test_eeffs_report_shape](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_report_shape.sql) | Exactly one row per (project, account), the 16 known accounts per project (13 until 2026-10-29; the three maintenance accounts were added then), no blank keys, no Guatemala rows in the HN/SV USD report. | error | [entry](#t-eeffs-report-shape) |
 | [test_eeffs_signed_original_quote_sale_type_known](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_signed_original_quote_sale_type_known.sql) | Every signed project has exactly one original quote whose `sale_type` is exactly Financiado or Contado. | error | [entry](#t-eeffs-signed-original-quote-sale-type-known) |
 
 ### Adendas and signing
@@ -460,7 +460,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-eeffs-amounts-match-sources"></a>
 ### test_eeffs_amounts_match_sources
 
-**Checks that.** Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00).
+**Checks that.** Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). Since 2026-10-29 this includes Ingresos por Mantenimiento, and Pago Total includes the maintenance cuota ([decision](../quote-generation/6-business-decisions-log.md#e-eeffs-maintenance)).
 
 **Why it exists.** Catches a month lost or double-counted by the pivot (MAX per month), a currency mix-up, or a signing month outside the window.
 
@@ -473,7 +473,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-eeffs-report-shape"></a>
 ### test_eeffs_report_shape
 
-**Checks that.** Exactly one row per (project, account), the 13 known accounts per project, no blank keys, no Guatemala rows in the HN/SV USD report.
+**Checks that.** Exactly one row per (project, account), the 16 known accounts per project (13 until 2026-10-29; Ingresos por Mantenimiento and CxC - Mantenimiento CP/LP were added then), no blank keys, no Guatemala rows in the HN/SV USD report.
 
 **Why it exists.** A join fan-out or a renamed account would ship silently because the pivot hides duplicates.
 

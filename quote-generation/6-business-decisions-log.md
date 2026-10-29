@@ -125,6 +125,7 @@ data: this repository is public.
 | 2026-05-23 | Impact reporting uses a fixed 30-year useful life. | In effect | [entry](#e-useful-life-30) |
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
+| 2026-10-29 | EEFFs financed reports carry maintenance as its own income row and its own CxC CP/LP rows; Pago Total includes maintenance. | In effect | [entry](#e-eeffs-maintenance) |
 
 ### Data conventions and integrations
 
@@ -2145,6 +2146,35 @@ code does the work.
 not in Postgres"); infra `database/triggers/README.md` (trigger policy and
 the current list); this log for the grandfathered cascades
 (workflow-status promotion 2026-07-13, maintenance anchor 2026-10-12).
+
+**Status.** In effect.
+
+<a id="e-eeffs-maintenance"></a>
+### 2026-10-29 · EEFFs reports carry maintenance as its own accounts; Pago Total includes it
+
+**Decision.** (Jake, 2026-10-29, before the October close.) Both financed
+EEFFs reports (`mart_reconciliation_eeffs_by_financed_project` and
+`..._HN_ES_USD`) show maintenance in three new account rows: **Ingresos por
+Mantenimiento** (the monthly maintenance cuota, sin IVA), **CxC -
+Mantenimiento (CP)** (maintenance due in the next 12 months) and **CxC -
+Mantenimiento (LP)** (due after that). They sit beside, not inside, `CxC -
+Servicios de Contratos`, which stays insurance only. **Pago Total** adds the
+maintenance cuota.
+
+**Why.** Maintenance income starts with the October 2026 cuotas (2574-02
+first; 18 financed projects as of that date). Before this,
+the reports had no maintenance line and Pago Total left it out, because the
+cash-flow `monthly_payment` is principal plus interest only. Zoho bills
+maintenance as its own invoice line (`cf_mantenimiento`), so Pago Total now
+matches what the client is billed. Separate CxC rows were chosen over folding
+maintenance into Servicios de Contratos so the existing rows keep their
+numbers and Finanzas can book the two services apart. Contado projects carry
+no maintenance cash flows, so the paid-up-front report is unchanged.
+
+**Where.** dbt `int_official_accounts_receivable_by_project_gtq` / `_usd`
+(maintenance receivable computed in the insurance pass), the two financed
+marts, tests `test_eeffs_report_shape` (16 accounts) and
+`test_eeffs_amounts_match_sources` (maintenance income, Pago Total). AlbedoSolar/dbt#32.
 
 **Status.** In effect.
 
