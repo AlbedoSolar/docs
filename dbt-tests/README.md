@@ -50,6 +50,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_every_signed_estimate_has_escalation_rate](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_every_signed_estimate_has_escalation_rate.sql) | Every signed estimate with panels resolves an electricity price inflation rate inside the sane band. | error | [entry](#t-every-signed-estimate-has-escalation-rate) |
 | [test_country_carbon_assumptions_in_band](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql) | `countries` carries the four CO2 inputs (gross grid factor, panel lifecycle factor, decarbonization rate, base year) and each sits in a plausible band. | error | [entry](#t-country-carbon-assumptions-in-band) |
 | [test_rural_area_follows_gps](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql) | Every signed project's `rural_area` in the impact mart equals the GPS rule on the site's density code; the manual flag is never used. | error | [entry](#t-rural-area-follows-gps) |
+| [test_impact_flags_match_canonical_view](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_impact_flags_match_canonical_view.sql) | The six impact indicators in the impact summary equal the one home, `v_project_impact_flags`; no report reads the legacy project flags. | error | [entry](#t-impact-flags-match-canonical-view) |
+| [test_signed_clients_have_impact_flags](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_clients_have_impact_flags.sql) | Work queue: signed projects whose client has no Sí/No answer for women-led, youth-led, educational or non-profit. | warn | [entry](#t-signed-clients-have-impact-flags) |
 | [test_vi_base_matches_impact_mart](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql) | The Valuing Impact input table agrees row for row with the impact mart on rural, kW and net savings, and stays inside VI's vocabulary. | error | [entry](#t-vi-base-matches-impact-mart) |
 | [test_panel_degradation_in_range](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_panel_degradation_in_range.sql) | Solar panels have `annual_depreciation_percentage` in 0–0.02 and `first_year_production_loss_percentage` in 0–0.10 (fractions). | error | [entry](#t-panel-degradation-in-range) |
 | [test_signed_projects_have_sector](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_projects_have_sector.sql) | Every signed project has a `project_sector_id`. | error | [entry](#t-signed-projects-have-sector) |
@@ -376,6 +378,32 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows (2026-10-26, 306 signed projects, 277 with coordinates). **Related.** Decisions log 2026-07-09; infra #616 (retire the manual flags).
 
 **Source.** [`main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql)
+
+<a id="t-impact-flags-match-canonical-view"></a>
+### test_impact_flags_match_canonical_view
+
+**Checks that.** For every signed project, women-led, youth-led, educational, non-profit, rural and low-income area in the impact summary equal the values in `v_project_impact_flags`.
+
+**Why it exists.** Since 2026-10-28 the six indicators have one home that pricing, the app and every report read. If a report is rewired back to the legacy project columns, the numbers we publish stop matching what the app shows and what discounts were given.
+
+**When it fails.** A model reads the flags from somewhere else. Point it at `int_project_impact_flags`; never edit project rows to make it pass.
+
+**Severity.** error. **Baseline.** 0 rows (2026-10-28). **Related.** Decisions log 2026-10-28 "Impact indicators have one home".
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_impact_flags_match_canonical_view.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_impact_flags_match_canonical_view.sql)
+
+<a id="t-signed-clients-have-impact-flags"></a>
+### test_signed_clients_have_impact_flags
+
+**Checks that.** Lists signed projects whose client has no Sí/No answer for women-led, youth-led, educational institution or non-profit.
+
+**Why it exists.** These answers belong to the client. Until every signed client is answered, the impact percentages carry unknowns and the legacy project columns cannot be retired (infra #616).
+
+**When it fails.** It warns, it doesn't fail. Each row is a question for sales or ops: open the client (or the Impact page) and answer Sí / No for the four indicators.
+
+**Severity.** warn; raise to error once it reaches 0. **Baseline.** 50 of 307 signed projects (2026-10-28). **Related.** Decisions log 2026-10-28.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_signed_clients_have_impact_flags.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_clients_have_impact_flags.sql)
 
 <a id="t-vi-base-matches-impact-mart"></a>
 ### test_vi_base_matches_impact_mart
