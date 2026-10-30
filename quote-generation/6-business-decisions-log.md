@@ -157,7 +157,7 @@ data: this repository is public.
 | ≤2026-05 | FX is a single snapshot at quote time while payouts and payments span years: accepted risk? | Open | [entry](#e-open-fx-timing) |
 | ≤2026-05 | Validate that provider payouts sum to 1.0. | Closed 2026-10-20 (constraint exists) | [entry](#e-open-payout-sum) |
 | ≤2026-05 | Maintenance inflation baseline differed between the NII table and the integration flow. | Closed 2026-10-20 (NII engine deleted) | [entry](#e-open-maint-inflation) |
-| ≤2026-05 | Canonical home of the impact indicators (clients vs projects vs sites) and the reporting cut-over. | Open | [entry](#e-open-impact-home) |
+| ≤2026-05 | Canonical home of the impact indicators (clients vs projects vs sites) and the reporting cut-over. | Closed 2026-10-28 ([one home](#e-impact-flags-one-home)) | [entry](#e-open-impact-home) |
 | ≤2026-05 | An "Otros" client gender category for organisations. | Open | [entry](#e-open-otros) |
 | ≤2026-05 | How ADA reports handle retroactive CO2 changes (version vs freeze). | Open | [entry](#e-open-co2-retro) |
 
@@ -2213,6 +2213,8 @@ The May 14 work moved schema and form capture to `clients.*` but the broader mov
 **Stakeholders**: Sales lead, ops, Stephanie (impact reporting), Ian, ADA contacts.
 **Until resolved**: new fields capture data but impact reports unchanged.
 
+**Resolved 2026-10-28** by [Impact indicators have one home](#e-impact-flags-one-home) (1–3, 5 there; 4: operations may answer the four client flags since 2026-10-30).
+
 **Status.** Open. Tracked as infra issue #436.
 
 <a id="e-open-otros"></a>
@@ -2279,9 +2281,10 @@ impact points on their next quote, none lose any. Signed quotes are frozen.
 `test_signed_clients_have_impact_flags` (the work queue of unanswered
 clients). Deprecation: albedo-automations-infra#616.
 
-**Open.** Who edits the answers on the Impact page: clients are writable by
-sales and admin only, so operations can no longer edit them there. Widening
-that is a permission-matrix decision.
+**Who answers.** Sales and admin edit the client in full; since 2026-10-30
+(Jake) operations and operations-admin may edit these four answers on the
+client and nothing else (RLS policy + column guard trigger, supabase#78), so
+the ops team can fill the blanks from the Impact page.
 
 **Status.** In effect 2026-10-28 for reports and the app's views; pricing
 once supabase#71 merges; forms once solar_base_frontend#60 merges.

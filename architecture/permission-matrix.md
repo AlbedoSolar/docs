@@ -39,7 +39,7 @@ Source of truth for RLS write policies across all public tables. SELECT access i
 |---|---|---|---|---|
 | `projects` | sales, admin | sales, ops, finances, admin | sales, ops, admin | Finance can UPDATE (intended for diligence columns via /finances/diligence). Operations can update/delete but not create. |
 | `sites` | sales, admin | sales, ops, admin | sales, ops, admin | Operations can update/delete but not create |
-| `clients` | sales, admin | sales, admin | sales, admin | — |
+| `clients` | sales, admin | sales, admin; ops (impact indicators only) | sales, admin | Operations (and operations-admin) may change only `women_led`, `youth_led`, `educational_institution`, `non_profit` — guard trigger `trg_clients_operations_impact_only` (2026-10-30, supabase#78) |
 
 ### Admin-only UI gates on `projects` columns
 
