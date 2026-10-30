@@ -109,6 +109,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_credit_applications_add_up](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_applications_add_up.sql) | The credit-note applications stored for an invoice (`zoho_credit_note_invoices`) add up to the credits Zoho reports on the invoice (`credits_applied`), within 0.10. | warn | [entry](#t-zoho-credit-applications-add-up) |
 | [test_zoho_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_is_current.sql) | Every `zoho_invoices` row has exactly one open version in `snapshots.snapshot_zoho_invoices`, and that version's check columns (status, balance, total, dates, cash, credits, write-off) equal the table. | error | [entry](#t-zoho-snapshot-is-current) |
 | [test_zoho_snapshot_one_open_version_per_invoice](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_snapshot_one_open_version_per_invoice.sql) | No invoice has two open versions or two versions that overlap in time in `snapshots.snapshot_zoho_invoices`. | error | [entry](#t-zoho-snapshot-one-open-version-per-invoice) |
+| [test_zoho_lines_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql) | Every `zoho_invoice_lines` row has an open version in `snapshots.snapshot_zoho_invoice_lines` whose line columns (description, line total, Zoho project) equal the table. | error | [entry](#t-zoho-lines-snapshot-is-current) |
+| [test_zoho_lines_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql) | No invoice line has two open versions or two overlapping versions in `snapshots.snapshot_zoho_invoice_lines`. | error | [entry](#t-zoho-lines-snapshot-one-open-version) |
 
 ### Generic column tests (schema.yml)
 
@@ -897,6 +899,32 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 ```
 | [test_name](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/<folder>/test_name.sql) | One sentence: the invariant. | error or warn | [entry](#t-name) |
+
+<a id="t-zoho-lines-snapshot-is-current"></a>
+### test_zoho_lines_snapshot_is_current
+
+**Checks that.** Every `public.zoho_invoice_lines` row has an open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_zoho_invoice_lines`, and that version's line columns (description, line total, Zoho project id) equal the table. The invoice-header columns the snapshot also carries are covered by `test_zoho_snapshot_is_current`.
+
+**Why it exists.** Ian's reconciliations read invoice lines *as of a date* (2026-10-31 data review: the lines are the foundation). The nightly runs `dbt snapshot --select tag:zoho_history` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to the lines in between.
+
+**When it fails.** `dbt snapshot --select tag:zoho_history` (safe to repeat). Never `--full-refresh` any Zoho history snapshot (dbt `main/OPERATIONS.md`, "Zoho history").
+
+**Baseline.** 0 rows on 2026-10-31, after the first run (3,376 lines).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql)
+
+<a id="t-zoho-lines-snapshot-one-open-version"></a>
+### test_zoho_lines_snapshot_one_open_version
+
+**Checks that.** No invoice line has more than one open version, and no two versions of the same line overlap in time, in `snapshots.snapshot_zoho_invoice_lines`.
+
+**Why it exists.** Either makes "state as of D" ambiguous; same guarantee the invoice, payment and credit-note histories carry.
+
+**When it fails.** Find the key in the output, inspect its versions, close the older one (set `dbt_valid_to`) by hand with a CHANGELOG note. Should never happen while only `dbt snapshot` writes the table.
+
+**Baseline.** 0 rows on 2026-10-31.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql)
 
 <a id="t-name"></a>
 ### test_name
