@@ -51,6 +51,7 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_country_carbon_assumptions_in_band](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql) | `countries` carries the four CO2 inputs (gross grid factor, panel lifecycle factor, decarbonization rate, base year) and each sits in a plausible band. | error | [entry](#t-country-carbon-assumptions-in-band) |
 | [test_rural_area_follows_gps](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql) | Every signed project's `rural_area` in the impact mart equals the GPS rule on the site's density code; the manual flag is never used. | error | [entry](#t-rural-area-follows-gps) |
 | [test_vi_base_matches_impact_mart](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql) | The Valuing Impact input table agrees row for row with the impact mart on rural, kW and net savings, and stays inside VI's vocabulary. | error | [entry](#t-vi-base-matches-impact-mart) |
+| [test_vi_value_per_project_matches_workbook](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql) | SolarBase's run of Valuing Impact's model gives every project in VI's workbook the same lifetime societal value (within 1 % and USD 100). | warn | [entry](#t-vi-value-per-project-matches-workbook) |
 | [test_panel_degradation_in_range](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_panel_degradation_in_range.sql) | Solar panels have `annual_depreciation_percentage` in 0–0.02 and `first_year_production_loss_percentage` in 0–0.10 (fractions). | error | [entry](#t-panel-degradation-in-range) |
 | [test_signed_projects_have_sector](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_projects_have_sector.sql) | Every signed project has a `project_sector_id`. | error | [entry](#t-signed-projects-have-sector) |
 | [test_backup_tables_expired](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_backup_tables_expired.sql) | Lists safety-copy tables (`_backup_YYYYMMDD_*`, `*_backup_YYYYMMDD`, `*_snapshot_YYYYMMDD`) older than 30 days. | warn | [entry](#t-backup-tables-expired) |
@@ -389,6 +390,19 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows (2026-10-26). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact input table".
 
 **Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql)
+
+<a id="t-vi-value-per-project-matches-workbook"></a>
+### test_vi_value_per_project_matches_workbook
+
+**Checks that.** The societal-value model that now runs in dbt (`mart_vi_value_per_project`) gives each project in Valuing Impact's workbook ("Value per Project" tab, kept as the seed `vi_workbook_value_per_project`) the same lifetime value, within 1 % and USD 100, and that every project in the workbook is still in the mart.
+
+**Why it exists.** The headline impact numbers (USD 99.3M societal value, SROI 8.1×) came from VI's Excel. SolarBase now computes them itself so the Impact Explorer and investor packs stay current after the engagement ends; this test is the proof that our run and VI's agree. The arithmetic was checked row by row against the workbook when it was built (2026-10-30), so a difference here is an input that moved, not the formula.
+
+**When it fails.** Each row is a project with VI's figure, ours and the gap. Look at what changed for that project in SolarBase since VI's export (savings, monthly kWh, panels, battery, energy type, signing year, sector): a genuine correction stays and VI's number is the stale one — note it for the next workbook refresh; a hand-edited parameter seed is fixed by re-running `scripts/vi_seeds_from_workbook.py`. Projects signed after VI's cut are not checked.
+
+**Severity.** warn (expected to carry a small, explained baseline after every data correction; becomes error only if the seeds are refreshed from a workbook built on current data). **Baseline.** 17 of 281 projects on 2026-10-30 against the v7 workbook, all traced to input changes since VI's 2026-09-22 export. **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model", `OPERATIONS.md` § "Valuing Impact model refresh", infra #640.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql)
 
 <a id="t-panel-degradation-in-range"></a>
 ### test_panel_degradation_in_range
