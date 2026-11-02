@@ -115,6 +115,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_credit_notes_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql) | No credit note or application has two open or overlapping versions in its snapshot. | error | [entry](#t-zoho-credit-notes-snapshot-one-open-version) |
 | [test_zoho_lines_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql) | Every `zoho_invoice_lines` row has an open version in `snapshots.snapshot_zoho_invoice_lines` whose line columns (description, line total, Zoho project) equal the table. | error | [entry](#t-zoho-lines-snapshot-is-current) |
 | [test_zoho_lines_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql) | No invoice line has two open versions or two overlapping versions in `snapshots.snapshot_zoho_invoice_lines`. | error | [entry](#t-zoho-lines-snapshot-one-open-version) |
+| [test_zoho_flujos_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_is_current.sql) | Every `zoho_raw.flujos_de_pago` row (the raw Zoho "Flujo de pagos" record) has an open version in `snapshots.snapshot_zoho_raw_flujos_de_pago` whose `zoho_last_modified_at` and `removed_at` equal the table. | error | [entry](#t-zoho-flujos-snapshot-is-current) |
+| [test_zoho_flujos_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_one_open_version.sql) | No flujo record has two open versions or two overlapping versions in `snapshots.snapshot_zoho_raw_flujos_de_pago`. | error | [entry](#t-zoho-flujos-snapshot-one-open-version) |
 
 ### Generic column tests (schema.yml)
 
@@ -946,6 +948,32 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows at creation (2026-10-28).
 
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql)
+
+<a id="t-zoho-flujos-snapshot-is-current"></a>
+### test_zoho_flujos_snapshot_is_current
+
+**Checks that.** Every `zoho_raw.flujos_de_pago` row (one per Zoho "Flujo de pagos" record, stored raw) has an open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_zoho_raw_flujos_de_pago`, and that version's `zoho_last_modified_at` and `removed_at` equal the table. The sync rewrites a row only when Zoho's stamp moved, so those two columns are the whole change signal; `raw_data` rides along.
+
+**Why it exists.** The flujo is where Zoho keeps its own cuota rows (installment number, due date, the invoice billed for it) and its own cuota numbering, which differs from ours after an adenda. Finanzas reads them *as of a date* for the loan tape. The nightly runs `dbt snapshot --select tag:zoho_history` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to the table in between.
+
+**When it fails.** `dbt snapshot --select tag:zoho_history` (safe to repeat). Never `--full-refresh` any Zoho history snapshot (dbt `main/OPERATIONS.md`, "Zoho history").
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-02, after the first run.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_is_current.sql)
+
+<a id="t-zoho-flujos-snapshot-one-open-version"></a>
+### test_zoho_flujos_snapshot_one_open_version
+
+**Checks that.** No flujo record has more than one open version, and no two versions of the same record overlap in time, in `snapshots.snapshot_zoho_raw_flujos_de_pago`.
+
+**Why it exists.** Either makes "state as of D" ambiguous; same guarantee the invoice, payment, credit-note and line histories carry.
+
+**When it fails.** Find the key in the output, inspect its versions, close the older one (set `dbt_valid_to`) by hand with a CHANGELOG note. Should never happen while only `dbt snapshot` writes the table.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-02.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_flujos_snapshot_one_open_version.sql)
 
 ---
 
