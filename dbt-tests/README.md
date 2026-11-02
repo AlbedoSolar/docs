@@ -52,6 +52,7 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_rural_area_follows_gps](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql) | Every signed project's `rural_area` in the impact mart equals the GPS rule on the site's density code; the manual flag is never used. | error | [entry](#t-rural-area-follows-gps) |
 | [test_vi_base_matches_impact_mart](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql) | The Valuing Impact input table agrees row for row with the impact mart on rural, kW and net savings, and stays inside VI's vocabulary. | error | [entry](#t-vi-base-matches-impact-mart) |
 | [test_vi_value_per_project_matches_workbook](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql) | SolarBase's run of Valuing Impact's model gives every project in VI's workbook the same lifetime societal value (within 1 % and USD 100). | warn | [entry](#t-vi-value-per-project-matches-workbook) |
+| [test_vi_public_groups_safe](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql) | The public Impact Explorer data publishes no group smaller than 5 projects, and each dimension still adds up to the total. | error | [entry](#t-vi-public-groups-safe) |
 | [test_panel_degradation_in_range](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_panel_degradation_in_range.sql) | Solar panels have `annual_depreciation_percentage` in 0–0.02 and `first_year_production_loss_percentage` in 0–0.10 (fractions). | error | [entry](#t-panel-degradation-in-range) |
 | [test_signed_projects_have_sector](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_projects_have_sector.sql) | Every signed project has a `project_sector_id`. | error | [entry](#t-signed-projects-have-sector) |
 | [test_backup_tables_expired](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_backup_tables_expired.sql) | Lists safety-copy tables (`_backup_YYYYMMDD_*`, `*_backup_YYYYMMDD`, `*_snapshot_YYYYMMDD`) older than 30 days. | warn | [entry](#t-backup-tables-expired) |
@@ -403,6 +404,19 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** warn (expected to carry a small, explained baseline after every data correction; becomes error only if the seeds are refreshed from a workbook built on current data). **Baseline.** 17 of 281 projects on 2026-10-30 against the v7 workbook, all traced to input changes since VI's 2026-09-22 export. **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model", `OPERATIONS.md` § "Valuing Impact model refresh", infra #640.
 
 **Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql)
+
+<a id="t-vi-public-groups-safe"></a>
+### test_vi_public_groups_safe
+
+**Checks that.** The view behind the public Impact Explorer (`mart_vi_public_groups`) never publishes a group of fewer than 5 projects, and that each dimension (sector, country, year…) still adds up to the portfolio total, apart from at most one small "other" group that is withheld.
+
+**Why it exists.** The public page shows only totals by group, never client names or projects. A group of 2 or 3 projects (one sector in one country, say) would let a reader work out one client's figures. This test is the privacy guarantee of that page.
+
+**When it fails.** `small_group` rows name a group that would be published with too few projects; `total_mismatch` rows name a dimension whose groups no longer add up. Fix the model's small-cell rule, rebuild the view, and do not publish or refresh the public page until the test passes.
+
+**Severity.** error. **Baseline.** 0 rows (2026-11-02, Jun-30 cut, 281 projects). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model" (Public snapshot), `OPERATIONS.md` § "Public Impact Explorer", infra #640.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql)
 
 <a id="t-panel-degradation-in-range"></a>
 ### test_panel_degradation_in_range
