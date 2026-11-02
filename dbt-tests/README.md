@@ -61,8 +61,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | Test | Checks that | Severity | Entry |
 |---|---|---|---|
 | [test_eeffs_signed_projects_match_reports](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_signed_projects_match_reports.sql) | Every signed project is in the EEFFs report(s) it belongs to (Financiado → by_financed_project, non-GT also HN_ES_USD; Contado → by_paid_up_front_project), and nothing else is. | error | [entry](#t-eeffs-signed-projects-match-reports) |
-| [test_eeffs_amounts_match_sources](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_amounts_match_sources.sql) | Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). | error | [entry](#t-eeffs-amounts-match-sources) |
-| [test_eeffs_report_shape](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_report_shape.sql) | Exactly one row per (project, account), the 13 known accounts per project, no blank keys, no Guatemala rows in the HN/SV USD report. | error | [entry](#t-eeffs-report-shape) |
+| [test_eeffs_amounts_match_sources](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_amounts_match_sources.sql) | Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). Covers Ingresos por Mantenimiento, and Pago Total includes maintenance, since 2026-10-29. | error | [entry](#t-eeffs-amounts-match-sources) |
+| [test_eeffs_report_shape](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_report_shape.sql) | Exactly one row per (project, account), the 16 known accounts per project (13 until 2026-10-29; the three maintenance accounts were added then), no blank keys, no Guatemala rows in the HN/SV USD report. | error | [entry](#t-eeffs-report-shape) |
 | [test_eeffs_signed_original_quote_sale_type_known](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/eeffs/test_eeffs_signed_original_quote_sale_type_known.sql) | Every signed project has exactly one original quote whose `sale_type` is exactly Financiado or Contado. | error | [entry](#t-eeffs-signed-original-quote-sale-type-known) |
 
 ### Adendas and signing
@@ -113,6 +113,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_payments_snapshot_one_open_version_per_payment](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_payments_snapshot_one_open_version_per_payment.sql) | No payment has two open versions or two overlapping versions in `snapshots.snapshot_lease_payments`. | error | [entry](#t-zoho-payments-snapshot-one-open-version-per-payment) |
 | [test_zoho_credit_notes_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_is_current.sql) | Every credit note and every credit-note application has exactly one open version in its snapshot, equal to the table on the check columns. | error | [entry](#t-zoho-credit-notes-snapshot-is-current) |
 | [test_zoho_credit_notes_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql) | No credit note or application has two open or overlapping versions in its snapshot. | error | [entry](#t-zoho-credit-notes-snapshot-one-open-version) |
+| [test_zoho_lines_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql) | Every `zoho_invoice_lines` row has an open version in `snapshots.snapshot_zoho_invoice_lines` whose line columns (description, line total, Zoho project) equal the table. | error | [entry](#t-zoho-lines-snapshot-is-current) |
+| [test_zoho_lines_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql) | No invoice line has two open versions or two overlapping versions in `snapshots.snapshot_zoho_invoice_lines`. | error | [entry](#t-zoho-lines-snapshot-one-open-version) |
 
 ### Generic column tests (schema.yml)
 
@@ -464,7 +466,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-eeffs-amounts-match-sources"></a>
 ### test_eeffs_amounts_match_sources
 
-**Checks that.** Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00).
+**Checks that.** Per project, the report's flow rows summed across its month columns equal the cash-flow table for the same window (Jan-21 to Dec-30), and Precio Retail / Costo Proyecto equal the original estimate (tolerance 1.00). Since 2026-10-29 this includes Ingresos por Mantenimiento, and Pago Total includes the maintenance cuota ([decision](../quote-generation/6-business-decisions-log.md#e-eeffs-maintenance)).
 
 **Why it exists.** Catches a month lost or double-counted by the pivot (MAX per month), a currency mix-up, or a signing month outside the window.
 
@@ -477,7 +479,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-eeffs-report-shape"></a>
 ### test_eeffs_report_shape
 
-**Checks that.** Exactly one row per (project, account), the 13 known accounts per project, no blank keys, no Guatemala rows in the HN/SV USD report.
+**Checks that.** Exactly one row per (project, account), the 16 known accounts per project (13 until 2026-10-29; Ingresos por Mantenimiento and CxC - Mantenimiento CP/LP were added then), no blank keys, no Guatemala rows in the HN/SV USD report.
 
 **Why it exists.** A join fan-out or a renamed account would ship silently because the pivot hides duplicates.
 
@@ -951,6 +953,32 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 ```
 | [test_name](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/<folder>/test_name.sql) | One sentence: the invariant. | error or warn | [entry](#t-name) |
+
+<a id="t-zoho-lines-snapshot-is-current"></a>
+### test_zoho_lines_snapshot_is_current
+
+**Checks that.** Every `public.zoho_invoice_lines` row has an open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_zoho_invoice_lines`, and that version's line columns (description, line total, Zoho project id) equal the table. The invoice-header columns the snapshot also carries are covered by `test_zoho_snapshot_is_current`.
+
+**Why it exists.** Ian's reconciliations read invoice lines *as of a date* (2026-10-31 data review: the lines are the foundation). The nightly runs `dbt snapshot --select tag:zoho_history` after the 04:05 UTC Zoho sync and right before the tests, so at test time the open versions must equal the table. A row means the snapshot step did not run or failed, or something wrote to the lines in between.
+
+**When it fails.** `dbt snapshot --select tag:zoho_history` (safe to repeat). Never `--full-refresh` any Zoho history snapshot (dbt `main/OPERATIONS.md`, "Zoho history").
+
+**Baseline.** 0 rows on 2026-10-31, after the first run (3,376 lines).
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql)
+
+<a id="t-zoho-lines-snapshot-one-open-version"></a>
+### test_zoho_lines_snapshot_one_open_version
+
+**Checks that.** No invoice line has more than one open version, and no two versions of the same line overlap in time, in `snapshots.snapshot_zoho_invoice_lines`.
+
+**Why it exists.** Either makes "state as of D" ambiguous; same guarantee the invoice, payment and credit-note histories carry.
+
+**When it fails.** Find the key in the output, inspect its versions, close the older one (set `dbt_valid_to`) by hand with a CHANGELOG note. Should never happen while only `dbt snapshot` writes the table.
+
+**Baseline.** 0 rows on 2026-10-31.
+
+**Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql)
 
 <a id="t-name"></a>
 ### test_name
