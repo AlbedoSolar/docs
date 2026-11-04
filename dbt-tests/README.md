@@ -116,6 +116,21 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_zoho_lines_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_is_current.sql) | Every `zoho_invoice_lines` row has an open version in `snapshots.snapshot_zoho_invoice_lines` whose line columns (description, line total, Zoho project) equal the table. | error | [entry](#t-zoho-lines-snapshot-is-current) |
 | [test_zoho_lines_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_lines_snapshot_one_open_version.sql) | No invoice line has two open versions or two overlapping versions in `snapshots.snapshot_zoho_invoice_lines`. | error | [entry](#t-zoho-lines-snapshot-one-open-version) |
 
+### Core history
+
+| Test | Checks that | Severity | Entry |
+|---|---|---|---|
+| [test_core_monthly_cash_flows_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_is_current.sql) | Every `monthly_cash_flows` row has one open version in `snapshots.snapshot_core_monthly_cash_flows` whose check columns (amounts, dates, quote / project link, Zoho invoice, actual payment, `addended_at`, `deleted_at`) equal the table, and no open version is left for a deleted row. Rows written since the last snapshot are skipped. | error | [entry](#t-core-monthly-cash-flows-snapshot-is-current) |
+| [test_core_monthly_cash_flows_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_one_open_version.sql) | No `monthly_cash_flows` row has two open versions or two overlapping versions in `snapshots.snapshot_core_monthly_cash_flows`. | error | [entry](#t-core-monthly-cash-flows-snapshot-one-open-version) |
+| [test_core_projects_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_is_current.sql) | Every `projects` row has one open version in `snapshots.snapshot_core_projects` whose check columns (status, workflow, sector, client / site / location, guarantee, insurance, impact flags, delivery milestones, annulment, `deleted_at`) equal the table, and no open version is left for a deleted row. Rows written since the last snapshot are skipped. | error | [entry](#t-core-projects-snapshot-is-current) |
+| [test_core_projects_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_one_open_version.sql) | No `projects` row has two open versions or two overlapping versions in `snapshots.snapshot_core_projects`. | error | [entry](#t-core-projects-snapshot-one-open-version) |
+| [test_core_contracts_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_is_current.sql) | Every `contracts` row has one open version in `snapshots.snapshot_core_contracts` whose check columns (quote / phase / client link, signing, delivery, voiding, grace period, `is_complete`) equal the table, and no open version is left for a deleted row. Rows written since the last snapshot are skipped. | error | [entry](#t-core-contracts-snapshot-is-current) |
+| [test_core_contracts_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_one_open_version.sql) | No `contracts` row has two open versions or two overlapping versions in `snapshots.snapshot_core_contracts`. | error | [entry](#t-core-contracts-snapshot-one-open-version) |
+| [test_core_sites_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_is_current.sql) | Every `sites` row has one open version in `snapshots.snapshot_core_sites` whose check columns (client and country / department / municipality ids, `smod_code`) equal the table, and no open version is left for a deleted row. Rows written since the last snapshot are skipped. | error | [entry](#t-core-sites-snapshot-is-current) |
+| [test_core_sites_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_one_open_version.sql) | No `sites` row has two open versions or two overlapping versions in `snapshots.snapshot_core_sites`. | error | [entry](#t-core-sites-snapshot-one-open-version) |
+| [test_core_clients_snapshot_is_current](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_is_current.sql) | Every `clients` row has one open version in `snapshots.snapshot_core_clients` whose check columns (legal / simple name, country, parent client, legal entity type, IVA exemption, impact flags, `deleted_at`) equal the table, and no open version is left for a deleted row. Rows written since the last snapshot are skipped. | error | [entry](#t-core-clients-snapshot-is-current) |
+| [test_core_clients_snapshot_one_open_version](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_one_open_version.sql) | No `clients` row has two open versions or two overlapping versions in `snapshots.snapshot_core_clients`. | error | [entry](#t-core-clients-snapshot-one-open-version) |
+
 ### Generic column tests (schema.yml)
 
 Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.com/AlbedoSolar/dbt/blob/main/main/models/models_on_static_tables/schema.yml); dbt generates the SQL. All severity error.
@@ -948,6 +963,140 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Source.** [`main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/zoho_sync/test_zoho_credit_notes_snapshot_one_open_version.sql)
 
 ---
+
+## Core history
+
+The five `snapshots.snapshot_core_*` histories (tag `core_history`, seeded 2026-11-04 from `database_change_log`; dbt `main/OPERATIONS.md`, "Change history: record, snapshots, forensics"). Each has the same two tests through the macros in `main/macros/zoho_snapshot_checks.sql`.
+
+<a id="t-core-monthly-cash-flows-snapshot-is-current"></a>
+### test_core_monthly_cash_flows_snapshot_is_current
+
+**Checks that.** Every `public.monthly_cash_flows` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_core_monthly_cash_flows`, its check columns (amounts, dates, quote / project link, Zoho invoice, actual payment, `addended_at`, `deleted_at`) equal the table, and no open version remains for a row that is gone. Rows the change log shows written since the snapshot last captured a change (at most 26 hours back) are skipped.
+
+**Why it exists.** As-of reports read the cash-flow schedule state on a date from this history. The nightly runs `dbt snapshot --select tag:zoho_history tag:core_history` right before the tests. The app writes `monthly_cash_flows` all day, so today's edits are left for tonight's snapshot, but anything older than 26 hours that the snapshot missed fails: the snapshot step stopped running, or something wrote the table with `trg_track_changes_monthly_cash_flows` off.
+
+**When it fails.** `dbt snapshot --select snapshot_core_monthly_cash_flows` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log`. If the same rows fail after a snapshot, look for a write the trigger did not see.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-11-04, seeded the same day: 21,724 versions over 17,739 rows). **Related.** `test_core_monthly_cash_flows_snapshot_one_open_version`, `test_zoho_payments_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_is_current.sql)
+
+<a id="t-core-monthly-cash-flows-snapshot-one-open-version"></a>
+### test_core_monthly_cash_flows_snapshot_one_open_version
+
+**Checks that.** No `monthly_cash_flows` row has more than one open version, and no two versions of the same row overlap in time, in `snapshots.snapshot_core_monthly_cash_flows`.
+
+**Why it exists.** "State as of D" picks one version per row; two open versions double every as-of count or sum. It happens if the seed runs twice or a hand `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time (CHANGELOG note), and find out what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-04.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_monthly_cash_flows_snapshot_one_open_version.sql)
+
+<a id="t-core-projects-snapshot-is-current"></a>
+### test_core_projects_snapshot_is_current
+
+**Checks that.** Every `public.projects` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_core_projects`, its check columns (status, workflow, sector, client / site / location, guarantee, insurance, impact flags, delivery milestones, annulment, `deleted_at`) equal the table, and no open version remains for a row that is gone. Rows the change log shows written since the snapshot last captured a change (at most 26 hours back) are skipped.
+
+**Why it exists.** As-of reports read the project state on a date from this history. The nightly runs `dbt snapshot --select tag:zoho_history tag:core_history` right before the tests. The app writes `projects` all day, so today's edits are left for tonight's snapshot, but anything older than 26 hours that the snapshot missed fails: the snapshot step stopped running, or something wrote the table with `trg_track_changes_projects` off.
+
+**When it fails.** `dbt snapshot --select snapshot_core_projects` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log`. If the same rows fail after a snapshot, look for a write the trigger did not see.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-11-04, seeded the same day: 17,220 versions over 3,446 rows). **Related.** `test_core_projects_snapshot_one_open_version`, `test_zoho_payments_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_is_current.sql)
+
+<a id="t-core-projects-snapshot-one-open-version"></a>
+### test_core_projects_snapshot_one_open_version
+
+**Checks that.** No `projects` row has more than one open version, and no two versions of the same row overlap in time, in `snapshots.snapshot_core_projects`.
+
+**Why it exists.** "State as of D" picks one version per row; two open versions double every as-of count or sum. It happens if the seed runs twice or a hand `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time (CHANGELOG note), and find out what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-04.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_projects_snapshot_one_open_version.sql)
+
+<a id="t-core-contracts-snapshot-is-current"></a>
+### test_core_contracts_snapshot_is_current
+
+**Checks that.** Every `public.contracts` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_core_contracts`, its check columns (quote / phase / client link, signing, delivery, voiding, grace period, `is_complete`) equal the table, and no open version remains for a row that is gone. Rows the change log shows written since the snapshot last captured a change (at most 26 hours back) are skipped.
+
+**Why it exists.** As-of reports read the contract state on a date from this history. The nightly runs `dbt snapshot --select tag:zoho_history tag:core_history` right before the tests. The app writes `contracts` all day, so today's edits are left for tonight's snapshot, but anything older than 26 hours that the snapshot missed fails: the snapshot step stopped running, or something wrote the table with `trg_track_changes_contracts` off.
+
+**When it fails.** `dbt snapshot --select snapshot_core_contracts` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log`. If the same rows fail after a snapshot, look for a write the trigger did not see.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-11-04, seeded the same day: 1,034 versions over 612 rows). **Related.** `test_core_contracts_snapshot_one_open_version`, `test_zoho_payments_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_is_current.sql)
+
+<a id="t-core-contracts-snapshot-one-open-version"></a>
+### test_core_contracts_snapshot_one_open_version
+
+**Checks that.** No `contracts` row has more than one open version, and no two versions of the same row overlap in time, in `snapshots.snapshot_core_contracts`.
+
+**Why it exists.** "State as of D" picks one version per row; two open versions double every as-of count or sum. It happens if the seed runs twice or a hand `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time (CHANGELOG note), and find out what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-04.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_contracts_snapshot_one_open_version.sql)
+
+<a id="t-core-sites-snapshot-is-current"></a>
+### test_core_sites_snapshot_is_current
+
+**Checks that.** Every `public.sites` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_core_sites`, its check columns (client and country / department / municipality ids, `smod_code`) equal the table, and no open version remains for a row that is gone. Rows the change log shows written since the snapshot last captured a change (at most 26 hours back) are skipped.
+
+**Why it exists.** As-of reports read the site state on a date from this history. The nightly runs `dbt snapshot --select tag:zoho_history tag:core_history` right before the tests. The app writes `sites` all day, so today's edits are left for tonight's snapshot, but anything older than 26 hours that the snapshot missed fails: the snapshot step stopped running, or something wrote the table with `trg_track_changes_sites` off.
+
+**When it fails.** `dbt snapshot --select snapshot_core_sites` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log`. If the same rows fail after a snapshot, look for a write the trigger did not see.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-11-04, seeded the same day: 6,427 versions over 3,464 rows). **Related.** `test_core_sites_snapshot_one_open_version`, `test_zoho_payments_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_is_current.sql)
+
+<a id="t-core-sites-snapshot-one-open-version"></a>
+### test_core_sites_snapshot_one_open_version
+
+**Checks that.** No `sites` row has more than one open version, and no two versions of the same row overlap in time, in `snapshots.snapshot_core_sites`.
+
+**Why it exists.** "State as of D" picks one version per row; two open versions double every as-of count or sum. It happens if the seed runs twice or a hand `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time (CHANGELOG note), and find out what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-04.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_sites_snapshot_one_open_version.sql)
+
+<a id="t-core-clients-snapshot-is-current"></a>
+### test_core_clients_snapshot_is_current
+
+**Checks that.** Every `public.clients` row has exactly one open version (`dbt_valid_to IS NULL`) in `snapshots.snapshot_core_clients`, its check columns (legal / simple name, country, parent client, legal entity type, IVA exemption, impact flags, `deleted_at`) equal the table, and no open version remains for a row that is gone. Rows the change log shows written since the snapshot last captured a change (at most 26 hours back) are skipped.
+
+**Why it exists.** As-of reports read the client state (names and attributes; no contact or tax data) on a date from this history. The nightly runs `dbt snapshot --select tag:zoho_history tag:core_history` right before the tests. The app writes `clients` all day, so today's edits are left for tonight's snapshot, but anything older than 26 hours that the snapshot missed fails: the snapshot step stopped running, or something wrote the table with `trg_track_changes_clients` off.
+
+**When it fails.** `dbt snapshot --select snapshot_core_clients` (safe to repeat: it inserts only what changed). Never `--full-refresh` it: that drops the history seeded from `database_change_log`. If the same rows fail after a snapshot, look for a write the trigger did not see.
+
+**Severity.** error. **Baseline.** 0 rows at creation (2026-11-04, seeded the same day: 8,541 versions over 2,786 rows). **Related.** `test_core_clients_snapshot_one_open_version`, `test_zoho_payments_snapshot_is_current`.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_is_current.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_is_current.sql)
+
+<a id="t-core-clients-snapshot-one-open-version"></a>
+### test_core_clients_snapshot_one_open_version
+
+**Checks that.** No `clients` row has more than one open version, and no two versions of the same row overlap in time, in `snapshots.snapshot_core_clients`.
+
+**Why it exists.** "State as of D" picks one version per row; two open versions double every as-of count or sum. It happens if the seed runs twice or a hand `dbt snapshot` overlaps the nightly.
+
+**When it fails.** Keep the version with the latest `dbt_valid_from`, close the others at that time (CHANGELOG note), and find out what wrote twice.
+
+**Severity.** error. **Baseline.** 0 rows on 2026-11-04.
+
+**Source.** [`main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_one_open_version.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/core_history/test_core_clients_snapshot_one_open_version.sql)
 
 ## Entry template
 
