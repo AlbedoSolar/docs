@@ -144,6 +144,7 @@ data: this repository is public.
 | 2026-10-16 | Multi-unit residential clients are sector 3 (commercial), not 10. | In effect | [entry](#e-sector-3) |
 | 2026-10-21 | Quote status transitions have one home: service_role code (`approve-quote-variant`, `disapprove-quote-variant`, `set-quote-status`, the contract-generator, `annul_project()`), enforced by column grants on `quotes.status`. | Decided | [entry](#e-quote-status-one-home) |
 | 2026-10-21 | Database code computes nothing; it may refuse a write that breaks an invariant (RLS, grants, raising triggers) and may cascade only in an audit-only or ruled-and-documented trigger. | In effect | [entry](#e-db-compute-refuse-cascade) |
+| 2026-11-09 | Project workflow status stops at `signed` (or `signed_and_addended`); `active` is retired. Whether a system is installed or operating comes from the governance milestones. | In effect | [entry](#e-workflow-stops-at-signed) |
 
 ## Open questions
 
@@ -2177,6 +2178,37 @@ marts, tests `test_eeffs_report_shape` (16 accounts) and
 `test_eeffs_amounts_match_sources` (maintenance income, Pago Total). AlbedoSolar/dbt#32.
 
 **Status.** In effect.
+
+<a id="e-workflow-stops-at-signed"></a>
+### 2026-11-09 · Workflow status stops at signed; the operating stage comes from the milestones
+
+**Decision.** (Jake, 2026-11-09.) A project's `workflow_status` ends at
+`signed` (or `signed_and_addended`). The value `active` is retired: no project
+carries it and a database check refuses it. Whether a system is installed,
+delivered or in O&M is read from the governance milestones (the project's
+stage), never from `workflow_status`.
+
+**Why.** `active` was meant as a manual "installed" marker after signing. It
+was set by hand once (2026-06-05, on 1407-01, 1407-02, 1407-03, 1583-01,
+1605-01 and 2004-01) and never again; nothing in the app, the triggers or the
+edge functions writes it. It carried no information: all six are at
+"O&M Activo" in the milestones, and so were 259 projects still marked
+`signed`. It also cost something: any reader that filtered `= 'signed'`
+silently lost those six — the investor portfolio map showed 4 fewer sites
+until 2026-11-09. Two parallel "is it installed?" signals that disagree are
+worse than one.
+
+**Where.** Supabase migrations `20261109170000_retire_workflow_status_active.sql`
+(the six back to `signed`, `CHECK projects_workflow_status_not_active`) and
+`20261109160000_investor_map_all_signed_statuses.sql`; AlbedoSolar/supabase#92.
+Trigger doc: infra `database/triggers/workflow-status-promotion.md`. The
+Postgres enum keeps the label (dropping an enum value means rebuilding the
+type); the check is what retires it. Frontend "signed or active" checks are
+dead code, to be removed in a cleanup.
+
+**Status.** In effect since 2026-11-09. Supersedes the "never touch `active`"
+invariant of the workflow-status promotion triggers (2026-07-13; infra
+`database/triggers/workflow-status-promotion.md`, updated).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
