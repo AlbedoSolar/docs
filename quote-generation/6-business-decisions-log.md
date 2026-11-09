@@ -85,7 +85,7 @@ data: this repository is public.
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
 | 2026-09-15 | The legal fee is an Albedo cost (in `predebt_cost_sin_iva` and `expense_services`) as well as client income. | In effect | [entry](#e-legal-fee-is-cost) |
 | 2026-10-21 | Two free years of maintenance by default (charges start year 3); a rep may shorten it per deal on the estimate form. | In effect | [entry](#e-free-maintenance-years) |
-| 2026-11-09 | Guatemala insurance base rate is 0.65 % everywhere; the location tiers are gone. HN and SV unchanged. | Decided | [entry](#e-gt-insurance-flat) |
+| 2026-11-09 | Guatemala insurance base rate is 0.65 % everywhere; the location tiers are gone. HN and SV unchanged. | In effect | [entry](#e-gt-insurance-flat) |
 
 ### Cash flows, schedules and adendas
 
@@ -2231,7 +2231,7 @@ and adds a GT country-level row, so the engine's lookup
 to every quote generated or regenerated after the migration, and
 `estimates.insurance_rate_override` still wins where it is set.
 
-**Status.** Decided; in effect once the migration is applied.
+**Status.** In effect since 2026-11-09 (migration applied).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
