@@ -101,3 +101,13 @@ The `fecha_fee_administrativo` milestone is sourced from Finanzas (`projects.fee
 | `user_code_user_type` | sales, admin | — | sales, admin | Link table rewritten wholesale by `UserCodeForm` (delete all, insert selected), so INSERT + DELETE only. Pre-existing admin `ALL` policy kept. |
 | `commission_type_user_code` | sales, admin | — | sales, admin | Link table (vendor ↔ commission type) rewritten wholesale by `UserCodeForm`; INSERT + DELETE only. Before 2026-09-08 it had no write policy for any role, so the page had never saved. |
 | `v_investor_portfolio_map` (view) | — | — | — | Read-only de-identified view (signed projects, ~2.7 km grid-snapped coords, no client fields). SELECT for all authenticated; REVOKEd from anon. Frontend `/investor-map` page and nav item are open to every authenticated user — the privacy boundary is the view itself, not a role. |
+
+## Audit log
+
+`database_change_log` holds full before/after rows of every tracked table, so it is **not** readable by every authenticated user (exception to the SELECT default at the top of this page; since 2026-11-04, supabase migration `20261104210000_database_change_log_lockdown`).
+
+| Table / function | SELECT | INSERT | UPDATE | DELETE | Notes |
+|---|---|---|---|---|---|
+| `database_change_log` | admin, view-user-stats | trigger only | admin, view-user-stats — `notes`, `notes_added_at`, `notes_added_by` only | — | Rows are written by `track_database_change()` (SECURITY DEFINER), so no browser role needs INSERT. UPDATE WITH CHECK: `notes_added_by` must be the caller. No TRUNCATE for any browser role. **Frontend:** `/database-change-log` is behind `UserProtectedRoute` (view-user-stats); the nav item is shown to admins. |
+| `v_change_log_fields` (view) | service_role only | — | — | — | `security_invoker`. |
+| `point_in_time_state(text, text, timestamptz)` | service_role only | — | — | — | SECURITY DEFINER and reads any public table by name, so it must never be granted to `authenticated`. |
