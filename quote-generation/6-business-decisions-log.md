@@ -2224,10 +2224,11 @@ of City 0.9 %, Highlands 1.05 %, Remote 1.05 %. The issue quoted both 0.85 % and
 0.65 %; Jake chose 0.65 %. HN and SV rates are unchanged.
 
 **Where.** `public.insurance_rates`, supabase repo migration
-`20261109180000_gt_insurance_flat_rate.sql`. It sets the four GT rows to 0.0065
-and adds a GT country-level row, so the engine's lookup
-(`_shared/quote-helpers.ts`: department → region → country → default) gives
-0.65 % for every GT estimate. The table has no effective date: the rate applies
+`20261109180000_gt_insurance_flat_rate.sql` (rate) and
+`20261109190000_gt_insurance_single_row.sql` (cleanup). Guatemala has one row,
+at country level; the engine's lookup (`_shared/quote-helpers.ts`: department →
+region → country → default) gives 0.65 % for every GT estimate. Adding a GT
+region or department row would bring tiers back, so don't. The table has no effective date: the rate applies
 to every quote generated or regenerated after the migration, and
 `estimates.insurance_rate_override` still wins where it is set.
 
