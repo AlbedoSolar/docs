@@ -85,6 +85,7 @@ data: this repository is public.
 | 2026-07-27 | Insurance coverage ends 30 days after the last financing payment; Contado = No aplica. | In effect | [entry](#e-insurance-coverage) |
 | 2026-09-15 | The legal fee is an Albedo cost (in `predebt_cost_sin_iva` and `expense_services`) as well as client income. | In effect | [entry](#e-legal-fee-is-cost) |
 | 2026-10-21 | Two free years of maintenance by default (charges start year 3); a rep may shorten it per deal on the estimate form. | In effect | [entry](#e-free-maintenance-years) |
+| 2026-11-09 | Guatemala insurance base rate is 0.65 % everywhere; the location tiers are gone. HN and SV unchanged. | In effect | [entry](#e-gt-insurance-flat) |
 
 ### Cash flows, schedules and adendas
 
@@ -2209,6 +2210,29 @@ dead code, to be removed in a cleanup.
 **Status.** In effect since 2026-11-09. Supersedes the "never touch `active`"
 invariant of the workflow-status promotion triggers (2026-07-13; infra
 `database/triggers/workflow-status-promotion.md`, updated).
+
+<a id="e-gt-insurance-flat"></a>
+### 2026-11-09 · Guatemala insurance base rate is one flat 0.65 %, no location tiers
+
+**Decision.** Every Guatemala project uses a base insurance rate of 0.65 %,
+whatever its region or department. (Reported by Ian on solar_base_frontend#17,
+2026-10-09; rate confirmed by Jake 2026-11-09.)
+
+**Why.** The insurer dropped location-based pricing in Guatemala. Until now
+`insurance_rates` held four GT tiers: City in Guatemala department 0.8 %, rest
+of City 0.9 %, Highlands 1.05 %, Remote 1.05 %. The issue quoted both 0.85 % and
+0.65 %; Jake chose 0.65 %. HN and SV rates are unchanged.
+
+**Where.** `public.insurance_rates`, supabase repo migration
+`20261109180000_gt_insurance_flat_rate.sql` (rate) and
+`20261109190000_gt_insurance_single_row.sql` (cleanup). Guatemala has one row,
+at country level; the engine's lookup (`_shared/quote-helpers.ts`: department →
+region → country → default) gives 0.65 % for every GT estimate. Adding a GT
+region or department row would bring tiers back, so don't. The table has no effective date: the rate applies
+to every quote generated or regenerated after the migration, and
+`estimates.insurance_rate_override` still wins where it is set.
+
+**Status.** In effect since 2026-11-09 (migration applied).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
