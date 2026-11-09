@@ -100,6 +100,7 @@ data: this repository is public.
 | 2026-09-23 | The interest column is interest accrued that month, including grace months. | In effect | [entry](#e-interest-accrued) |
 | 2026-09-25 | A payment-0 row never carries interest; the enganche is all principal. | In effect | [entry](#e-no-interest-month-0) |
 | 2026-09-30 | `v_project_cash_flows` is the one cash-flows view (chain + month 0 derived at read time where missing); the raw table stays frozen; #505 shelved. | In effect | [entry](#e-canonical-cash-flows) |
+| 2026-11-09 | The grace period is chosen per quote in the calculadora (Opciones Avanzadas), like plazo and enganche; the estimate no longer sets it. | Decided | [entry](#e-grace-per-quote) |
 
 ### Dates and milestones
 
@@ -2233,6 +2234,32 @@ to every quote generated or regenerated after the migration, and
 `estimates.insurance_rate_override` still wins where it is set.
 
 **Status.** In effect since 2026-11-09 (migration applied).
+
+<a id="e-grace-per-quote"></a>
+### 2026-11-09 · The grace period is a per-quote choice, made in the calculadora
+
+**Decision.** The months of grace before the first payment are chosen per
+quote, in the calculadora's Opciones Avanzadas, the same way plazo and enganche
+are. The estimate form no longer has the field. A new quote starts from 3
+months (or from the estimate's old value where one was set); a reopened quote
+keeps its own. (Jake, 2026-11-09; spec from 2026-07-20, infra#462.)
+
+**Why.** Grace was set once on the estimate and every quote and offer cell
+inherited it, while plazo and enganche varied per quote. Changing grace for one
+deal meant editing or duplicating the estimate; the 810-07 grace-only adenda
+forced a full estimate duplicate. Keeping the estimate field as a default with
+a calculadora override was rejected: two places setting grace is the problem
+being removed.
+
+**Where.** solar_base_frontend#78 (calculadora field, estimate form field
+removed, offer-matrix override). Stored per quote in
+`quotes.generation_parameters.grace_period`. The engine (quote-generator,
+offer-generator, irr-calculator) already took the request's value over the
+estimate's; contracts and dbt count grace from each quote's own cash flows.
+`estimates.grace_period_months` stays only as the legacy default. The plazo
+still includes the grace months.
+
+**Status.** Decided; in effect once solar_base_frontend#78 is merged.
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
