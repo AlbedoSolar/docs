@@ -87,8 +87,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 |---|---|---|---|
 | [test_maintenances_exist_after_cambio_medidor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenances_exist_after_cambio_medidor.sql) | A signed Financiado project with the Cambio Medidor milestone registered has `project_maintenances` rows. | error | [entry](#t-maintenances-exist-after-cambio-medidor) |
 | [test_maintenances_only_on_live_financiado](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenances_only_on_live_financiado.sql) | Maintenance rows exist only on non-deleted projects with a live signed Financiado quote. | error | [entry](#t-maintenances-only-on-live-financiado) |
-| [test_maintenance_years_contiguous](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql) | Each project's schedule is years 1..N with no gaps. | error | [entry](#t-maintenance-years-contiguous) |
-| [test_maintenance_dates_share_one_anchor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql) | `scheduled_date(N) = scheduled_date(1) + (N − 1) × 12 months` for every row of a project. | error | [entry](#t-maintenance-dates-share-one-anchor) |
+| [test_maintenance_years_contiguous](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql) | Each project's contract years are 1..N with no gaps (soft-deleted rows count; extra visits are not contract years). | error | [entry](#t-maintenance-years-contiguous) |
+| [test_maintenance_dates_share_one_anchor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql) | Contract rows nobody moved by hand sit 12 months apart on one anchor per project. | error | [entry](#t-maintenance-dates-share-one-anchor) |
 | [test_maintenance_flags_consistent](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_flags_consistent.sql) | `albedo_pays = cost_project_currency >= 0.01` and `is_warranty_covered = NOT albedo_pays`. | error | [entry](#t-maintenance-flags-consistent) |
 | [test_maintenance_status_matches_actual_date](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_status_matches_actual_date.sql) | `status = Completado` iff `actual_date` is set; only Pendiente / Completado are stored (Vencido is computed at read time). | error | [entry](#t-maintenance-status-matches-actual-date) |
 | [test_maintenance_actual_date_not_future](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_actual_date_not_future.sql) | `actual_date` (fecha real) is never in the future. | warn | [entry](#t-maintenance-actual-date-not-future) |
@@ -678,26 +678,26 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-maintenance-years-contiguous"></a>
 ### test_maintenance_years_contiguous
 
-**Checks that.** Each project's schedule is years 1..N with no gaps.
+**Checks that.** Each project's contract years are 1..N with no gaps. A maintenance deleted from the page is a soft delete: the row is still there and still counts. Extra visits (no contract year) are left out.
 
-**Why it exists.** The UNIQUE constraint prevents duplicates but not holes; a hand-deleted row leaves one.
+**Why it exists.** The UNIQUE constraint prevents duplicates but not holes. Since 2026-11-12 ops can delete a maintenance from the page, but only as a soft delete, so a hole now means a row was removed directly in the database.
 
-**When it fails.** Re-seed the missing year with the project's anchor, or delete the strays and say so in the CHANGELOG.
+**When it fails.** Someone hard-deleted a row outside the app. Re-seed the missing year with the project's anchor and its cost, say why in the CHANGELOG, and if the year should not show, delete it from the page instead (with a reason).
 
-**Severity.** error. **Baseline.** 2026-10-12: 0 rows.
+**Severity.** error. **Baseline.** 2026-10-12: 0 rows. **Related.** [Decisions log 2026-11-12](../quote-generation/6-business-decisions-log.md#e-maintenance-editable).
 
 **Source.** [`main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql)
 
 <a id="t-maintenance-dates-share-one-anchor"></a>
 ### test_maintenance_dates_share_one_anchor
 
-**Checks that.** `scheduled_date(N) = scheduled_date(1) + (N − 1) × 12 months` for every row of a project.
+**Checks that.** Within a project, the contract rows nobody moved by hand are exactly 12 months apart per year, counted from the project's lowest such year. Fechas objetivo that Operaciones moved from the page (marked "editada") and extra visits are off the grid on purpose and are not checked.
 
-**Why it exists.** Both anchor rules (delivery date 2026-06-07, Cambio Medidor 2026-10-12) keep this spacing; a re-anchor moves every pending row together. A row off the grid is a hand edit.
+**Why it exists.** Both anchor rules (delivery date 2026-06-07, Cambio Medidor 2026-10-12) keep this spacing, and a Cambio de Medidor correction moves the untouched rows together. Since 2026-11-12 ops may move a date by hand; the database stamps those, so what is left to check is that a row nobody edited is still on the grid.
 
-**When it fails.** Recompute from the year-1 row, or re-anchor the whole project and record why.
+**When it fails.** A date was changed without going through the page (SQL, an import) or a re-anchor stopped halfway. Recompute the row from the project's other system dates, or re-anchor the whole project and record why. If ops wanted that date, they should set it from the page so it is marked as edited.
 
-**Severity.** error. **Baseline.** 2026-10-12: 1,310 / 1,310 on grid. **Related.** Decisions log 2026-10-12.
+**Severity.** error. **Baseline.** 2026-10-12: 1,310 / 1,310 on grid. **Related.** Decisions log 2026-10-12 and [2026-11-12](../quote-generation/6-business-decisions-log.md#e-maintenance-editable).
 
 **Source.** [`main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql)
 

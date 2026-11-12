@@ -114,6 +114,7 @@ data: this repository is public.
 | 2026-08-26 | One `project_date` rule on every surface: override → signing date (from 2025-11-01) → first payment date. | In effect | [entry](#e-project-date-one-rule) |
 | 2026-10-02 | Signing date = the client contract on the root quote only; the quote column is a synced mirror. | In effect | [entry](#e-signing-date-contract-only) |
 | 2026-10-12 | Maintenance calendar = Cambio de Medidor date + 12 months per year (projects seeded since 2026-10-12). | In effect | [entry](#e-maintenance-anchor) |
+| 2026-11-12 | After the calendar is created, Operaciones may move dates, add notes, soft-delete (with a reason) and add extra visits; contract year, cost and who pays stay locked; a Cambio de Medidor correction skips dates moved by hand. | Decided | [entry](#e-maintenance-editable) |
 
 ### Impact and reporting
 
@@ -2007,6 +2008,8 @@ Failures land in `signing_failures` (stage `seed_project_maintenances`).
 
 **Status.** In effect since 2026-10-12 (no project has reached Cambio
 Medidor since, so no rows seeded by this path yet as of 2026-10-16).
+Amended [2026-11-12](#e-maintenance-editable): a correction of the date no
+longer moves the fechas objetivo Operaciones moved by hand.
 
 <a id="e-sector-3"></a>
 ### 2026-10-16 · Multi-unit residential clients are sector 3 (Comercio minorista, the commercial bucket), not 10 (Casa habitacional)
@@ -2260,6 +2263,44 @@ estimate's; contracts and dbt count grace from each quote's own cash flows.
 still includes the grace months.
 
 **Status.** Decided; in effect once solar_base_frontend#78 is merged.
+
+<a id="e-maintenance-editable"></a>
+### 2026-11-12 · After the calendar is created, Operaciones owns the maintenance visits
+
+**Decision.** Cambio de Medidor still creates the maintenance calendar
+([2026-10-12](#e-maintenance-anchor)). From there Operaciones may move a
+fecha objetivo, write notes, delete a maintenance (a soft delete, with a
+required reason, restorable; never a completed one) and add extra visits. The
+contract side of a row stays locked: the contract year, its cost and who pays
+come from the signed cash flows, and the client keeps paying a year whose
+visit was deleted. Correcting the Cambio de Medidor date moves only the
+fechas objetivo nobody moved by hand, and the app says which ones it left.
+(Jake, 2026-11-12; solar_base_frontend#85.)
+
+**Why.** The calendar is a scaffold; what actually happens on site is ops'
+call, and until now every exception (a visit that will not happen, a second
+visit in a year, a date agreed with the client) needed someone from sistemas.
+Opening the whole row was rejected: the cost columns are what Albedo owes the
+partner and what the client is billed, and a deleted paid year would lose the
+record of the obligation while the billing carried on. A hard delete was
+rejected for the same reason the estimates have none.
+
+**Where.** supabase migration `20261112170000_project_maintenances_editable`
+(columns, CHECKs, the stamp trigger, policies for admin / operations /
+operations-admin, views `v_maintenances` and `v_maintenances_deleted`);
+`_shared/maintenance/seed.ts` (`planReanchor`); Mantenimientos page and the
+Cambio Medidor dialog in solar_base_frontend#85. dbt
+`test_maintenance_dates_share_one_anchor` and
+`test_maintenance_years_contiguous` follow the rule. Wiki
+`13-mantenimientos.md`.
+
+**Amends.** [2026-10-12](#e-maintenance-anchor): "correcting the cambio
+medidor date moves the maintenance dates with it" now excludes dates ops
+moved by hand. The rest of that entry stands, including "nothing moves once a
+visit is Completado".
+
+**Status.** Decided; in effect once the migration is applied and
+solar_base_frontend#85 is merged.
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
