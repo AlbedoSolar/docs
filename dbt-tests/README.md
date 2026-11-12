@@ -187,7 +187,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 **Checks that.** Every row of a schedule fits ONE interest convention: flat monthly (principal × annual / 12) or compound daily proration (prior × ((1 + annual)^(days/365) − 1), stub periods, grace capitalizes).
 
-**Why it exists.** Quote creation and the XIRR recalculation use different conventions; both exist in production (173 flat, 40 compound on 2026-08-18). Documented lump collections confirmed by Finanzas are excluded while they keep their documented value (`seeds/documented_lump_rows.csv`).
+**Why it exists.** Quote creation and the XIRR recalculation use different conventions; both exist in production (173 flat, 40 compound on 2026-08-18). Documented exceptions are excluded while they keep their documented value (`seeds/documented_lump_rows.csv`): lump collections confirmed by Finanzas (577-01, 577-02) and rows a ruling fixed by hand (1726-01-01-05 payment 63, contract rounding, ruling 2026-11-04; added 2026-11-12 after nightly red 11-05→11-12).
 
 **When it fails.** Output gives bad-row counts per convention and the implied vs stored rate. A stored rate that disagrees with the schedule, a hand-crafted adenda, or an import artifact: fix the data, or document the lump row in the seed with Finanzas' sign-off.
 
