@@ -2,9 +2,9 @@
 
 ## Vista general
 
-La sección de **Mantenimientos** (menú **Operaciones › Mantenimientos**) permite al equipo de operaciones consultar y **editar** el calendario de mantenimientos de cada proyecto financiado. (La **creación** de nuevos mantenimientos está temporalmente deshabilitada — ver la sección "Crear un mantenimiento".)
+La sección de **Mantenimientos** (menú **Operaciones › Mantenimientos**) permite al equipo de operaciones consultar y **modificar** el calendario de mantenimientos de cada proyecto financiado.
 
-Cada proyecto financiado tiene un cronograma de mantenimientos —un evento por año de financiamiento— generado automáticamente a partir de la fecha del primer pago del leasing. Desde esta pantalla se da seguimiento a esos eventos: cuándo estaban programados, cuándo se realizaron, cuánto cuestan y si los cubre Albedo.
+Cada proyecto financiado tiene un cronograma de mantenimientos —uno por año de contrato— que el sistema crea cuando se registra el **Cambio de Medidor**. A partir de ahí el calendario es de Operaciones: puedes mover fechas, anotar, eliminar un mantenimiento que no se hará y agregar visitas extra. Lo que viene del contrato (el año, el costo y quién paga) no se cambia desde aquí.
 
 ## Tarjetas de resumen
 
@@ -48,48 +48,57 @@ La tabla muestra **una fila por proyecto**, con su referencia, cliente, país, s
 > Los cambios se **guardan automáticamente**: no hay botón de "Editar" ni de "Guardar". Al modificar un campo, el sistema lo guarda solo y muestra un mensaje de confirmación.
 
 1. Despliega el proyecto.
-2. Modifica el campo necesario en la fila del año:
+2. Modifica el campo necesario en la fila del mantenimiento:
 
 | Campo | Cómo se edita | Cuándo se guarda |
 |-------|---------------|------------------|
-| Año | Escribe el número | Al salir del campo (clic afuera o Tab) |
-| Fecha Programada | Selecciona la fecha | Al elegir la fecha |
-| Fecha Real | Selecciona la fecha en que se realizó | Al elegir la fecha |
-| Cobertura (Paga Albedo / No paga Albedo) | Elige en la lista desplegable | Al elegir la opción |
+| Fecha objetivo | Selecciona la fecha | Al elegir la fecha |
+| Fecha de visita | Selecciona la fecha | Al elegir la fecha |
+| Fecha real | Selecciona la fecha en que se realizó | Al elegir la fecha |
+| Notas | Escribe el texto | Al salir del campo (clic afuera, Tab o Enter) |
 
 3. Espera el mensaje verde de confirmación.
 
+**No se pueden cambiar desde la pantalla:** el año de contrato, el costo y la cobertura (Paga Albedo / No paga Albedo). Vienen del flujo de caja de la cotización firmada.
+
 **Reglas a tener en cuenta:**
 
-- Al registrar una **Fecha Real**, el estado pasa automáticamente a **Completado**. Si la borras, vuelve a **Pendiente**.
-- La **Fecha Programada** es obligatoria.
-- No puede haber dos mantenimientos con el **mismo año** en un proyecto. Mientras escribes el **Año**, si el valor ya existe en el proyecto, el campo se marca en rojo con el aviso *"El año N ya existe en este proyecto."*
-- Si un cambio **no se guarda** (por ejemplo, un año duplicado o falta de permisos), el campo **vuelve automáticamente** a su valor anterior y se muestra un mensaje de error. Nada queda a medias.
+- Al registrar una **Fecha real**, el estado pasa automáticamente a **Completado**. Si la borras, vuelve a **Pendiente**.
+- La **Fecha objetivo** es obligatoria: puedes moverla, no dejarla vacía.
+- Una fecha objetivo que mueves a mano queda marcada como **editada**. Si después se corrige la fecha de Cambio de Medidor, esa fecha **no se mueve**: se respeta la que pusiste.
+- Si un cambio **no se guarda** (por ejemplo, por falta de permisos), el campo **vuelve automáticamente** a su valor anterior y se muestra un mensaje de error. Nada queda a medias.
 
-## Crear un mantenimiento
+## Eliminar un mantenimiento
 
-> ⚠️ **Temporalmente deshabilitado.** La creación de nuevos mantenimientos está
-> en pausa mientras el equipo confirma si esta función es necesaria. El botón
-> **"+ Agregar mantenimiento"** sigue visible, pero al intentar guardar **aparece
-> un error y el registro no se crea**. Por ahora la pantalla sirve para **editar**
-> mantenimientos existentes. Si necesitas crear uno, contacta al equipo de sistemas.
+1. Despliega el proyecto y haz clic en el ícono de **basurero** de la fila.
+2. Escribe el **motivo** (obligatorio) y confirma con **Eliminar**.
 
-Cuando se habilite, el flujo será:
+- El mantenimiento **no se borra del todo**: deja de aparecer en la tabla, en los contadores y en la exportación, pero queda guardado con su motivo.
+- Si el año tiene costo de contrato (Paga Albedo), la ventana te avisa que **el cliente sigue pagando el mantenimiento de ese año en su cuota**. Eliminar la visita no cambia lo que se le cobra.
+- Un mantenimiento **completado no se puede eliminar**. Si la fecha real se puso por error, bórrala primero.
+
+### Restaurar
+
+Marca **"Mostrar eliminados"** (arriba, junto a Exportar CSV). Aparece la lista de mantenimientos eliminados con su proyecto, fecha, cuándo se eliminó y el motivo. Haz clic en **Restaurar** para devolverlo al calendario.
+
+## Agregar una visita extra
+
+Para una visita que no es un año de contrato (una revisión por garantía, una segunda visita en el año):
 
 1. Despliega el proyecto.
-2. Debajo de la lista de años, haz clic en **"+ Agregar mantenimiento"**.
-3. Completa el formulario:
-   - **Año** — obligatorio (viene sugerido el siguiente; se puede cambiar)
-   - **Fecha Programada** — obligatoria
-   - **Costo** — opcional
-   - **Cobertura** — Paga Albedo / No paga Albedo
-4. Haz clic en **Guardar** (o **Cancelar** para descartar).
+2. Debajo de la lista, haz clic en **"+ Agregar visita extra"**.
+3. Elige la **Fecha objetivo** y, si quieres, escribe una **nota**.
+4. Haz clic en **Agregar visita** (o **Cancelar** para descartar).
+
+La visita aparece con la etiqueta **Extra** en la columna del año. No tiene costo de contrato y Albedo no la paga. Se le pueden poner fecha de visita, fecha real y notas igual que a las demás, y se puede eliminar.
+
+Los mantenimientos de los años de contrato solo los crea el sistema, al registrar el Cambio de Medidor.
 
 ## Las tres fechas
 
 | Fecha | Qué es | Quién la pone |
 |-------|--------|---------------|
-| **Fecha objetivo** | Cuándo corresponde el mantenimiento según el contrato (12 meses por año desde el ancla del proyecto) | El sistema |
+| **Fecha objetivo** | Cuándo corresponde el mantenimiento según el contrato (12 meses por año desde el Cambio de Medidor) | El sistema la pone; Operaciones puede moverla (queda marcada como **editada**) |
 | **Fecha de visita** | Fecha tentativa en que se hará la visita; se puede cambiar cada vez que se reprograme. No se puede borrar desde la pantalla: si una visita se cancela, pide a sistemas que la quite | Operaciones |
 | **Fecha real** | Día en que se realizó el mantenimiento; al llenarla el estado pasa a Completado | Operaciones |
 
@@ -114,8 +123,10 @@ El botón **Exportar CSV** descarga los mantenimientos **según los filtros y la
 | Acción | Rol requerido |
 |--------|---------------|
 | Ver mantenimientos | Cualquier usuario autenticado |
-| Editar mantenimientos existentes | `operations`, `operations-admin` o `admin` |
-| Crear mantenimientos | Temporalmente deshabilitado (pendiente de confirmación del equipo) |
+| Editar fechas y notas | `operations`, `operations-admin` o `admin` |
+| Eliminar y restaurar mantenimientos | `operations`, `operations-admin` o `admin` |
+| Agregar visitas extra | `operations`, `operations-admin` o `admin` |
+| Cambiar año de contrato, costo o cobertura | Nadie desde la pantalla (vienen del contrato) |
 
 Si solo ves texto en lugar de campos editables, es porque tu usuario no tiene un rol con permiso de edición. Contacta al equipo de sistemas. Ver también [Roles y Permisos](12-roles-y-permisos.md).
 
@@ -131,7 +142,7 @@ Desde el 2026-10-12 el cronograma de un proyecto nuevo se crea desde el panel de
 
 1. Al presionar **Registrar** en Cambio Medidor, el sistema muestra una ventana con lo que va a crear: cuántos mantenimientos, la fecha del primero (12 meses después) y del último, y qué años paga Albedo con su costo sin IVA.
 2. Al confirmar, se registra el hito y se crean los mantenimientos. Hasta ese momento el proyecto **no aparece** en el módulo de mantenimientos.
-3. Si después se **modifica** la fecha de Cambio Medidor, los mantenimientos pendientes se reprograman con la nueva fecha; la ventana de modificación lo indica antes de guardar. Si el proyecto ya tiene algún mantenimiento completado, las fechas no se mueven.
+3. Si después se **modifica** la fecha de Cambio Medidor, los mantenimientos pendientes se reprograman con la nueva fecha; la ventana de modificación lo indica antes de guardar. **Las fechas objetivo que Operaciones movió a mano no se mueven** (la ventana dice cuántas son), y las visitas extra tampoco. Si el proyecto ya tiene algún mantenimiento completado, no se mueve ninguna fecha. Este es el único momento en que el sistema cambia fechas por su cuenta.
 4. **Anular** el hito conserva los mantenimientos.
 
 Los proyectos que ya tenían cronograma antes de esa fecha conservan sus fechas (anclaje en la entrega al cliente o el primer pago).
@@ -147,7 +158,13 @@ No. Cada cambio se guarda por separado en el momento; solo confirma que aparezca
 Verifica que (1) hayas desplegado el proyecto y (2) tengas un rol con permiso de edición.
 
 **¿Puedo borrar un mantenimiento?**
-No desde la pantalla. Para eliminar registros, contacta al equipo de sistemas.
+Sí, con el ícono de basurero y un motivo. Queda en "Mostrar eliminados" y se puede restaurar. Los completados no se pueden eliminar.
+
+**Eliminé un mantenimiento por error.**
+Marca "Mostrar eliminados" y haz clic en **Restaurar**.
+
+**Moví una fecha objetivo y ahora dice "editada". ¿Qué significa?**
+Que esa fecha la pusiste tú y el sistema ya no la va a cambiar si se corrige el Cambio de Medidor.
 
 **Me aparece "No tienes permiso para editar este mantenimiento."**
 Tu usuario no tiene los permisos necesarios. Comunícate con sistemas.
