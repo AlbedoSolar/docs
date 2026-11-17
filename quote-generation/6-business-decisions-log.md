@@ -114,7 +114,7 @@ data: this repository is public.
 | 2026-08-26 | One `project_date` rule on every surface: override → signing date (from 2025-11-01) → first payment date. | In effect | [entry](#e-project-date-one-rule) |
 | 2026-10-02 | Signing date = the client contract on the root quote only; the quote column is a synced mirror. | In effect | [entry](#e-signing-date-contract-only) |
 | 2026-10-12 | Maintenance calendar = Cambio de Medidor date + 12 months per year (projects seeded since 2026-10-12). | In effect | [entry](#e-maintenance-anchor) |
-| 2026-11-12 | After the calendar is created, Operaciones may move dates, add notes, soft-delete (with a reason) and add extra visits; contract year, cost and who pays stay locked; a Cambio de Medidor correction skips dates moved by hand. | Decided | [entry](#e-maintenance-editable) |
+| 2026-11-12 | After the calendar is created, Operaciones may move dates, add notes, soft-delete (with a reason) and add extra visits; contract year, cost and who pays stay locked; a Cambio de Medidor correction skips dates moved by hand. | In effect | [entry](#e-maintenance-editable) |
 
 ### Impact and reporting
 
@@ -2299,8 +2299,9 @@ medidor date moves the maintenance dates with it" now excludes dates ops
 moved by hand. The rest of that entry stands, including "nothing moves once a
 visit is Completado".
 
-**Status.** Decided; in effect once the migration is applied and
-solar_base_frontend#85 is merged.
+**Status.** In effect since 2026-11-17: migration applied, edge functions
+deployed (supabase#99), Mantenimientos page live (solar_base_frontend#95),
+dbt tests updated (dbt#44).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
