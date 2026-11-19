@@ -113,7 +113,7 @@ data: this repository is public.
 | 2026-08-25 | Project signing date = the original client contract's `signed_on`, never an adenda's. | In effect | [entry](#e-signing-date-original) |
 | 2026-08-26 | One `project_date` rule on every surface: override → signing date (from 2025-11-01) → first payment date. | In effect | [entry](#e-project-date-one-rule) |
 | 2026-10-02 | Signing date = the client contract on the root quote only; the quote column is a synced mirror. | In effect | [entry](#e-signing-date-contract-only) |
-| 2026-10-12 | Maintenance calendar = Cambio de Medidor date + 12 months per year (projects seeded since 2026-10-12). | In effect | [entry](#e-maintenance-anchor) |
+| 2026-10-12 | Maintenance calendar = Cambio de Medidor date + 12 months per year (projects seeded since 2026-10-12); older projects keep their dates and ops corrects by hand (confirmed 2026-11-19). | In effect | [entry](#e-maintenance-anchor) |
 | 2026-11-12 | After the calendar is created, Operaciones may move dates, add notes, soft-delete (with a reason) and add extra visits; contract year, cost and who pays stay locked; a Cambio de Medidor correction skips dates moved by hand. | In effect | [entry](#e-maintenance-editable) |
 
 ### Impact and reporting
@@ -1996,6 +1996,11 @@ registered.
 earlier anchor (Fernanda, 2026-06-04) used the client delivery date, else
 the first paid cuota, and those rows are not re-anchored. An
 installation-end anchor validated in May was never applied.
+
+**Confirmed 2026-11-19 (Javi).** Not re-anchored even where the cambio de
+medidor date is now known (207 projects; most within 0–3 months, 26 more than
+3 months off). Operaciones already plans visits on those dates; they correct
+the cases that need it by hand, with the date-edit reason (sbf#104).
 
 **Why.** The meter change is the moment the system starts producing for the
 client, and ops records it in the app already; delivery dates were rarely
