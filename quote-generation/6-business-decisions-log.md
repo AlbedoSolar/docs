@@ -2376,8 +2376,10 @@ dropped) and `20261120200100` (columns dropped); Afiliados page and form in
 solar_base_frontend. The per-estimate `estimate_affiliates.commission_*`
 columns are not part of this ruling (unused, all empty).
 
-**Status.** In effect since 2026-11-20: check and columns dropped in
-production (supabase#106), Afiliados page live (solar_base_frontend#116).
+**Status.** In effect since 2026-11-20: the app no longer reads or writes an
+affiliate commission (solar_base_frontend#116, supabase#106). The two columns
+stay in the database, empty and marked deprecated, until the old copy of the
+app stops running (infra#467).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
