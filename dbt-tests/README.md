@@ -51,6 +51,9 @@ Every automated check that runs against production data in the `dbt` repo, one l
 | [test_country_carbon_assumptions_in_band](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_country_carbon_assumptions_in_band.sql) | `countries` carries the four CO2 inputs (gross grid factor, panel lifecycle factor, decarbonization rate, base year) and each sits in a plausible band. | error | [entry](#t-country-carbon-assumptions-in-band) |
 | [test_rural_area_follows_gps](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_rural_area_follows_gps.sql) | Every signed project's `rural_area` in the impact mart equals the GPS rule on the site's density code; the manual flag is never used. | error | [entry](#t-rural-area-follows-gps) |
 | [test_vi_base_matches_impact_mart](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql) | The Valuing Impact input table agrees row for row with the impact mart on rural, kW and net savings, and stays inside VI's vocabulary. | error | [entry](#t-vi-base-matches-impact-mart) |
+| [test_vi_value_per_project_matches_workbook](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql) | SolarBase's run of Valuing Impact's model gives every project in VI's workbook the same lifetime societal value (within 1 % and USD 100). | warn | [entry](#t-vi-value-per-project-matches-workbook) |
+| [test_vi_public_groups_safe](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql) | The public Impact Explorer data publishes no group smaller than 5 projects, and each dimension still adds up to the total. | error | [entry](#t-vi-public-groups-safe) |
+| [test_vi_value_by_year_sums_to_lifetime](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_by_year_sums_to_lifetime.sql) | Valuing Impact's value split by calendar year adds back to each project's lifetime value and CO2, and to each portfolio pathway's value (within USD 0.01). | error | [entry](#t-vi-value-by-year-sums-to-lifetime) |
 | [test_panel_degradation_in_range](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_panel_degradation_in_range.sql) | Solar panels have `annual_depreciation_percentage` in 0–0.02 and `first_year_production_loss_percentage` in 0–0.10 (fractions). | error | [entry](#t-panel-degradation-in-range) |
 | [test_signed_projects_have_sector](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_signed_projects_have_sector.sql) | Every signed project has a `project_sector_id`. | error | [entry](#t-signed-projects-have-sector) |
 | [test_backup_tables_expired](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_backup_tables_expired.sql) | Lists safety-copy tables (`_backup_YYYYMMDD_*`, `*_backup_YYYYMMDD`, `*_snapshot_YYYYMMDD`) older than 30 days. | warn | [entry](#t-backup-tables-expired) |
@@ -87,8 +90,8 @@ Every automated check that runs against production data in the `dbt` repo, one l
 |---|---|---|---|
 | [test_maintenances_exist_after_cambio_medidor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenances_exist_after_cambio_medidor.sql) | A signed Financiado project with the Cambio Medidor milestone registered has `project_maintenances` rows. | error | [entry](#t-maintenances-exist-after-cambio-medidor) |
 | [test_maintenances_only_on_live_financiado](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenances_only_on_live_financiado.sql) | Maintenance rows exist only on non-deleted projects with a live signed Financiado quote. | error | [entry](#t-maintenances-only-on-live-financiado) |
-| [test_maintenance_years_contiguous](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql) | Each project's schedule is years 1..N with no gaps. | error | [entry](#t-maintenance-years-contiguous) |
-| [test_maintenance_dates_share_one_anchor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql) | `scheduled_date(N) = scheduled_date(1) + (N − 1) × 12 months` for every row of a project. | error | [entry](#t-maintenance-dates-share-one-anchor) |
+| [test_maintenance_years_contiguous](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql) | Each project's contract years are 1..N with no gaps (soft-deleted rows count; extra visits are not contract years). | error | [entry](#t-maintenance-years-contiguous) |
+| [test_maintenance_dates_share_one_anchor](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql) | Contract rows nobody moved by hand sit 12 months apart on one anchor per project. | error | [entry](#t-maintenance-dates-share-one-anchor) |
 | [test_maintenance_flags_consistent](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_flags_consistent.sql) | `albedo_pays = cost_project_currency >= 0.01` and `is_warranty_covered = NOT albedo_pays`. | error | [entry](#t-maintenance-flags-consistent) |
 | [test_maintenance_status_matches_actual_date](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_status_matches_actual_date.sql) | `status = Completado` iff `actual_date` is set; only Pendiente / Completado are stored (Vencido is computed at read time). | error | [entry](#t-maintenance-status-matches-actual-date) |
 | [test_maintenance_actual_date_not_future](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_actual_date_not_future.sql) | `actual_date` (fecha real) is never in the future. | warn | [entry](#t-maintenance-actual-date-not-future) |
@@ -187,7 +190,7 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 
 **Checks that.** Every row of a schedule fits ONE interest convention: flat monthly (principal × annual / 12) or compound daily proration (prior × ((1 + annual)^(days/365) − 1), stub periods, grace capitalizes).
 
-**Why it exists.** Quote creation and the XIRR recalculation use different conventions; both exist in production (173 flat, 40 compound on 2026-08-18). Documented lump collections confirmed by Finanzas are excluded while they keep their documented value (`seeds/documented_lump_rows.csv`).
+**Why it exists.** Quote creation and the XIRR recalculation use different conventions; both exist in production (173 flat, 40 compound on 2026-08-18). Documented exceptions are excluded while they keep their documented value (`seeds/documented_lump_rows.csv`): lump collections confirmed by Finanzas (577-01, 577-02) and rows a ruling fixed by hand (1726-01-01-05 payment 63, contract rounding, ruling 2026-11-04; added 2026-11-12 after nightly red 11-05→11-12).
 
 **When it fails.** Output gives bad-row counts per convention and the implied vs stored rate. A stored rate that disagrees with the schedule, a hand-crafted adenda, or an import artifact: fix the data, or document the lump row in the seed with Finanzas' sign-off.
 
@@ -395,6 +398,45 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 **Severity.** error. **Baseline.** 0 rows (2026-10-26). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact input table".
 
 **Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_base_matches_impact_mart.sql)
+
+<a id="t-vi-value-per-project-matches-workbook"></a>
+### test_vi_value_per_project_matches_workbook
+
+**Checks that.** The societal-value model that now runs in dbt (`mart_vi_value_per_project`) gives each project in Valuing Impact's workbook ("Value per Project" tab, kept as the seed `vi_workbook_value_per_project`) the same lifetime value, within 1 % and USD 100, and that every project in the workbook is still in the mart.
+
+**Why it exists.** The headline impact numbers (USD 99.3M societal value, SROI 8.1×) came from VI's Excel. SolarBase now computes them itself so the Impact Explorer and investor packs stay current after the engagement ends; this test is the proof that our run and VI's agree. The arithmetic was checked row by row against the workbook when it was built (2026-10-30), so a difference here is an input that moved, not the formula.
+
+**When it fails.** Each row is a project with VI's figure, ours and the gap. Look at what changed for that project in SolarBase since VI's export (savings, monthly kWh, panels, battery, energy type, signing year, sector): a genuine correction stays and VI's number is the stale one — note it for the next workbook refresh; a hand-edited parameter seed is fixed by re-running `scripts/vi_seeds_from_workbook.py`. Projects signed after VI's cut are not checked.
+
+**Severity.** warn (expected to carry a small, explained baseline after every data correction; becomes error only if the seeds are refreshed from a workbook built on current data). **Baseline.** 17 of 281 projects on 2026-10-30 against the v7 workbook, all traced to input changes since VI's 2026-09-22 export. **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model", `OPERATIONS.md` § "Valuing Impact model refresh", infra #640.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_per_project_matches_workbook.sql)
+
+<a id="t-vi-public-groups-safe"></a>
+### test_vi_public_groups_safe
+
+**Checks that.** The view behind the public Impact Explorer (`mart_vi_public_groups`) never publishes a group of fewer than 5 projects, and that each dimension (sector, country, year…) still adds up to the portfolio total, apart from at most one small "other" group that is withheld.
+
+**Why it exists.** The public page shows only totals by group, never client names or projects. A group of 2 or 3 projects (one sector in one country, say) would let a reader work out one client's figures. This test is the privacy guarantee of that page.
+
+**When it fails.** `small_group` rows name a group that would be published with too few projects; `total_mismatch` rows name a dimension whose groups no longer add up. Fix the model's small-cell rule, rebuild the view, and do not publish or refresh the public page until the test passes.
+
+**Severity.** error. **Baseline.** 0 rows (2026-11-02, Jun-30 cut, 281 projects). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model" (Public snapshot), `OPERATIONS.md` § "Public Impact Explorer", infra #640.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_public_groups_safe.sql)
+
+<a id="t-vi-value-by-year-sums-to-lifetime"></a>
+### test_vi_value_by_year_sums_to_lifetime
+
+**Checks that.** When Valuing Impact's 30-year value is split into the calendar years it is produced in (`mart_vi_value_by_year`), the years of each project add back to that project's lifetime value and CO2, and the years of each portfolio pathway (Albedo employment, income tax, Socios Solares) add back to its value.
+
+**Why it exists.** The Impact Explorer shows the same total two ways: by signing date ("Firmados en el período") and by the year the value is produced ("Generado en el período"). Over all time both must reach the same number, or the page contradicts itself in front of an investor.
+
+**When it fails.** Each row names a project reference or portfolio pathway with its lifetime figure and the sum of its years. The yearly weights in `mart_vi_value_by_year` no longer add to 1 (usually a new value rule or a country without a grid factor). Fix the model; never adjust the per-project figures to match. Until it passes, don't quote "Generado" figures.
+
+**Severity.** error. **Baseline.** 0 rows (2026-11-06, 307 projects, 9,210 project-years). **Related.** dbt `CALCULATIONS.md` § "Valuing Impact societal value model" (By year), `test_vi_value_per_project_matches_workbook`.
+
+**Source.** [`main/tests/tests_on_static_tables/data_health/test_vi_value_by_year_sums_to_lifetime.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/data_health/test_vi_value_by_year_sums_to_lifetime.sql)
 
 <a id="t-panel-degradation-in-range"></a>
 ### test_panel_degradation_in_range
@@ -678,26 +720,26 @@ Declared in [`main/models/models_on_static_tables/schema.yml`](https://github.co
 <a id="t-maintenance-years-contiguous"></a>
 ### test_maintenance_years_contiguous
 
-**Checks that.** Each project's schedule is years 1..N with no gaps.
+**Checks that.** Each project's contract years are 1..N with no gaps. A maintenance deleted from the page is a soft delete: the row is still there and still counts. Extra visits (no contract year) are left out.
 
-**Why it exists.** The UNIQUE constraint prevents duplicates but not holes; a hand-deleted row leaves one.
+**Why it exists.** The UNIQUE constraint prevents duplicates but not holes. Since 2026-11-12 ops can delete a maintenance from the page, but only as a soft delete, so a hole now means a row was removed directly in the database.
 
-**When it fails.** Re-seed the missing year with the project's anchor, or delete the strays and say so in the CHANGELOG.
+**When it fails.** Someone hard-deleted a row outside the app. Re-seed the missing year with the project's anchor and its cost, say why in the CHANGELOG, and if the year should not show, delete it from the page instead (with a reason).
 
-**Severity.** error. **Baseline.** 2026-10-12: 0 rows.
+**Severity.** error. **Baseline.** 2026-10-12: 0 rows. **Related.** [Decisions log 2026-11-12](../quote-generation/6-business-decisions-log.md#e-maintenance-editable).
 
 **Source.** [`main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_years_contiguous.sql)
 
 <a id="t-maintenance-dates-share-one-anchor"></a>
 ### test_maintenance_dates_share_one_anchor
 
-**Checks that.** `scheduled_date(N) = scheduled_date(1) + (N − 1) × 12 months` for every row of a project.
+**Checks that.** Within a project, the contract rows nobody moved by hand are exactly 12 months apart per year, counted from the project's lowest such year. Fechas objetivo that Operaciones moved from the page (marked "editada") and extra visits are off the grid on purpose and are not checked.
 
-**Why it exists.** Both anchor rules (delivery date 2026-06-07, Cambio Medidor 2026-10-12) keep this spacing; a re-anchor moves every pending row together. A row off the grid is a hand edit.
+**Why it exists.** Both anchor rules (delivery date 2026-06-07, Cambio Medidor 2026-10-12) keep this spacing, and a Cambio de Medidor correction moves the untouched rows together. Since 2026-11-12 ops may move a date by hand; the database stamps those, so what is left to check is that a row nobody edited is still on the grid.
 
-**When it fails.** Recompute from the year-1 row, or re-anchor the whole project and record why.
+**When it fails.** A date was changed without going through the page (SQL, an import) or a re-anchor stopped halfway. Recompute the row from the project's other system dates, or re-anchor the whole project and record why. If ops wanted that date, they should set it from the page so it is marked as edited.
 
-**Severity.** error. **Baseline.** 2026-10-12: 1,310 / 1,310 on grid. **Related.** Decisions log 2026-10-12.
+**Severity.** error. **Baseline.** 2026-10-12: 1,310 / 1,310 on grid. **Related.** Decisions log 2026-10-12 and [2026-11-12](../quote-generation/6-business-decisions-log.md#e-maintenance-editable).
 
 **Source.** [`main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql`](https://github.com/AlbedoSolar/dbt/blob/main/main/tests/tests_on_static_tables/test_maintenance_dates_share_one_anchor.sql)
 

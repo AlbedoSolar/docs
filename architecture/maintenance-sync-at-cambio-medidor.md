@@ -37,6 +37,12 @@ again on 2026-10-08.
    anchored on Entrega Cliente / first payment. No re-anchor.
 5. **Correcting the Cambio Medidor date moves the maintenance dates with it**
    while no maintenance is completed, and the UI says so while it happens.
+   *Amended 2026-11-12 (solar_base_frontend#85):* ops can now move a fecha
+   objetivo by hand, soft-delete a maintenance and add extra visits. A
+   correction moves only the contract rows still on their system date
+   (`scheduled_date_edited_at IS NULL`); hand-moved rows stay and come back in
+   `maintenances.kept`; extra visits (`maintenance_year` NULL) are never
+   touched. Decisions log 2026-11-12.
 6. **Accepted trade-off:** a project signed from now on does not appear on
    the Mantenimientos page until Cambio Medidor is registered.
 
@@ -73,9 +79,10 @@ exporting:
   `contado`, `not_signed`, `already_seeded`, `no_cash_flows`.
 - `seedProjectMaintenances(supabase, projectId, anchorDate)` → writes the
   plan, returns the rows inserted.
-- `reanchorProjectMaintenances(supabase, projectId, newAnchorDate)` → moves
-  `scheduled_date` on every row that is not `Completado`; returns the count
-  and the rows left untouched.
+- `reanchorProjectMaintenances(supabase, projectId, newAnchorDate)` → applies
+  `planReanchor` (pure, unit-tested): nothing moves if a live contract row is
+  `Completado`; otherwise every contract row still on its system date moves,
+  and the rows ops moved by hand are returned in `kept`.
 
 Two new `op` values on the function, plus a change to `register`/`modify`:
 
@@ -83,7 +90,7 @@ Two new `op` values on the function, plus a change to `register`/`modify`:
 |---|---|
 | `op=preview_maintenances` (`project_id`, `fecha`) | returns the plan for the confirm dialog: number of years, first and last date, Albedo-pays years with cost and currency. Read-only. |
 | `op=register`, `tipo_hito=fecha_cambio_medidor` | existing flow, then **seed**. Response gains `maintenances: { created: n, first: date, last: date }` or `{ skipped: reason }`. |
-| `op=modify`, `tipo_hito=fecha_cambio_medidor`, new `fecha` | existing flow, then **re-anchor** if no row is `Completado`. Response gains `maintenances: { moved: n }` or `{ skipped: 'completed_rows', completed: n }`. |
+| `op=modify`, `tipo_hito=fecha_cambio_medidor`, new `fecha` | existing flow, then **re-anchor** if no row is `Completado`. Response gains `maintenances: { moved: n, first, kept: [{ maintenance_year, scheduled_date }] }` or `{ skipped: 'completed_rows', completed: n }`. |
 | `op=modify` as *anulación* (fecha → null) | milestone flow only. Rows stay. Response says so. |
 
 Ordering inside `register`: validate V-rules → RPC insert → audit log →
