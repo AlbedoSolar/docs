@@ -73,7 +73,7 @@ data: this repository is public.
 | 2026-10-01 | Albedo cartera: 12 % default margin (config) with per-phase override; Socio: the provider's discount. | In effect | [entry](#e-albedo-margin-12) |
 | 2026-10-09 | One terms row per provider (payout split + socio discount); no discount = 0 %; sales floor 5 % on the Albedo margin. | In effect | [entry](#e-provider-terms) |
 | 2026-10-20 | One quoter configuration for everyone: the single active `quote_generator_configs` row holds the defaults; no per-user or per-version configs. | In effect | [entry](#e-one-config) |
-| 2026-11-20 | Affiliate commission comes only from the estimate's commission type; affiliates carry no default commission of their own. | Decided | [entry](#e-affiliate-commission-from-type) |
+| 2026-11-20 | Affiliate commission comes only from the estimate's commission type; affiliates carry no default commission of their own. | In effect | [entry](#e-affiliate-commission-from-type) |
 
 ### Services: insurance, maintenance, legal
 
@@ -2376,8 +2376,8 @@ dropped) and `20261120200100` (columns dropped); Afiliados page and form in
 solar_base_frontend. The per-estimate `estimate_affiliates.commission_*`
 columns are not part of this ruling (unused, all empty).
 
-**Status.** Decided. Check dropped in production 2026-11-20; In effect once
-the frontend is live and the columns are dropped.
+**Status.** In effect since 2026-11-20: check and columns dropped in
+production (supabase#106), Afiliados page live (solar_base_frontend#116).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
