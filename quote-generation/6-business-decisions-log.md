@@ -73,6 +73,7 @@ data: this repository is public.
 | 2026-10-01 | Albedo cartera: 12 % default margin (config) with per-phase override; Socio: the provider's discount. | In effect | [entry](#e-albedo-margin-12) |
 | 2026-10-09 | One terms row per provider (payout split + socio discount); no discount = 0 %; sales floor 5 % on the Albedo margin. | In effect | [entry](#e-provider-terms) |
 | 2026-10-20 | One quoter configuration for everyone: the single active `quote_generator_configs` row holds the defaults; no per-user or per-version configs. | In effect | [entry](#e-one-config) |
+| 2026-11-20 | Affiliate commission comes only from the estimate's commission type; affiliates carry no default commission of their own. | In effect | [entry](#e-affiliate-commission-from-type) |
 
 ### Services: insurance, maintenance, legal
 
@@ -2352,6 +2353,33 @@ visit is Completado".
 **Status.** In effect since 2026-11-17: migration applied, edge functions
 deployed (supabase#99), Mantenimientos page live (solar_base_frontend#95),
 dbt tests updated (dbt#44).
+
+<a id="e-affiliate-commission-from-type"></a>
+### 2026-11-20 · Affiliate commission comes only from the commission type
+
+**Decision.** What an Aliado or Embajador earns is set by the commission
+type chosen on the estimate (`commission_types.affiliate_percentage` for
+Aliados, `affiliate_owner_percentage` for Embajadores). An affiliate record
+holds no commission of its own: the "default commission" percentage and fixed
+amount are removed. (Jake, 2026-11-20.)
+
+**Why.** The quote engine never read the affiliate's default commission; it
+already priced from the commission type. The fields were display-only, and a
+database check forced every affiliate to have one, so people typed
+placeholder values that the Afiliados page then showed as if they were real.
+Keeping two places that both look like "the commission" invited the wrong
+one to be trusted.
+
+**Where.** Engine: `supabase/functions/_shared/quote-helpers.ts` (reads the
+commission type). Removal: supabase migrations `20261120200000` (check
+dropped) and `20261120200100` (columns dropped); Afiliados page and form in
+solar_base_frontend. The per-estimate `estimate_affiliates.commission_*`
+columns are not part of this ruling (unused, all empty).
+
+**Status.** In effect since 2026-11-20: the app no longer reads or writes an
+affiliate commission (solar_base_frontend#116, supabase#106). The two columns
+stay in the database, empty and marked deprecated, until the old copy of the
+app stops running (infra#467).
 
 <a id="e-open-mixed-commission"></a>
 ### Open · Commission on mixed Add/Subtract phase projects
