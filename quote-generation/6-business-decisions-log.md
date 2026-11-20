@@ -129,6 +129,7 @@ data: this repository is public.
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
 | 2026-10-29 | EEFFs financed reports carry maintenance as its own income row and its own CxC CP/LP rows; Pago Total includes maintenance. | In effect | [entry](#e-eeffs-maintenance) |
+| 2026-11-11 | A client contract (leasing or contado) is generated only once the client's four impact answers are given (Sí / No / No sé), the site has coordinates and the project's grid access is Sí / No (added 2026-11-20). "No sé" is an answer; blank is not. Type of energy replaced is inferred from grid access, not typed. | In effect (schema); Lambda pending deploy | [entry](#e-contract-requires-impact-data) |
 
 ### Data conventions and integrations
 
@@ -2263,6 +2264,55 @@ estimate's; contracts and dbt count grace from each quote's own cash flows.
 still includes the grace months.
 
 **Status.** Decided; in effect once solar_base_frontend#78 is merged.
+
+<a id="e-contract-requires-impact-data"></a>
+### 2026-11-11 · A client contract requires the impact answers and the site's coordinates
+
+**Decision.** (Jake, 2026-11-11.) The contract generator refuses to generate a
+client contract (leasing or contado, adendas included) until the client has
+an answer on all four impact indicators — women-led, youth-led, educational
+institution, non-profit — and the project's site has latitude and longitude.
+"No sé" is a valid answer and is stored as such; a blank is not. Partner
+(Socio) contracts are not affected.
+
+**Why.** The answers and coordinates were optional everywhere, and nothing
+asked for them after signing: of the projects signed since July, nearly all
+arrived with both missing (September 8 of 8, October 6 of 6). That leaves the
+impact reports, the quote's impact discount, the rural classification and the
+investor map blank, and someone has to chase the data afterwards. The rep has
+the client in front of them at signing, so that is where the data is cheapest
+to get. The check sits at **generation**, not at the final signature, so the
+rep fixes it before the client sees a contract and a signed paper contract is
+never refused. An explicit "No sé" keeps a genuine unknown from blocking a
+deal while still separating "asked, unknown" from "never asked". A milestone
+gate at Aprobación Preinstalación was considered and rejected: it pushes the
+chase onto operations after the sale.
+
+**Where.** Supabase migration `20261111200000_contract_requires_impact_data.sql`
+(answer CHECKs on `clients`, explicit "No sé" wins in `v_project_impact_flags`,
+site coordinates on `v_contract_quote_context`; AlbedoSolar/supabase#98).
+Contract generator `src/contract-readiness.ts` (AlbedoSolar/albedo-automations-infra#679).
+Frontend "No sé" option and the missing-data message
+(AlbedoSolar/solar_base_frontend#89). The backlog signed before the rule (39
+clients, 30 sites on 2026-11-11) is filled from the operations spreadsheet.
+
+**Amended 2026-11-20 (Jake): grid access joins the check.**
+`projects.electric_grid_access` becomes a clean Sí / No and is required too.
+It is the one input that decides whether a system displaces grid electricity
+or diesel in the Valuing Impact model (diesel is worth about 2.2× more per
+MWh), so "type of energy replaced" stays **inferred** — no grid access →
+fossil fuel; batteries → grid plus backup (valued the same as grid); else
+grid — rather than typed: the inference cannot be skipped and adds no field,
+and the only fact it needs is grid access. Until then the field was free text
+written only by operations (Sí / Si / si / SI / N/A, 16 signed projects
+blank, counted as grid); the wizard and the project page now ask it. Known
+blind spot: a grid client whose system mainly replaces a diesel generator
+counts as grid; add a field only if sales reports it is common.
+Migration `20261120180000_projects_grid_access_si_no.sql`
+(AlbedoSolar/supabase#98), frontend AlbedoSolar/solar_base_frontend#114.
+
+**Status.** In effect for the schema since 2026-11-11; the generator check
+takes effect when the Lambda is deployed.
 
 <a id="e-maintenance-editable"></a>
 ### 2026-11-12 · After the calendar is created, Operaciones owns the maintenance visits
