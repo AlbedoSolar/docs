@@ -128,7 +128,7 @@ data: this repository is public.
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
 | 2026-10-29 | EEFFs financed reports carry maintenance as its own income row and its own CxC CP/LP rows; Pago Total includes maintenance. | In effect | [entry](#e-eeffs-maintenance) |
-| 2026-11-11 | A client contract (leasing or contado) is generated only once the client's four impact answers are given (Sí / No / No sé) and the site has coordinates. "No sé" is an answer; blank is not. | In effect (schema); Lambda pending deploy | [entry](#e-contract-requires-impact-data) |
+| 2026-11-11 | A client contract (leasing or contado) is generated only once the client's four impact answers are given (Sí / No / No sé), the site has coordinates and the project's grid access is Sí / No (added 2026-11-20). "No sé" is an answer; blank is not. Type of energy replaced is inferred from grid access, not typed. | In effect (schema); Lambda pending deploy | [entry](#e-contract-requires-impact-data) |
 
 ### Data conventions and integrations
 
@@ -2292,6 +2292,21 @@ Contract generator `src/contract-readiness.ts` (AlbedoSolar/albedo-automations-i
 Frontend "No sé" option and the missing-data message
 (AlbedoSolar/solar_base_frontend#89). The backlog signed before the rule (39
 clients, 30 sites on 2026-11-11) is filled from the operations spreadsheet.
+
+**Amended 2026-11-20 (Jake): grid access joins the check.**
+`projects.electric_grid_access` becomes a clean Sí / No and is required too.
+It is the one input that decides whether a system displaces grid electricity
+or diesel in the Valuing Impact model (diesel is worth about 2.2× more per
+MWh), so "type of energy replaced" stays **inferred** — no grid access →
+fossil fuel; batteries → grid plus backup (valued the same as grid); else
+grid — rather than typed: the inference cannot be skipped and adds no field,
+and the only fact it needs is grid access. Until then the field was free text
+written only by operations (Sí / Si / si / SI / N/A, 16 signed projects
+blank, counted as grid); the wizard and the project page now ask it. Known
+blind spot: a grid client whose system mainly replaces a diesel generator
+counts as grid; add a field only if sales reports it is common.
+Migration `20261120180000_projects_grid_access_si_no.sql`
+(AlbedoSolar/supabase#98), frontend AlbedoSolar/solar_base_frontend#114.
 
 **Status.** In effect for the schema since 2026-11-11; the generator check
 takes effect when the Lambda is deployed.
