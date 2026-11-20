@@ -129,7 +129,7 @@ data: this repository is public.
 | 2026-07-09 | Rural = site SMOD code 11 or 12, GPS only; no coordinates = Data Pending. | In effect | [entry](#e-rural-gps-only) |
 | 2026-07-24 | Funder marts: origination columns from the original quote, everything else from the current contract. | Decided | [entry](#e-origination-vs-current) |
 | 2026-10-29 | EEFFs financed reports carry maintenance as its own income row and its own CxC CP/LP rows; Pago Total includes maintenance. | In effect | [entry](#e-eeffs-maintenance) |
-| 2026-11-11 | A client contract (leasing or contado) is generated only once the client's four impact answers are given (Sí / No / No sé), the site has coordinates and the project's grid access is Sí / No (added 2026-11-20). "No sé" is an answer; blank is not. Type of energy replaced is inferred from grid access, not typed. | In effect (schema); Lambda pending deploy | [entry](#e-contract-requires-impact-data) |
+| 2026-11-11 | A client contract (leasing or contado) is marked signed (since 2026-11-20; generated, before) only once the client's four impact answers are given (Sí / No / No sé), the site has coordinates and the project's grid access is Sí / No (added 2026-11-20). "No sé" is an answer; blank is not. Type of energy replaced is inferred from grid access, not typed. | In effect (schema); Lambda pending deploy | [entry](#e-contract-requires-impact-data) |
 
 ### Data conventions and integrations
 
@@ -2311,8 +2311,17 @@ counts as grid; add a field only if sales reports it is common.
 Migration `20261120180000_projects_grid_access_si_no.sql`
 (AlbedoSolar/supabase#98), frontend AlbedoSolar/solar_base_frontend#114.
 
-**Status.** In effect for the schema since 2026-11-11; the generator check
-takes effect when the Lambda is deployed.
+**Amended 2026-11-20 (Jake, after the Valuing Impact staff workshop): the
+check moves from generation to signing.** Sales may generate contracts freely,
+including drafts before the data is known; marking a client contract signed
+in SolarBase is refused while anything is missing. Chosen over "warn at
+generation and block at signing" and "block with an admin override",
+accepting that a client who signed on paper cannot be recorded (no payment
+schedule, no billing) until the data is filled. Signing is admin/finances
+only. AlbedoSolar/albedo-automations-infra#696, AlbedoSolar/solar_base_frontend#115.
+
+**Status.** Schema in effect since 2026-11-11; the check ran at generation
+from 2026-11-20 15:16 UTC and moves to signing when #696 is deployed.
 
 <a id="e-maintenance-editable"></a>
 ### 2026-11-12 · After the calendar is created, Operaciones owns the maintenance visits
